@@ -1,6 +1,6 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-06, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-11, for whoever picks it up next. Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -78,7 +78,10 @@ the "Rust checks" job in [`ci.yml`](../.github/workflows/ci.yml) before a pull
 request. A change to a balance package's WASM bumps its version and commits
 the spkg from the job's `packages` artifact in the same pull request.
 `substreams pack` also embeds the three balance packages' READMEs, so a README
-edit changes their spkgs but not their module hashes.
+edit changes their spkgs but not their module hashes. `make pack` writes
+straight into `spkg/`; on a host other than CI's Linux it overwrites the
+committed spkg with other module hashes, so restore it with
+`git checkout -- spkg/`.
 
 ## History
 
@@ -110,33 +113,43 @@ under the roadmap
 the path to production:
 
 - [#124](https://github.com/pinax-network/substreams-evm-extended/issues/124):
-  qualify the balance packages on BSC, then cut Token API over to
-  `evm-balances`. Every live step needs the owner's OK.
+  qualify the balance packages above on BSC, then cut Token API over to
+  `evm-balances`. Every live step needs the owner's OK. The offline
+  preconditions are met apart from the BSC reader release (#116).
 - [#116](https://github.com/pinax-network/substreams-evm-extended/issues/116):
-  BSC producer drift under firehose-tracer 5.5.0. The erc20 read policy
-  landed in PR #137; the infra facts are open.
-- [#120](https://github.com/pinax-network/substreams-evm-extended/issues/120):
-  the sink fixes are released in
-  [substreams-sink-sql v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0)
-  (commit `933a187`), the sink `evm-balances` supports
-  ([README](../evm-balances/README.md#build-and-deploy)).
+  BSC producer drift under firehose-tracer 5.5.0. The erc20 read policy (P2)
+  and truncation guard landed in PR #137. Open: the reader release and height
+  from infra, truncation in `evm/executions` (owner decision), `Call` fields
+  35/36 once a substreams-ethereum release has them (0.12.0 does not), and
+  the rows-per-block alert in ops (the query is in the
+  [`evm-balances` README](../evm-balances/README.md)).
+- [#117](https://github.com/pinax-network/substreams-evm-extended/issues/117):
+  per-network start heights, a producer and tracer record per network, and
+  the endpoint identity check in the `evm-balances` README. BSC keeps no
+  `networks:` entry and starts at 0 (owner, 2026-10-06).
 - [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7):
-  the [cutover contract](initialization-and-completeness.md) (RPC-era
-  backfill, stale pairs, replay duplicates, sink completeness) and its checks
-  are written; the cold-start decision (#8) and the live checks (#124 B2)
-  remain.
-- [#122](https://github.com/pinax-network/substreams-evm-extended/issues/122):
-  the release flow (PR #140).
-  [`native-balances-v0.2.1`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/native-balances-v0.2.1)
-  and
-  [`erc20-balances-v0.4.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/erc20-balances-v0.4.0)
-  are released (2026-10-06); `evm-balances-v0.6.0` follows the #120 sink
-  checks. Releases are not live qualification.
+  the [cutover contract](initialization-and-completeness.md) and its offline
+  checks are done (PR #144); the cold start per network (#8) and the live
+  checks during #124 B2 remain.
 - [#123](https://github.com/pinax-network/substreams-evm-extended/issues/123):
-  how Token API treats wrong computed balances and stale RPC-era pairs.
+  how Token API treats wrong computed balances and stale RPC-era pairs,
+  decided before #124 B3.
 - [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8):
   the networks epic, with one issue per network.
 
-Upstream proposals for a deterministic `db_out` composite-key order:
+Done on 2026-10-06: the Rust 1.99.0 hash batch (#118), the "Package hashes"
+CI job (#119), the sink pin
+[substreams-sink-sql v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0),
+commit `933a187` (#120, [README](../evm-balances/README.md#build-and-deploy)),
+and the release flow (#122):
+[`native-balances-v0.2.1`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/native-balances-v0.2.1),
+[`erc20-balances-v0.4.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/erc20-balances-v0.4.0)
+and
+[`evm-balances-v0.6.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/evm-balances-v0.6.0)
+are released. Releases are not live qualification.
+
+Upstream, open: deterministic spkg packing,
+[streamingfast/substreams#978](https://github.com/streamingfast/substreams/pull/978);
+a deterministic `db_out` composite-key order,
 [anthropics/buffa#574](https://github.com/anthropics/buffa/issues/574) and
 [streamingfast/substreams-sink-database-changes#14](https://github.com/streamingfast/substreams-sink-database-changes/issues/14).

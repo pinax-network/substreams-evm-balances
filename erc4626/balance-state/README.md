@@ -15,7 +15,8 @@ EIP-4626 fixes interface semantics only: `convertTo*` round down and may be
 inexact, `preview*` include fees, `max*` include limits. A standard interface
 implies neither a storage layout nor a `totalAssets` implementation, so each
 vault binds to one model and one implementation, and the consumer evaluates
-with [`conformance::erc4626`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/erc4626.rs). A historical
+with the models of the former [`conformance::erc4626`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/erc4626.rs)
+(removed with the host tools on 2026-10-03). A historical
 Deposit/Withdraw ratio is never a conversion.
 
 ## Models and their dependency rows
@@ -215,9 +216,9 @@ frames and failed transactions never contribute, per the shared
 ## Validation
 
 ```sh
-cargo test -p erc4626-balance-state
-cargo clippy -p erc4626-balance-state --all-targets -- -D warnings
-cargo check -p erc4626-balance-state --target wasm32-unknown-unknown
+cargo test --locked -p erc4626-balance-state
+cargo clippy --locked -p erc4626-balance-state --all-targets -- -D warnings
+cargo check --locked -p erc4626-balance-state --target wasm32-unknown-unknown
 make -C erc4626/balance-state build
 ```
 
@@ -228,12 +229,12 @@ every invalidation, binding rows with depth, reverts, ties, discontinuities
 and parameter refusals, plus equal-value/restored vault and Pool pointer writes,
 shared-Pool attribution and deterministic evidence, reward-token array pushes,
 two-level allowance keys, a reverted child frame and a complete OpenZeppelin
-initializing block (Initializable word, long name, namespace words). `conformance::erc4626` tests cover floor/ceil
+initializing block (Initializable word, long name, namespace words). The `conformance::erc4626` tests (at `6dade89`) covered floor/ceil
 rounding, zero supply with and without offset, `rpow` half-up rounding and
-overflow, paused-reserve `maxWithdraw`, and uint256 overflow. OZ regression
-tests execute 1,224 conversion/preview calls against compiled pinned Solidity
+overflow, paused-reserve `maxWithdraw`, and uint256 overflow. Its OZ regression
+tests executed 1,224 conversion/preview calls against compiled pinned Solidity
 using an offline Rust interpreter; see [oracle provenance and regeneration](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/fixtures/oz-v5-oracle.md).
-This covers fullprecision results, checked additions/offsets, and ceil overflow.
+This covered full-precision results, checked additions/offsets, and ceil overflow.
 It does not supply missing withdrawal-limit/liquidity inputs or qualify any
 deployed runtime or newly built package. See issue
 [#24](https://github.com/pinax-network/substreams-evm-extended/issues/24).

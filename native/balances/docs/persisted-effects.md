@@ -104,7 +104,8 @@ drop no-op balance records, so version 4 and 5 blocks reduce identically.
 
 ## Saved-data replay
 
-Reports produced by `native-balances-tools replay` over the locally retained
+Reports produced by `native-balances-tools replay` (a host tool, removed on
+2026-10-03; at `6dade89`) over the locally retained
 Extended block captures (the ERC-20 campaign's cache under
 `erc20/balances/out/`, ignored by git) plus the committed block 122260950:
 
@@ -157,13 +158,17 @@ then initializes 14,172 tracked accounts at block 123548069 and applies
 [123548070, 123548370), with 56,688 matching comparisons across four
 checkpoints. Accounts outside that tracked set remain unknown.
 
-- Verify native-sink publication and its complete clock chain, and exercise
-  live `BlockUndoSignal` handling under
-  [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7).
-  The checkpoint run used final blocks; it does not qualify live reorgs.
+- Sink publication is the `evm-balances` path: its completeness checks and
+  `--final-blocks-only` rule are in the
+  [cutover contract](../../../docs/initialization-and-completeness.md) (#7),
+  and run live during
+  [#124](https://github.com/pinax-network/substreams-evm-extended/issues/124)
+  B2. Final blocks only means no live reorg handling is needed or qualified.
 - Qualify the unobserved genesis, reward, DAO, withdrawal, lifecycle and
-  chain-specific fee/mint/burn cases in the matrices above under
-  [#17](https://github.com/pinax-network/substreams-evm-extended/issues/17).
+  chain-specific fee/mint/burn cases in the matrices above: on BSC in the
+  #124 A3b reason census, elsewhere per network under
+  [#125](https://github.com/pinax-network/substreams-evm-extended/issues/125)
+  and [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
 - Add per-network producer/fork fixtures, package controls and asset identity
   under [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
   The recorded BSC results do not qualify other networks or package digests.

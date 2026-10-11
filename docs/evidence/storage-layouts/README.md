@@ -15,7 +15,7 @@ regular storage are kept with empty tables. Lido (`solc 0.4.24`, no
 | `compound-protocol-2019@f385d719.json` | `CToken`, `CErc20`, `CEther`, `WhitePaperInterestRateModel` (the deployed cUSDC and cETH; `_guardCounter` at slot 0) | compound-finance/compound-protocol `f385d719…` (initial public tree; solc 0.5.17 standard-JSON `storageLayout`, captured 2026-09-22) | same |
 | `compound-protocol-legacy-jump@4caf72a1.json` | `LegacyJumpRateModelV2`, `BaseJumpRateModelV2` (cUSDC's `IRM_USDC_Updateable`) | compound-finance/compound-protocol `4caf72a1…` (solc 0.5.17, captured 2026-09-22) | same |
 | `sdai@66587976.json` | `SavingsDai` | sky-ecosystem/sdai `66587976…` | `erc4626/balance-state/tests/storage_layout.rs` |
-| `dss-pot@….json` | `Pot` | makerdao/dss master at capture | same |
+| `dss-pot@fa4f6630.json` | `Pot` | makerdao/dss master at capture | same |
 | `static-a-token-v3@101f5d97.json` | `StaticATokenLM` | bgd-labs/static-a-token-v3 `101f5d97…` (solc 0.8.20 because `ECDSA.sol` requires `^0.8.20`) | same |
 | `openzeppelin-upgradeable@v5.0.0.json` | `ERC4626Harness is ERC4626Upgradeable` + the ERC-7201 namespace constants | OpenZeppelin/openzeppelin-contracts-upgradeable v5.0.0 | same |
 | `aave-v3-origin@8305565a.json` | `ATokenInstance`, `PoolInstance` | aave-dao/aave-v3-origin `8305565a…` with solidity-utils `21dafc37…`, OpenZeppelin upgradeable `fa525310…` and contracts `69c8def5…` (solc 0.8.27, captured 2026-09-22) | `aave/balance-state/tests/storage_layout.rs` |
