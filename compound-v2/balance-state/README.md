@@ -12,8 +12,8 @@ all of them without computing any:
 | `exchangeRateStored` conversion | `(cash + totalBorrows - totalReserves) * 1e18 / totalSupply`, or `initialExchangeRateMantissa` when supply is zero | `GlobalState` market words + cash |
 | `balanceOfUnderlying` | shares times the exchange rate **after** `accrueInterest`, which needs the rate model, the accrual block and the block clock | the above + rate-model rows |
 
-The consumer evaluates with [`conformance::compound_v2`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/compound_v2.rs)
-at a canonical block clock: `accrue_with` reproduces the block-delta,
+The consumer evaluates with the formulas of the former [`conformance::compound_v2`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/compound_v2.rs)
+(removed with the host tools on 2026-10-03) at a canonical block clock: `accrue_with` reproduces the block-delta,
 borrow-rate, truncation and ordering of the bound cToken revision
 (`CTokenRevision::Legacy2019` for the 2019 cUSDC/cETH: borrow-rate cap 5e14
 checked before the block delta; `Current` for the 0.8.10 tree: cap 5e12) and
@@ -152,9 +152,9 @@ Reverted frames and failed transactions never contribute, per the shared
 ## Validation
 
 ```sh
-cargo test -p compound-v2-balance-state
-cargo clippy -p compound-v2-balance-state --all-targets -- -D warnings
-cargo check -p compound-v2-balance-state --target wasm32-unknown-unknown
+cargo test --locked -p compound-v2-balance-state
+cargo clippy --locked -p compound-v2-balance-state --all-targets -- -D warnings
+cargo check --locked -p compound-v2-balance-state --target wasm32-unknown-unknown
 make -C compound-v2/balance-state build
 ```
 
@@ -165,7 +165,7 @@ slot writes and per-year constants, each invalidation with its evidence, the
 epoch ending at an in-block upgrade, delegator binding and implementation
 code changes, a share write without its preimage, reviewed struct and
 nested-mapping members, reverts, failed transactions, ties, discontinuities
-and every parameter refusal. `conformance::compound_v2` has exact vectors
+and every parameter refusal. `conformance::compound_v2` (at `6dade89`) had exact vectors
 computed outside the crate for accrual over one and ten blocks, the kink and
 jump branches, both borrow-rate caps and the 2019 WhitePaper rate. There is no captured-block
 replay for this package yet; see issue

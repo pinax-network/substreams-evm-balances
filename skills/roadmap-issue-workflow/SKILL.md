@@ -14,17 +14,25 @@ description: How roadmap issues in pinax-network/substreams-evm-extended move fr
    [`AGENTS.md`](../../AGENTS.md#evidence); historical reports do not authorize
    a new live run, and the `dex/pool-state` hold stays separate.
 2. **Branch from a fresh main** (`git checkout main && git pull`) with a short
-   kebab-case branch name. Another agent commits on `codex/*` branches; pull
-   before branching and never rebase their work.
+   kebab-case branch name (`claude/<topic>` for Claude sessions). Other
+   agents may have branches open; pull before branching and never rebase
+   their work.
 3. **Implement** following `skills/balance-state-package` (or the package's own
    README for other kinds). Add package code only, no host tool crates; keep
    regression tests in the package crate and the map handler behind
    `#[cfg(target_arch = "wasm32")] mod handler`. Verify ad hoc and report the
    method and results in the PR.
-4. **Validate** exactly what CI runs:
+4. **Validate** exactly what CI's "Rust checks" job runs
+   ([`ci.yml`](../../.github/workflows/ci.yml)):
    `cargo fmt --all -- --check`, `cargo test --locked --workspace --lib --bins --tests`,
    `cargo clippy --locked --workspace --all-targets -- -D warnings`,
-   `cargo check --locked --workspace --target wasm32-unknown-unknown`.
+   `cargo clippy --locked --workspace --target wasm32-unknown-unknown -- -D warnings`,
+   `cargo check --locked --workspace --target wasm32-unknown-unknown` and
+   rustdoc with `RUSTDOCFLAGS="-D warnings"` on the host and wasm32. A change
+   to a balance package's WASM also bumps its version and commits the spkg
+   from the "Package hashes" job's `packages` artifact
+   ([`AGENTS.md` (Validation)](../../AGENTS.md#validation)); never commit a
+   local pack.
    Keep Cargo build output local to each checkout. Do not share
    `CARGO_TARGET_DIR` between worktrees: cached workspace binaries can be reused
    against the wrong source. For isolated validation, use a fresh target under
@@ -38,9 +46,9 @@ description: How roadmap issues in pinax-network/substreams-evm-extended move fr
 6. **Open the PR** with a Summary, Limits (what is synthetic/inferred/
    placeholder) and Validation section, ending with the generator footer.
 7. **Merge**: auto-merge is disabled. Poll
-   `gh pr checks N` (tab-separated; `awk -F'\t' '{print $2}'`) until the
-   single "Rust checks" job passes, then `gh pr merge N --merge`. A background
-   loop with a 30 s sleep works.
+   `gh pr checks N` (tab-separated; `awk -F'\t' '{print $2}'`) until every
+   check passes ("Rust checks" and "Package hashes"), then
+   `gh pr merge N --merge`. A background loop with a 30 s sleep works.
 8. **Comment on the issue** with two lists: done offline (with the PR number)
    and still open / live-gated. Close the issue only when nothing live-gated
    remains; otherwise leave it open. Keep the roadmap issue #21 table

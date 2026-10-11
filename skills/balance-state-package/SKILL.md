@@ -128,7 +128,8 @@ writes that reduce to `old == new` and must be reviewed. Read the pinned source 
 - successors: reordered and nonconsecutive schedules, exact start/end effects,
   changed layouts/dependencies, same-value pointer and code triggers, shared
   dependencies, ordinary-noop continuity, discarded prefixes, cold versus zero,
-  fresh constants, quiet heartbeats, max ordinals, and undo/checkpoint replay
+  fresh constants, quiet heartbeats and max ordinals (undo/checkpoint replay
+  belonged to the host ledger removed on 2026-10-03)
 
 ## Validation
 
@@ -136,8 +137,12 @@ writes that reduce to `old == new` and must be reviewed. Read the pinned source 
 cargo fmt --all -- --check
 cargo test --locked --workspace --lib --bins --tests
 cargo clippy --locked --workspace --all-targets -- -D warnings   # rustdoc lints count
+cargo clippy --locked --workspace --target wasm32-unknown-unknown -- -D warnings
 cargo check --locked --workspace --target wasm32-unknown-unknown
+RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --workspace
 ```
+
+CI also runs rustdoc for wasm32 ([`ci.yml`](../../.github/workflows/ci.yml)).
 
 ## Review checklist (the four dimensions used on 2026-09-21)
 

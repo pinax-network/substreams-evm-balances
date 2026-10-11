@@ -4,8 +4,9 @@ A single RPC-free `map_events` reads Firehose Extended blocks and emits
 **`evm.balance_state.v1.Events`** ([contract](../../docs/balance-state-contract.md))
 for explicitly qualified Aave V3 aToken epochs. It does not emit
 `evm.balances.v1`; the aToken's observable `balanceOf` is evaluated by the
-consumer from the rows below at a canonical block clock, using the exact
-model in [`conformance::aave`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/aave.rs).
+consumer from the rows below at a canonical block clock, with the exact
+model of the former [`conformance::aave`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/aave.rs)
+(removed with the host tools on 2026-10-03).
 
 ## What is emitted
 
@@ -136,10 +137,10 @@ Reverted frames and failed transactions never produce rows
   a withdrawal, and one holder touching aBnbUSDT and aBnbUSDC with both
   reserves updating; plus synthetic cases for continuity, reverted frames,
   pointer writes, code changes, unrelated Pool writes and parameter guards.
-- `conformance::aave` reproduces every captured reserve index update exactly
-  from the previous index, rate and clock, and shows that floor instead of
-  half-up already diverges for some of them.
-- The replay tool (`tools/`) projected 1,433 saved producer-version-5 BSC
+- `conformance::aave` (at `6dade89`) reproduced every captured reserve index
+  update exactly from the previous index, rate and clock, and showed that
+  floor instead of half-up already diverges for some of them.
+- The replay tool (`tools/`, at `6dade89`) projected 1,433 saved producer-version-5 BSC
   blocks ([report](docs/evidence/replay-bsc-v5.json)): 0 projection errors,
   1,380 clock links, 14 cross-block global continuity checks and 6 stored
   index writes reproduced by the model with 0 mismatches, 4 holder rows for 3

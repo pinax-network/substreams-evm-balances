@@ -5,7 +5,7 @@ description: How to upgrade a balance-state fixture's inferred storage slots to 
 
 # Storage-layout verification with solc
 
-Executed once on 2026-09-21 (see `docs/evidence/storage-layouts/README.md`);
+Executed on 2026-09-21 and 2026-09-22 (see `docs/evidence/storage-layouts/README.md`);
 follow these steps again when a pin changes. Practical notes from that run:
 `solc-select` via `pipx run solc-select install <versions>` fetches the
 macOS binaries (Rosetta on arm64); for OpenZeppelin use the repo remappings
@@ -41,16 +41,17 @@ pins, and what "verified" cannot mean without live access).
 5. Save the artifact under `docs/evidence/storage-layouts/<Contract>@<commit>.json`
    (raw solc output plus a header with repo, commit, solc version, sha256,
    command line, date).
-6. Add a host-only Rust test in the package (`tests/layout.rs`, `#![cfg(not(target_arch = "wasm32"))]`)
+6. Add a host-only Rust test in the package (`tests/storage_layout.rs`, `#![cfg(not(target_arch = "wasm32"))]`)
    that parses the fixture and the layout JSON and asserts every fixture slot,
    mapping base and bit range (`offset*8`, width from type) against it.
 7. Update the provenance table level to **compiler-verified** and the package
    README; leave code hash and activation block as live-gated.
 
-## Contract list (from the provenance page)
+## Contract list
 
-Comet `CometWithExtendedAssetList` @ `f766f515…`; Compound `CErc20Delegator`,
-`CErc20Immutable`/`CErc20`, `CEther`, `JumpRateModelV2` @ `a3214f67…`;
-`StaticATokenLM` @ `101f5d97…` (submodules); `SavingsDai` @ `66587976…`;
-`Pot` (makerdao/dss); OpenZeppelin `ERC4626Upgradeable` v5.0.0 via a harness;
-Lido `Lido.sol` @ `2da0f48f…` with `@aragon/os@4.4.0` (AST method).
+The table in
+[`docs/evidence/storage-layouts/README.md`](../../docs/evidence/storage-layouts/README.md)
+is the list: every pinned source, its compiler and the test that checks it.
+It includes the 2019 compound-protocol tree `f385d719…` that the deployed
+cUSDC and cETH run, cUSDC's legacy jump rate model `4caf72a1…`, Aave
+`8305565a…` and FiatToken v2.2.0, beside the current-tree sources.

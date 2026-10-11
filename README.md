@@ -40,7 +40,10 @@ Picking this up? Start with [`docs/handoff.md`](docs/handoff.md) (package
 status, hashes and open work; the dated record is under `docs/history/`) and
 the procedures in [`skills/`](skills/README.md).
 
-The shared schema stays in the repository-root `proto/` crate:
+## Layout
+
+The schemas stay in the repository-root `proto/` crate, so every package
+shares one protobuf contract without copying generated types:
 
 - `proto/v1/balances.proto`: canonical balance schema.
 - `proto/v1/balance_state.proto`: versioned holder/global balance-state
@@ -50,7 +53,11 @@ The shared schema stays in the repository-root `proto/` crate:
 - `proto/v1/aave_actions.proto`: Aave lending-action evidence schema (`aave/actions`).
 - `proto/v1/dex-pool-state.proto` and `proto/v1/dex/`: wire-compatible V2/V3 closing-state messages (`dex/pool-state`), without unrelated ABI event projections.
 - `proto/src/pb/`: shared generated Rust types (buffa, from `buf generate` in `proto/`).
+
+Shared crates and packages:
+
 - `common/persist/`: shared persisted-effect rules for Extended blocks.
+- `common/epochs/`: epoch-schedule helper for the protocol balance-state packages.
 - `erc20/balances/`: Extended-block ERC-20 balance module.
 - `erc20/events/`: standard ERC-20 Transfer and Approval log evidence.
 - `native/balances/`: Extended-block native balance module.
@@ -64,8 +71,11 @@ The shared schema stays in the repository-root `proto/` crate:
 - `evm/executions/`: call trees, logs, code changes and SetCode authorizations.
 - [`dex/pool-state/`](dex/pool-state/README.md): one RPC-free `map_events` for complete Extended-block V2 reserves and ordered V3 changes; no price or pool-admission policy.
 
-Keeping the schema separate from the module gives future Extended modules the
-same protobuf contract without copying generated types.
+Each map's handler wraps a plain Rust function (for example
+`native_balances::project`, `erc20_balances::run`,
+`erc20_events::project`, `dex_pool_state::project`), so host programs can
+run the same projection on decoded Extended blocks without the Substreams
+runtime.
 
 Generic pool-state extraction is maintained in `dex/pool-state`; contract ABI
 sources and generated event structs remain in `substreams-abis`. With the
@@ -86,8 +96,13 @@ packages also requires the Substreams CLI.
 
 ```sh
 cargo test --workspace --lib --bins --tests --locked
-make -C erc20/balances pack
+make -C erc20/balances build
 ```
+
+`make pack` writes into `spkg/`. Only CI's Linux build gives the committed
+module hashes, so a local pack on another host changes the committed spkg;
+restore it with `git checkout -- spkg/` and take spkgs from CI
+([`AGENTS.md` (Validation)](AGENTS.md#validation)).
 
 The repository holds package code only; regression tests are Rust, inside the
 package crates. The host tools that produced the qualification evidence

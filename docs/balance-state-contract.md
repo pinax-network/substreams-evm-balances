@@ -34,8 +34,9 @@ formulas recorded in [extraction coverage](extraction-coverage.md).
 
 ## Tables
 
-Every top-level repeated field of `Events` becomes one table in the native
-Substreams ClickHouse sink. Rows are flat: no nested messages, repeated
+Every top-level repeated field of `Events` becomes one table in a native
+Substreams ClickHouse sink. That sink is external: `evm-balances`, this
+repository's only `db_out`, does not import the protocol packages. Rows are flat: no nested messages, repeated
 fields, `oneof` or `optional` inside a row.
 
 | Table | Rows per block | Natural key in the block | Purpose |
@@ -122,15 +123,17 @@ extractors (package 0.2.0; Aave spec 3, Compound v2/Comet/ERC-4626 spec 4, Lido
 spec 5) require new artifact qualification. Saved replay/live evidence remains
 bound to its historical package and initialized-holder interval.
 
-The host retention consumers validate positive, ordered emitted observation
-spans against their epoch's activation, actual successor BOUND and any
-current-block invalidation cutoff. CHANGE rows identify one effect; a final
+The host retention consumers (removed with the host tools on 2026-10-03; at
+[`6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention))
+validated positive, ordered emitted observation spans against their epoch's
+activation, actual successor BOUND and any current-block invalidation cutoff.
+A consumer should keep these checks. CHANGE rows identify one effect; a final
 global companion must cover its intermediate write positions. Constants match
 their declaration positions with no write count. This validation includes
 rows discarded by later selection. It does not qualify model metadata or
 qualify configured successor epochs or their deployed runtimes.
 
-The host consumer retains a narrow compatibility path for older producers:
+That host consumer kept a narrow compatibility path for older producers:
 valid pre-cutoff prefixes may be quarantined or discarded by a successor,
 and later-block output of an already-suspended epoch remains unavailable.
 Neither can repair an observation gap. This does not relax the current
@@ -158,18 +161,19 @@ a heartbeat let a consumer joining mid-stream recover bindings without a
 competing bootstrap. Because a map keeps no state across blocks, a heartbeat
 restates the configured binding even after that epoch was `INVALIDATED`; it
 never resumes an invalidated epoch, and a consumer joining mid-stream reads
-the epoch's stored rows since `activation_block` before trusting one. Activation blocks are unknown today
-([open questions](extraction-coverage.md#6-open-questions)); until bound, a
-market is `SUSPENDED` with `INVALIDATION_REASON_UNQUALIFIED_ERA`.
+the epoch's stored rows since `activation_block` before trusting one. Where an
+activation block is not yet bound
+([open questions](extraction-coverage.md#6-open-questions)), the market is
+`SUSPENDED` with `INVALIDATION_REASON_UNQUALIFIED_ERA`.
 
 Carryover flags establish storage compatibility only; they cannot repair an
 observation gap. After `INVALIDATED` or `SUSPENDED`, the next `BOUND` drops
 retained holder basis even if `basis_carryover = true`. Fresh observations
 under the new epoch or an independently verified checkpoint must establish
 it again. The same continuity requirement applies to retained global
-observations. `common/retention` keeps suspended raw entries only for undo,
-never for evaluation, and journals the drop so undo restores both entries and
-epoch/suspension state. Uninterrupted compatible bindings may carry basis.
+observations. The former host ledger (`common/retention`) kept suspended raw
+entries only for undo, never for evaluation, and journaled the drop so undo
+restored both entries and epoch/suspension state. Uninterrupted compatible bindings may carry basis.
 
 **Activation position and pointer writes.** Every balance-state package
 accepts an optional `activation_ordinal` beside `activation_block`
@@ -180,7 +184,7 @@ including the upgrade write that installs the epoch's implementation, belong
 to the previous epoch and are neither decoded nor counted as invalidating the
 new one. The BOUND row states `activation_ordinal` and uses it as its
 `ordinal`, so a consumer that applies a block's epoch rows in `(ordinal, kind)`
-order (as `common/retention` does) processes the previous epoch's
+order (as the former `common/retention` did) processes the previous epoch's
 `INVALIDATED` row first and ends the block bound.
 
 On the activation block the interpretation interval is half-open:
@@ -215,9 +219,10 @@ or a restored pointer does not prove that an earlier invalidation was safe;
 consumers must retain the suspension until a qualified newer epoch is bound.
 The synthetic projector-to-ledger tests in
 [`common/retention/tests/projector_invalidation.rs`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs)
-exercise all five packages, row counts, restored/equal-value pointers, unknown
-writes on both sides, shared code dependencies, suspension, successor binding,
-undo and replacement blocks. They do not qualify any runtime or package live.
+(at `6dade89`) exercised all five packages, row counts, restored/equal-value
+pointers, unknown writes on both sides, shared code dependencies, suspension,
+successor binding, undo and replacement blocks. They did not qualify any
+runtime or package live.
 
 **Evaluation at a selected clock.** To value a holder at block N, a consumer
 takes the holder's latest `HolderBasis` at or before N, the latest observed or
@@ -225,8 +230,10 @@ constant `GlobalState` per `(market, field, key)` at or before N under the same
 epoch (a `DERIVED` row is valid at its own block only and is re-derived from
 those inputs, never carried forward),
 the `BlockClock` of N for `timestamp` and `number`, and applies the epoch's
-formula from the Rust conformance model
-([#16](https://github.com/pinax-network/substreams-evm-extended/issues/16)):
+formula ([extraction coverage §3](extraction-coverage.md#3-initial-protocol-markets-implementations-and-epochs);
+the Rust conformance models of
+[#16](https://github.com/pinax-network/substreams-evm-extended/issues/16) are
+at `6dade89`):
 
 | Family | Holder basis | Global fields | Clock input |
 | --- | --- | --- | --- |
@@ -237,7 +244,7 @@ formula from the Rust conformance model
 | ERC-4626 | `SHARES` | the dependency family's fields (`MAKER_POT_*`, `AAVE_*`) or `ERC4626_*` for virtual-offset vaults | as the dependency requires |
 
 Stored conversion, projected conversion, observable balance and withdrawable
-claim are different metrics; the schema carries inputs, the conformance model
+claim are different metrics; the schema carries inputs, the consumer's model
 names the metric. Debt balances and collateral positions are deferred scopes
 and are never reported as supply balances.
 
@@ -280,8 +287,8 @@ the stable contract.
    beside v1. A getter that changes rounding or inputs is a new epoch
    (`ModelEpoch`), not a schema change. `BlockClock.spec_revision`
    increments when emission rules change without a wire change.
-5. `buf lint` passes; `buf breaking --against` the main branch is the CI gate
-   to add with the first companion package.
+5. `buf lint` passes. A `buf breaking --against` the main branch CI gate was
+   planned with the first companion package and is not in CI yet.
 
 ## Fixtures
 

@@ -10,11 +10,13 @@ pushed commit.
 
 ## Workspace boundary
 
-The new workspace contains three crates: `proto`, `erc20/balances`
+At migration the workspace held three crates: `proto`, `erc20/balances`
 and its Rust diagnostic tools. The original directory depth is retained so
 captured fixtures, report links and audit commands keep their paths.
 Unrelated protocol modules, `common`, database-change dependencies, `db_out`
-modules and custom database sinks are not part of this workspace.
+modules and custom database sinks were not migrated. The workspace has since
+grown to the packages in the [README](../README.md#layout); the tools were
+removed on 2026-10-03, and `evm-balances` (2026-10-05) is its one `db_out`.
 
 The canonical RPC reference is retained as an immutable standalone SPKG; its
 dependencies are embedded. Its source modules do not need to be copied here.
@@ -75,10 +77,11 @@ build and package generation passed.
 Formatting, Clippy, WASM checking and native-sink results are recorded with
 the final migration evidence.
 
-The current source passes 406 offline Rust tests, formatting, Clippy with
-warnings denied, and the workspace WASM check. The source additions have not
-been repackaged or given fresh live qualification. See the
-[follow-up tracker](follow-up.md) for the remaining work.
+When this section was written, the layout-path source passed 406 offline
+Rust tests, formatting, Clippy with warnings denied, and the workspace WASM
+check; those source additions were not repackaged or given fresh live
+qualification. The package is now inference only; its status is in
+[`handoff.md`](handoff.md).
 
 The opt-in [enumerable role-set rule](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/enumerable-role-sets.md)
 has independent offline operation regressions. It does not change historical
@@ -104,9 +107,9 @@ work remains explicitly tracked by the migrated reports.
 
 ## Module rename
 
-The module now lives at `erc20/balances`, with Cargo crates `erc20-balances`
-and `erc20-balances-tools`, Substreams package name `erc20_balances`, and WASM
-filename `erc20_balances.wasm`. The schema stays in repository-root `proto/`;
+The module now lives at `erc20/balances`, with Cargo crate `erc20-balances`
+(its `erc20-balances-tools` crate was removed on 2026-10-03), Substreams
+package name `erc20_balances`, and WASM filename `erc20_balances.wasm`. The schema stays in repository-root `proto/`;
 its wire types, field numbers, generated Rust types and namespace are unchanged.
 
 Layout-package builds targeted `spkg/erc20-balances-v0.1.0.spkg`. Its first build

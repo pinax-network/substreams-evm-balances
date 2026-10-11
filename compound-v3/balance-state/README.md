@@ -5,7 +5,8 @@ A single RPC-free `map_events` reads Firehose Extended blocks and emits
 for explicitly qualified Compound III (Comet) market epochs. It does not
 emit `evm.balances.v1`; the market's observable `balanceOf` / `borrowBalanceOf`
 is evaluated by the consumer from the rows below at a canonical block clock,
-using the exact model in [`conformance::comet`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/comet.rs).
+with the exact model of the former [`conformance::comet`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/comet.rs)
+(removed with the host tools on 2026-10-03).
 
 ## What is emitted
 
@@ -137,9 +138,9 @@ Reverted frames and failed transactions never contribute, per the shared
 ## Validation
 
 ```sh
-cargo test -p compound-v3-balance-state
-cargo clippy -p compound-v3-balance-state --all-targets -- -D warnings
-cargo check -p compound-v3-balance-state --target wasm32-unknown-unknown
+cargo test --locked -p compound-v3-balance-state
+cargo clippy --locked -p compound-v3-balance-state --all-targets -- -D warnings
+cargo check --locked -p compound-v3-balance-state --target wasm32-unknown-unknown
 make -C compound-v3/balance-state build
 ```
 

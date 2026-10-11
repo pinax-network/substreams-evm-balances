@@ -29,9 +29,12 @@ official source are listed as open questions rather than filled in.
 
 Sources: BNB Chain docs and `bnb-chain/bsc@c5533ab5b724` (`params/config.go`, `consensus/parlia/parlia.go`, `core/state_transition.go`), BEP-126; ethereum.org PoS docs and `ethereum/execution-apis@465d1b98d43e`; Optimism specs and Base docs, `base/base@d8a2a42398cc`; Hyperliquid docs (HyperEVM, dual-block architecture, HyperCore↔HyperEVM transfers); Arc docs (`connect-to-arc`, `stablecoin-native-model`, `consensus-layer`, `evm-differences`); The Graph Networks Registry v0.7.122; Substreams chains-and-endpoints page. Endpoint hostnames are recorded from documentation only; none was contacted.
 
-The requested list is these five networks. [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8)
-names four; BSC is the network with saved evidence. Additional chains need
-explicit confirmation before expanding that task.
+These were the five networks requested on 2026-09-18; BSC is the network
+with saved evidence. The owner's current target list (2026-10-06), which
+adds Optimism, Unichain, Polygon, Arbitrum One, Robinhood Chain and optional
+OP Stack chains and Linea, is in
+[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8), with
+one issue per network.
 
 ### Historical depth
 
@@ -111,8 +114,14 @@ From `sf.ethereum.type.v2` at `streamingfast/firehose-ethereum@9485efe2e6290e525
   changes; it is what the saved BSC captures carry, while its semantics are
   documented only in the Rust tracer releases (`evm-firehose-tracer-rs`
   v5.x) and the unreleased Go tracer line, not yet on the Substreams data
-  model page. Each package lists the versions it accepts explicitly; the
-  block carries no chain id, so the manifest binds the network.
+  model page. The protocol, event and execution packages list the versions
+  they accept in their params; `erc20/balances` accepts 3–5 in code and
+  `native/balances` has no version gate (owner, 2026-10-06). `Block.ver`
+  alone does not identify producer semantics: firehose-tracer 5.5.0 keeps
+  version 5 while filtering Keccak preimages and truncating call data
+  ([#116](https://github.com/pinax-network/substreams-evm-extended/issues/116)).
+  The block carries no chain id, so the manifest, and for the balance
+  packages the operator's endpoint, binds the network.
 - Reason enum through value 20: `REWARD_BLOB_FEE` 17 (BNB), `INCREASE_MINT`
   18 and `REVERT` 19 (Optimism family), `MONAD_TX_POST_STATE` 20. The pinned
   `substreams-ethereum` 0.12.0 bindings name values 0–20 (0.11.1 named 0–16).
@@ -327,7 +336,8 @@ this document.
 - **Ordering**: within a block by execution ordinal (versions 4/5 only); across blocks by the stream clock. Rows inside `Events` are sorted deterministically.
 - **Clock advancement**: every delivered block advances the clock, including blocks with empty output. Consumers must not infer completeness from nonempty rows or sink markers.
 - **Unknown states**: *missing/uninitialized* (no observation since the consumer's checkpoint), *known zero* (an observed zero value), *unsupported model* (layout or version not qualified; the map fails closed), *invalidated dependency* (a pinned implementation, slot or rate model changed; retained state must be rebuilt) and *reverted* (attempted, never persisted) are distinct and are never collapsed into zero. Initialization and checkpoints are shared under [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7).
-- **Native ClickHouse**: the Substreams CLI derives one table per repeated message (`Balance`), keyed `(_block_number_, _row_id_)` in a `ReplacingMergeTree`; optional `contract` is stored as `String`, so native (absent) and ERC-20 (present) rows must be separated by package or table; `_blocks_` lists nonempty-output blocks only; writes are not multi-table transactions and the schema keeps no block hash, so audits bind the sink's rows to independently captured clocks. No custom sink; [`evm-balances`](../evm-balances/README.md) is the one `db_out`, writing the substreams-evm tables from the two balance maps.
+- **Balances in ClickHouse**: [`evm-balances`](../evm-balances/README.md) is the one `db_out`. It writes the two balance maps into the substreams-evm tables (`erc20_balances`, `native_balances`, `blocks` and the history views) through substreams-sink-sql; what a row and its absence mean, replays and completeness are in the [cutover contract](initialization-and-completeness.md). No custom sink.
+- **Other packages in a native sink**: their map outputs stay the contract for external native Substreams sinks. The CLI's ClickHouse sink derives one table per repeated message, keyed `(_block_number_, _row_id_)` in a `ReplacingMergeTree`; `_blocks_` lists nonempty-output blocks only, and writes are not multi-table transactions, so audits bind the sink's rows to independently captured clocks.
 
 ## 6. Open questions
 
@@ -385,7 +395,8 @@ that will close it.
 ## 7. Boundary
 
 Extended-block Substreams extraction only, one RPC-free map per package,
-native Substreams sinks, all tests and diagnostics in Rust. No Token API,
+one `db_out` (`evm-balances`) for the balance tables and native Substreams
+sinks for the other outputs, all tests in Rust. No Token API,
 prices, APY, health factors, portfolio aggregation, RPC fallback service or
 universal labeling. Each live Substreams, Firehose, RPC or sink step needs
 the owner's OK ([live use](../AGENTS.md#evidence)); this document was

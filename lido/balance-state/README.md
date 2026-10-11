@@ -11,8 +11,8 @@ emit `evm.balances.v1`. Three metrics stay distinct:
 | stETH `balanceOf` | `((shares × internalEther) mod 2^256) / internalShares` (version 4 getter, rounded down) | `GlobalState` packed words |
 | redemption / wstETH | separate models (withdrawal-queue NFTs, wstETH units) | not emitted here |
 
-The consumer evaluates with [`conformance::lido`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/lido.rs)
-at a canonical block clock. A `TokenRebased` report changes every holder's
+The consumer evaluates with the model of the former [`conformance::lido`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/lido.rs)
+(removed with the host tools on 2026-10-03) at a canonical block clock. A `TokenRebased` report changes every holder's
 balance without any holder write; the map emits the report's global words and
 the log evidence, never fabricated holder rows. A holder without a row is
 unknown, not zero.
@@ -46,7 +46,8 @@ model ID. A retained holder balance can still be evaluated from those inputs
 because `balanceOf` uses the internal rate directly.
 
 The [compiled source oracle](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/fixtures/lido-oracle/README.md)
-checks these boundaries against pinned functions and actual projector rows.
+(at `6dade89`) checked these boundaries against pinned functions and actual
+projector rows.
 Its inputs and relocated storage are synthetic; it does not establish that
 the extreme packed states are reachable in a deployed Lido instance.
 The pre-V3 slot `keccak256("lido.StETH.totalShares")` is zeroed at migration and
@@ -200,9 +201,9 @@ resolution slots, as required by the `STORAGE_POINTER` binding contract.
 ## Validation
 
 ```sh
-cargo test -p lido-balance-state
-cargo clippy -p lido-balance-state --all-targets -- -D warnings
-cargo check -p lido-balance-state --target wasm32-unknown-unknown
+cargo test --locked -p lido-balance-state
+cargo clippy --locked -p lido-balance-state --all-targets -- -D warnings
+cargo check --locked -p lido-balance-state --target wasm32-unknown-unknown
 make -C lido/balance-state build
 ```
 
