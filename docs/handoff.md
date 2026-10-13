@@ -23,9 +23,9 @@ live-qualified.
 
 | Package | Version and spkg | Module | Module hash | WASM sha256 |
 | --- | --- | --- | --- | --- |
-| [`native/balances`](../native/balances/README.md) | v0.2.1, `spkg/native-balances-v0.2.1.spkg` | `map_events` | `72453949f9227b31dad20f80fabc09774d740d1b` | `d3b6a5497b230d2cd07ae981a41cd6ab802ce2663502b9b635afed4acdd1b790` |
+| [`native/balances`](../native/balances/README.md) | v0.2.2, `spkg/native-balances-v0.2.2.spkg` | `map_events` | `378d27a630f0f2c8589f4396b308edff9c981ffd` | `8fc5a84901b498570efdf8cd54f5a077dc040b07ddc5bffa923016e2e909c235` |
 | [`erc20/balances`](../erc20/balances/README.md) | v0.4.0, `spkg/erc20-balances-v0.4.0.spkg` | `map_events` | `d8a9db86240ca6466270f140798fae0b8db05f7b` | `17a847aa77346058a160553c1fe3f79ab42cc4c0c5de1e0f3997e3a7b28e05d1` |
-| [`evm-balances`](../evm-balances/README.md) | v0.6.0, `spkg/evm-balances-v0.6.0.spkg` | `db_out` | `2710d961971add90e77e9693690a9abba03b1546` | `b8bb73e4c9a01869c9a63657c3d90ba0f193eb15819cf8f86316cab563d4d8d2` |
+| [`evm-balances`](../evm-balances/README.md) | v0.6.1, `spkg/evm-balances-v0.6.1.spkg` | `db_out` | `b3313b50a193a78e295350fc6e83b77d3b0fd5c8` | `1e6520fab2764d445754140aa45081307aa624cc9b86750c8c12ddfb7490eba7` |
 
 - **`native/balances`** takes only the block, with no params. Not qualified.
   The last qualified build is historical: the prost build was live-qualified

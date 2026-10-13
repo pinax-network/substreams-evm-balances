@@ -114,21 +114,23 @@ remains open.
 The new native handler changes its WASM and module hash, and consequently the
 `db_out` module hash and sink cursor key. The v0.1.0 native and v0.4.0 combined
 packages remain as historical artifacts, as do native v0.2.0 and combined
-v0.5.0 (Rust 1.88 builds); use native v0.2.1 and combined v0.6.0.
+v0.5.0 (Rust 1.88 builds), and native v0.2.1 with combined v0.6.0, which refused
+BSC block 127,411,449 on the producer's self-transfer pair; use native v0.2.2
+and combined v0.6.1.
 Build through the Makefiles, for the separate import builds and the root
 `build.mk` remaps. With them the WASMs no longer depend on the checkout
 directory, `CARGO_HOME` or rust-src, but they still depend on the build host:
 a macOS build has other module hashes than a Linux one. CI's "Package hashes"
 job builds the canonical Linux packages; committed spkgs come from its
-artifact. The committed v0.6.0 `db_out` has module `2710d961…` (WASM
-`b8bb73e4…`), with native `72453949…` and erc20 `d8a9db86…`; none is
+artifact. The committed v0.6.1 `db_out` has module `b3313b50…` (WASM
+`1e6520fa…`), with native `378d27a6…` and erc20 `d8a9db86…`; none is
 live-qualified.
 
 ## Build and deploy
 
 ```sh
 cargo test --locked -p evm-balances
-make -C evm-balances pack      # 3 WASMs, clickhouse/schema.sql, spkg/evm-balances-v0.6.0.spkg
+make -C evm-balances pack      # 3 WASMs, clickhouse/schema.sql, spkg/evm-balances-v0.6.1.spkg
 make -C evm-balances install-sink   # the supported substreams-sink-sql, v4.13.0
 export SUBSTREAMS_SINK_DSN='clickhouse://<user>:<password>@<host>:9000/<database>'   # create <database> first
 export SUBSTREAMS_API_KEY=...
@@ -198,13 +200,13 @@ release follows their naming: tag `evm-extended-balances-v<version>`, asset
 | --- | --- |
 | `ASSET` | `evm-extended` |
 | `TYPE` | `balances` |
-| `VERSION` | `v0.6.0` |
+| `VERSION` | `v0.6.1` |
 
 ```
-https://github.com/pinax-network/substreams-evm-extended/releases/download/evm-extended-balances-v0.6.0/evm-extended-clickhouse-balances-v0.6.0.spkg
+https://github.com/pinax-network/substreams-evm-extended/releases/download/evm-extended-balances-v0.6.1/evm-extended-clickhouse-balances-v0.6.1.spkg
 ```
 
-The database is `bsc:evm-extended-balances@v0.6.0`, apart from the RPC-era
+The database is `bsc:evm-extended-balances@v0.6.1`, apart from the RPC-era
 `bsc:evm-balances@v0.3.x`. On BSC, run the sink with the flags of the Token
 API's BSC balances live sink (2026-10-13); other chains use other values, and
 only BSC is documented here:
