@@ -9,3 +9,8 @@ crate-type = ["rlib"]
 
 [dependencies]
 buffa = { workspace = true }
+
+[features]
+default = ["balance-state"]
+# evm.balance_state.v1, for the protocol balance-state packages (src/pb/mod.rs).
+balance-state = []

@@ -1,5 +1,8 @@
 //! A single RPC-free map with the shared ERC-20 Events output: per-block
 //! transfer-guided balances inferred from persisted storage (`src/infer.rs`).
+//! `db_out` writes them into the substreams-evm ClickHouse tables (`db_out`
+//! module).
+pub mod db_out;
 mod infer;
 pub mod persist;
 
@@ -81,5 +84,13 @@ mod handler {
     #[substreams::handlers::map]
     fn map_events(block: eth::Block) -> Result<balances_pb::Events, Error> {
         run(&block)
+    }
+
+    #[substreams::handlers::map]
+    fn db_out(
+        clock: substreams::pb::substreams::Clock,
+        events: balances_pb::Events,
+    ) -> Result<substreams_database_change::pb::sf::substreams::sink::database::v1::DatabaseChanges, Error> {
+        db_out::database_changes(&clock, &events)
     }
 }

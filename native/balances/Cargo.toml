@@ -1,8 +1,8 @@
 [package]
 name = "native-balances"
-description = "RPC-free native account balances from persisted Extended block state, with the shared balances protobuf"
+description = "RPC-free native account balances from persisted Extended block state, with a db_out for the substreams-evm ClickHouse tables"
 edition = { workspace = true }
-version = "0.2.2"
+version = "0.7.0"
 license = { workspace = true }
 
 [lib]
@@ -11,11 +11,15 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 substreams = { workspace = true }
 substreams-ethereum = { workspace = true }
-proto = { path = "../../proto" }
+proto = { path = "../../proto", default-features = false }
 evm-persist = { path = "../../common/persist" }
+# 5.0.0 (buffa, substreams 0.8.0). Upstream substreams-evm uses 3.0.0; the rows
+# are the same, and each Field now also carries update_op = SET (README).
+substreams-database-change = "=5.0.0"
 
 [dev-dependencies]
 serde_json = "1"
 hex = "0.4"
 buffa = { workspace = true }
 buffa-types = { workspace = true }
+sha2 = "0.11"

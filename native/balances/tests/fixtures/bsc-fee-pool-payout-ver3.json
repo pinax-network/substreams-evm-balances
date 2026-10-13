@@ -1,0 +1,416 @@
+{
+ "source": "BSC Firehose (bsc.firehose.pinax.network), fetched 2026-10-13 with firecore tools firehose-single-block-client; values are big-endian hex, enums numeric",
+ "blocks": [
+  {
+   "number": 363,
+   "hash": "abd32259e01f7f37854c0c95ebbeaaf04c18eca5fa059747f693d350b8bc28ed",
+   "ver": 3,
+   "coinbase": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+   "contents": "every balance change",
+   "block_balance_changes": [
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "05e186c0332d80",
+     "new_value": "05e186c0332d80",
+     "ordinal": 17,
+     "reason": 8
+    },
+    {
+     "address": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+     "old_value": "",
+     "new_value": "645e51147a80",
+     "ordinal": 18,
+     "reason": 8
+    },
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "05e186c0332d80",
+     "new_value": "",
+     "ordinal": 27,
+     "reason": 8
+    },
+    {
+     "address": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+     "old_value": "",
+     "new_value": "05e186c0332d80",
+     "ordinal": 28,
+     "reason": 8
+    }
+   ],
+   "transactions": [
+    {
+     "index": 0,
+     "hash": "63ee6d44a3c25ab244d4d47a2de212544a017e79d1a829a294d69f71134a7474",
+     "status": 1,
+     "from": "446aa6e0dc65690403df3f127750da1322941f3e",
+     "to": "0000000000000000000000000000000000001006",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "446aa6e0dc65690403df3f127750da1322941f3e",
+       "address": "0000000000000000000000000000000000001006",
+       "value": "056bc75e2d63100000",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "446aa6e0dc65690403df3f127750da1322941f3e",
+         "old_value": "1b1ae4d6e2ef500000",
+         "new_value": "1b1996e2626e6d0000",
+         "ordinal": 2,
+         "reason": 7
+        },
+        {
+         "address": "446aa6e0dc65690403df3f127750da1322941f3e",
+         "old_value": "1b1996e2626e6d0000",
+         "new_value": "15adcf84350b5d0000",
+         "ordinal": 6,
+         "reason": 5
+        },
+        {
+         "address": "0000000000000000000000000000000000001006",
+         "old_value": "",
+         "new_value": "056bc75e2d63100000",
+         "ordinal": 7,
+         "reason": 5
+        },
+        {
+         "address": "446aa6e0dc65690403df3f127750da1322941f3e",
+         "old_value": "15adcf84350b5d0000",
+         "new_value": "15af1732d07af85800",
+         "ordinal": 14,
+         "reason": 9
+        },
+        {
+         "address": "fffffffffffffffffffffffffffffffffffffffe",
+         "old_value": "",
+         "new_value": "0645e51147a800",
+         "ordinal": 15,
+         "reason": 8
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 1,
+     "hash": "6971eb54baa66b420b6c58172bd1ff17e1119e2c11cfdc92c45eb920675c1bf6",
+     "status": 1,
+     "from": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+     "to": "0000000000000000000000000000000000001002",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+       "address": "0000000000000000000000000000000000001002",
+       "value": "645e51147a80",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+         "old_value": "645e51147a80",
+         "new_value": "",
+         "ordinal": 21,
+         "reason": 5
+        },
+        {
+         "address": "0000000000000000000000000000000000001002",
+         "old_value": "",
+         "new_value": "645e51147a80",
+         "ordinal": 22,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "hash": "7a8ea16a733d7720b4ba92e1c462e8480ac19163b44e65d08aa4a161f4aeabb4",
+     "status": 1,
+     "from": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+     "to": "0000000000000000000000000000000000001000",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+       "address": "0000000000000000000000000000000000001000",
+       "value": "05e186c0332d80",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2",
+         "old_value": "05e186c0332d80",
+         "new_value": "",
+         "ordinal": 31,
+         "reason": 5
+        },
+        {
+         "address": "0000000000000000000000000000000000001000",
+         "old_value": "",
+         "new_value": "05e186c0332d80",
+         "ordinal": 32,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 12700000,
+   "hash": "c36c3bdd6e1277c0911fb129913f4b3bb2c5b45978cd61b800a730a7b782c462",
+   "ver": 3,
+   "coinbase": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+   "contents": "the fee pool's last transaction fee record, every block-level record, and every record of the coinbase",
+   "block_balance_changes": [
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "06d1ba97f6d60eb1",
+     "new_value": "06d1ba97f6d60eb1",
+     "ordinal": 35325,
+     "reason": 8
+    },
+    {
+     "address": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+     "old_value": "03b8156ad84bd00a",
+     "new_value": "042c7730b58d487c",
+     "ordinal": 35326,
+     "reason": 8
+    },
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "06d1ba97f6d60eb1",
+     "new_value": "",
+     "ordinal": 35335,
+     "reason": 8
+    },
+    {
+     "address": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+     "old_value": "03b8156ad84bd00a",
+     "new_value": "0a89d002cf21debb",
+     "ordinal": 35336,
+     "reason": 8
+    }
+   ],
+   "transactions": [
+    {
+     "index": 644,
+     "hash": "6cb4395c83c161a5186e7b68a386cb074db9957da54c42217a4077b05efc7a50",
+     "status": 1,
+     "from": "2cc368d3fd57b4709f834d88d781b1147e716ac3",
+     "to": "12bb890508c125661e03b09ec06e404bc9289040",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "2cc368d3fd57b4709f834d88d781b1147e716ac3",
+       "address": "12bb890508c125661e03b09ec06e404bc9289040",
+       "value": "",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "fffffffffffffffffffffffffffffffffffffffe",
+         "old_value": "0745533ffcfe2323",
+         "new_value": "07461c5dd4178723",
+         "ordinal": 35323,
+         "reason": 8
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 645,
+     "hash": "1927b779f5dcc82adc46e0e727fb606a0de79ae2178c980cd3cc8c356206c9a0",
+     "status": 1,
+     "from": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+     "to": "0000000000000000000000000000000000001002",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+       "address": "0000000000000000000000000000000000001002",
+       "value": "7461c5dd417872",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+         "old_value": "042c7730b58d487c",
+         "new_value": "03b8156ad84bd00a",
+         "ordinal": 35329,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 646,
+     "hash": "875ce8fde9b1df9fa9fb66c3025b9b7fb556b658dd8bdaff44fc746de393d08a",
+     "status": 1,
+     "from": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+     "to": "0000000000000000000000000000000000001000",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+       "address": "0000000000000000000000000000000000001000",
+       "value": "06d1ba97f6d60eb1",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "ea0a6e3c511bbd10f4519ece37dc24887e11b55d",
+         "old_value": "0a89d002cf21debb",
+         "new_value": "03b8156ad84bd00a",
+         "ordinal": 35339,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "number": 25401003,
+   "hash": "2890a2450c9d6ee580ebceb2f6aa4c89ebe57abf0b1b1e829d93b9f89e3801f1",
+   "ver": 3,
+   "coinbase": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+   "contents": "the fee pool's last transaction fee record, every block-level record, and every record of the coinbase",
+   "block_balance_changes": [
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "db83d20fd08607",
+     "new_value": "db83d20fd08607",
+     "ordinal": 6112,
+     "reason": 8
+    },
+    {
+     "address": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+     "old_value": "038d7ee0614a00",
+     "new_value": "122fe236c48622",
+     "ordinal": 6113,
+     "reason": 8
+    },
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "db83d20fd08607",
+     "new_value": "",
+     "ordinal": 6122,
+     "reason": 8
+    },
+    {
+     "address": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+     "old_value": "038d7ee0614a00",
+     "new_value": "df1150f031d007",
+     "ordinal": 6123,
+     "reason": 8
+    }
+   ],
+   "transactions": [
+    {
+     "index": 118,
+     "hash": "b7d2090dbda702dd6e9273c9c498151055b45fcf134af31b9ff8f607f9a2bf1e",
+     "status": 1,
+     "from": "0d22d24e1e9a72f838ca988060073bad1d78dcd1",
+     "to": "5d1e5aca56f492f020e9e6033cf389227a22739d",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "0d22d24e1e9a72f838ca988060073bad1d78dcd1",
+       "address": "5d1e5aca56f492f020e9e6033cf389227a22739d",
+       "value": "",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "fffffffffffffffffffffffffffffffffffffffe",
+         "old_value": "e96f7d7d765029",
+         "new_value": "ea26356633c229",
+         "ordinal": 6110,
+         "reason": 8
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 119,
+     "hash": "c6c6ab8c4aad37c0886e3c017daf8f5e9861286cfacabfac0cbf798894b70b6c",
+     "status": 1,
+     "from": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+     "to": "0000000000000000000000000000000000001002",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+       "address": "0000000000000000000000000000000000001002",
+       "value": "0ea26356633c22",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+         "old_value": "122fe236c48622",
+         "new_value": "038d7ee0614a00",
+         "ordinal": 6116,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "index": 120,
+     "hash": "c535d11c102f32e2d13492884c0192bb742481dc9298d913cb4731b6bf1824eb",
+     "status": 1,
+     "from": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+     "to": "0000000000000000000000000000000000001000",
+     "calls": [
+      {
+       "index": 1,
+       "parent_index": 0,
+       "depth": 0,
+       "call_type": 1,
+       "caller": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+       "address": "0000000000000000000000000000000000001000",
+       "value": "db83d20fd08607",
+       "state_reverted": false,
+       "balance_changes": [
+        {
+         "address": "b218c5d6af1f979ac42bc68d98a5a0d796c6ab01",
+         "old_value": "df1150f031d007",
+         "new_value": "038d7ee0614a00",
+         "ordinal": 6126,
+         "reason": 5
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

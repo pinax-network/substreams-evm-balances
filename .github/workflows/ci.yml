@@ -51,9 +51,10 @@ jobs:
       # The CLI behind the recorded module hashes; v1.23.0 computes the same.
       SUBSTREAMS_VERSION: v1.22.0
       SUBSTREAMS_SHA256: 6eef6182d8d9e3c0147a3d03f38fc2b9c0f96900d040132294a0b540e691ae67
-      # make -C evm-balances schema: upstream's six SQL files, concatenated.
-      SCHEMA_SHA256: ed1c3bff14ca0464a029bf753923557cb8b05a6296fbb63e26e3d00456db10ce
-      PACKAGES: native/balances erc20/balances evm-balances
+      # make -C <package> schema: the package's half of upstream's SQL, concatenated.
+      NATIVE_SCHEMA_SHA256: 0566d859451be7fad8eddd3b6003562d0304cdba418c7e55fa670247d0722efd
+      ERC20_SCHEMA_SHA256: ad4924062341e06387c0385367fcbba62a98bdfea3c95a1485285ade57a688f1
+      PACKAGES: native/balances erc20/balances
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Rust toolchain
@@ -70,15 +71,14 @@ jobs:
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - name: Build
         run: |
-          make -C native/balances build
-          make -C erc20/balances build
-          make -C evm-balances build schema
+          make -C native/balances build schema
+          make -C erc20/balances build schema
       - name: Pack
         run: |
           substreams --version
           mkdir dist
           for p in $PACKAGES; do substreams pack "$p/substreams.yaml" -o "dist/{spkgDefaultName}"; done
-          cp target/wasm32-unknown-unknown/release/{native_balances,erc20_balances,evm_balances}.wasm dist/
+          cp target/wasm32-unknown-unknown/release/{native_balances,erc20_balances}.wasm dist/
           (cd dist && sha256sum *.wasm > WASM.sha256)
       - name: Summary
         run: |
@@ -95,7 +95,10 @@ jobs:
             echo '| --- | --- |'
             awk '{print "| " $2 " | `" $1 "` |"}' dist/WASM.sha256
             echo
-            echo "\`evm-balances/clickhouse/schema.sql\`: \`$(sha256sum evm-balances/clickhouse/schema.sql | cut -d' ' -f1)\`"
+            for p in $PACKAGES; do
+              echo "\`$p/clickhouse/schema.sql\`: \`$(sha256sum "$p/clickhouse/schema.sql" | cut -d' ' -f1)\`"
+              echo
+            done
           } >> "$GITHUB_STEP_SUMMARY"
       # Uploaded even when a check below fails: a PR that changes a package
       # takes its committed spkg from here.
@@ -114,7 +117,8 @@ jobs:
       - name: Committed packages match the source
         run: |
           hashes() { substreams info "$1" | awk '/^Name:/ {n = $2} /^Hash:/ {print n, $2}'; }
-          echo "$SCHEMA_SHA256  evm-balances/clickhouse/schema.sql" | sha256sum -c -
+          echo "$NATIVE_SCHEMA_SHA256  native/balances/clickhouse/schema.sql" | sha256sum -c -
+          echo "$ERC20_SCHEMA_SHA256  erc20/balances/clickhouse/schema.sql" | sha256sum -c -
           fail=0
           for p in $PACKAGES; do
             name=$(awk '$1 == "name:" {print $2; exit}' "$p/substreams.yaml")
@@ -126,10 +130,8 @@ jobs:
               echo "::error::$spkg does not carry the module hashes of $p: repack it from this job's artifact"
               fail=1
             fi
-            if [ "$p" = evm-balances ]; then
-              schema=$(mktemp -d)
-              substreams info "$spkg" --output-sinkconfig-files-path "$schema" > /dev/null
-              cmp "$schema/schema" evm-balances/clickhouse/schema.sql || { echo "::error::$spkg embeds another schema"; fail=1; }
-            fi
+            schema=$(mktemp -d)
+            substreams info "$spkg" --output-sinkconfig-files-path "$schema" > /dev/null || true
+            cmp "$schema/schema" "$p/clickhouse/schema.sql" || { echo "::error::$spkg embeds another schema"; fail=1; }
           done
           exit $fail
