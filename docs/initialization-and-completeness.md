@@ -24,13 +24,13 @@ processed both windows, so their output is the same under v0.6.1.
 
 - No table stores a chain id and blocks carry none. `db_out` has no params and
   no `initialBlock`, so its module hash, which keys the sink cursor, is the
-  same on every network. Write each network to its own database, named by
-  the Token API convention `<network>:evm-extended-balances@<version>`
-  (owner, 2026-10-13; the
-  [README](../evm-balances/README.md#token-api-live-sink-bsc) has the BSC
-  sink). That keeps it apart from the RPC-era `<network>:evm-balances@v0.3.x`;
+  same on every network. Write each network to its own database, named
+  `<network>:evm-balances@<version>` as
   [#117](https://github.com/pinax-network/substreams-evm-extended/issues/117)
-  had proposed `<network>:evm-balances@<version>`.
+  proposed (owner, 2026-10-13; the
+  [README](../evm-balances/README.md#token-api-live-sink-bsc) has the BSC
+  sink). Only the version tells it apart from the RPC-era
+  `<network>:evm-balances@v0.3.x`.
 - Before a sink starts or resumes, compare the hash of the first block it will
   process with `eth_getBlockByNumber` on that network's RPC, and do not start
   on a mismatch (#117). A wrong endpoint writes another chain's balances, and

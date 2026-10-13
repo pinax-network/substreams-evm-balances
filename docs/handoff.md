@@ -147,15 +147,18 @@ the only release: it now carries `native-balances-v0.2.1.spkg` and
 `erc20-balances-v0.4.0.spkg` (the CI builds of tags `native-balances-v0.2.1`
 and `erc20-balances-v0.4.0`, commit `313f8d1`, with the module hashes above)
 and notes on what is included and how to deploy it, without `HASHES.txt`. The
-separate native and erc20 releases were deleted; their tags remain. The same
-day the owner adopted the Token API live-sink package URL (`ASSET`
-`evm-extended`, `TYPE` `balances`): releases are tagged
-`evm-extended-balances-v<version>` and publish the `db_out` spkg as
-`evm-extended-clickhouse-balances-v<version>.spkg`, and sinks run with the
-Token API undo buffer (BSC: 5) instead of `--final-blocks-only`, accepting
-that a fork deeper than the buffer leaves orphaned rows
-([README](../evm-balances/README.md#token-api-live-sink-bsc)). Releases are
-not live qualification.
+separate native and erc20 releases were deleted; their tags remain. Later
+that day sinks moved to the Token API undo buffer (BSC: 5) instead of
+`--final-blocks-only`, accepting that a fork deeper than the buffer leaves
+orphaned rows ([README](../evm-balances/README.md#token-api-live-sink-bsc)).
+The first prod-c backfill of v0.6.0 stopped on BSC block 127,411,449, which
+native refused on the producer's CALLCODE self-transfer pair; v0.6.1 (native
+v0.2.2, #149) drops that pair. The owner then made releases plain
+`v<version>` tags and named the BSC database `bsc:evm-balances@<version>`.
+The DEX code moves to the new `pinax-network/substreams-evm-dex`; once it
+has, this repository is pruned to balances, renamed `substreams-evm-balances`,
+and the Argo workflows and live sinks move to the new URL. Releases are not
+live qualification.
 
 Upstream, open: deterministic spkg packing,
 [streamingfast/substreams#978](https://github.com/streamingfast/substreams/pull/978);
