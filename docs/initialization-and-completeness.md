@@ -21,9 +21,13 @@ in [PR #144](https://github.com/pinax-network/substreams-evm-extended/pull/144).
 
 - No table stores a chain id and blocks carry none. `db_out` has no params and
   no `initialBlock`, so its module hash, which keys the sink cursor, is the
-  same on every network. Write each network to its own database, named as
+  same on every network. Write each network to its own database, named by
+  the Token API convention `<network>:evm-extended-balances@<version>`
+  (owner, 2026-10-13; the
+  [README](../evm-balances/README.md#token-api-live-sink-bsc) has the BSC
+  sink). That keeps it apart from the RPC-era `<network>:evm-balances@v0.3.x`;
   [#117](https://github.com/pinax-network/substreams-evm-extended/issues/117)
-  sets out (`<network>:evm-balances@<version>`).
+  had proposed `<network>:evm-balances@<version>`.
 - Before a sink starts or resumes, compare the hash of the first block it will
   process with `eth_getBlockByNumber` on that network's RPC, and do not start
   on a mismatch (#117). A wrong endpoint writes another chain's balances, and
@@ -38,10 +42,17 @@ in [PR #144](https://github.com/pinax-network/substreams-evm-extended/pull/144).
 
 - **Sink.** v4.13.0, commit `933a187`, as the
   [README](../evm-balances/README.md#build-and-deploy) pins it.
-- **`--final-blocks-only` is required.** The ClickHouse sink logs an UNDO and
-  keeps the rows, so a reversible block would stay stored after a fork. With
-  final blocks only no UNDO is sent, and the earlier "live `BlockUndoSignal`"
-  item of this issue does not apply.
+- **Undo buffer, not final blocks only** (owner, 2026-10-13). The sink runs
+  with `--undo-buffer-size` as the Token API live sinks do (BSC: 5) and
+  without `--final-blocks-only`. The ClickHouse sink cannot revert written
+  rows, so the buffer holds the newest blocks back and drops a fork inside
+  it. A deeper fork stops the sink (`cannot undo down to last valid Block`);
+  restarted from its cursor it continues on the canonical chain, and the rows
+  of the orphaned blocks stay: balance rows and `transactions` of blocks that
+  are no longer canonical, and a second `blocks` row at those heights with
+  another hash. That is an accepted risk; step 1 of
+  [`check-replays-and-completeness.sql`](../evm-balances/clickhouse/examples/check-replays-and-completeness.sql)
+  reports such heights (`blocks_with_two_hashes`).
 - **Flush interval: any.** Every block flushes on its own at interval 1 from
   the first block after a start, and at any interval ClickHouse receives one
   row per key and block, so the history states see every row. Windows a and b

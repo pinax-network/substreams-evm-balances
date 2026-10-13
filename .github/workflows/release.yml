@@ -1,14 +1,18 @@
 name: Release
 
 # Only evm-balances is released (owner, 2026-10-13). A tag
-# `evm-balances-v<version>` builds it on Linux, the canonical builder, packs
-# it with the two packages it imports, and publishes a GitHub release with
-# the three spkgs and the notes of .github/release-notes.md. A pull request
+# `evm-extended-balances-v<version>` builds it on Linux, the canonical
+# builder, packs it with the two packages it imports, and publishes a GitHub
+# release with the three spkgs and the notes of .github/release-notes.md. Tag
+# and asset follow the Token API live-sink URL,
+# substreams-${ASSET}/releases/download/${ASSET}-${TYPE}-${VERSION}/${ASSET}-clickhouse-${TYPE}-${VERSION}.spkg
+# with ASSET=evm-extended and TYPE=balances, so evm-balances-<version>.spkg is
+# published as evm-extended-clickhouse-balances-<version>.spkg. A pull request
 # that changes this workflow or the notes dry-runs it without releasing.
 on:
   push:
     tags:
-      - "evm-balances-v*"
+      - "evm-extended-balances-v*"
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -38,13 +42,17 @@ jobs:
             version=$(awk '$1 == "version:" {print $2; exit}' "$1/substreams.yaml")
             echo "${name//_/-}-$version"
           }
-          tag=$(spkg evm-balances)
+          packed=$(spkg evm-balances)
+          version=${packed#evm-balances-}
+          tag="evm-extended-balances-$version"
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
-            echo "::error::tag $GITHUB_REF_NAME, but evm-balances/substreams.yaml is $tag"
+            echo "::error::tag $GITHUB_REF_NAME, but evm-balances/substreams.yaml is $version: tag $tag"
             exit 1
           fi
           echo "TAG=$tag" >> "$GITHUB_ENV"
-          echo "SPKG=$tag.spkg" >> "$GITHUB_ENV"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "SPKG=$packed.spkg" >> "$GITHUB_ENV"
+          echo "RELEASE_SPKG=evm-extended-clickhouse-balances-$version.spkg" >> "$GITHUB_ENV"
           echo "NATIVE_SPKG=$(spkg native/balances).spkg" >> "$GITHUB_ENV"
           echo "ERC20_SPKG=$(spkg erc20/balances).spkg" >> "$GITHUB_ENV"
       # The sink that evm-balances supports, from its Makefile (#120).
@@ -75,6 +83,7 @@ jobs:
           mkdir dist
           for p in evm-balances native/balances erc20/balances; do substreams pack "$p/substreams.yaml" -o "dist/{spkgDefaultName}"; done
           for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do test -f "dist/$s"; done
+          cp "dist/$SPKG" "dist/$RELEASE_SPKG"
       - name: Registry verify
         run: |
           for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do
@@ -102,7 +111,7 @@ jobs:
             echo
             echo '| Package | Module | Hash |'
             echo '| --- | --- | --- |'
-            for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do
+            for s in "$RELEASE_SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do
               substreams info "dist/$s" | awk -v s="$s" '/^Name:/ {n = $2} /^Hash:/ {print "| " s " | " n " | `" $2 "` |"}'
             done
             echo
@@ -114,7 +123,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Notes
         run: |
-          envsubst '${TAG} ${SPKG} ${NATIVE_SPKG} ${ERC20_SPKG} ${SINK} ${SINK_COMMIT}' < .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          envsubst '${TAG} ${VERSION} ${RELEASE_SPKG} ${NATIVE_SPKG} ${ERC20_SPKG} ${SINK} ${SINK_COMMIT}' < .github/release-notes.md > "$RUNNER_TEMP/notes.md"
           if grep -n '\${' "$RUNNER_TEMP/notes.md"; then echo "::error::unrendered placeholder in the release notes"; exit 1; fi
           cat "$RUNNER_TEMP/notes.md"
       - name: Release
@@ -123,4 +132,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd dist
-          gh release create "$TAG" "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          gh release create "$TAG" "$RELEASE_SPKG" "$NATIVE_SPKG" "$ERC20_SPKG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag

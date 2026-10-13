@@ -159,10 +159,20 @@ make -C evm-balances dev START_BLOCK=<S>
 - **Start block.** Use a start height qualified for the intended network.
   Incomplete Extended blocks or ambiguous persisted native data still stop
   the stream; removing the producer parameter does not prove earlier coverage.
-- **Production flags.** `dev` uses upstream's per-block flush, with
-  `--final-blocks-only` in place of `--undo-buffer-size 0`: ClickHouse cannot
-  undo, the sink only logs UNDO. For production keep `--final-blocks-only`,
-  drop `--development-mode` and `--on-module-hash-mistmatch=warn` (the fork's
+- **Reorgs: an undo buffer, not final blocks** (owner, 2026-10-13). The sink
+  runs with `--undo-buffer-size`, as the Token API live sinks do (BSC: 5, the
+  Makefile's `UNDO_BUFFER_SIZE`), and without `--final-blocks-only`, so rows
+  arrive a few blocks behind head instead of after finality. ClickHouse cannot
+  revert written rows (the sink only logs UNDO), so the buffer holds the
+  newest blocks back: a fork inside it is dropped before anything is written.
+  A deeper fork stops the sink with `cannot undo down to last valid Block`;
+  restarted from its cursor, it continues on the canonical chain, and the
+  rows it wrote for the orphaned blocks stay. That is an accepted risk. Step 1
+  of [`check-replays-and-completeness.sql`](clickhouse/examples/check-replays-and-completeness.sql)
+  reports such heights as blocks with two hashes.
+- **Production flags.** `dev` uses upstream's per-block flush. For production
+  use the [Token API settings](#token-api-live-sink-bsc), and drop
+  `--development-mode` and `--on-module-hash-mistmatch=warn` (the fork's
   spelling; the default `error` stops on a changed `db_out`). From v4.13.0 the
   flush interval no longer changes what is stored: every block flushes on its
   own at interval 1 from the first block after a start, and at any interval
@@ -177,6 +187,52 @@ make -C evm-balances dev START_BLOCK=<S>
   (Database Changes mode) creates the same DDL. It rejects the old CLI-sink
   flags (`--sink-info-folder`, `--cursor-file-path`, `--spool-*`) and refuses
   `--undo-buffer-size 0` on ClickHouse.
+
+## Token API live sink (BSC)
+
+The Token API live sinks build the package URL from three variables, so the
+release follows their naming: tag `evm-extended-balances-v<version>`, asset
+`evm-extended-clickhouse-balances-v<version>.spkg` (owner, 2026-10-13).
+
+| Variable | Value |
+| --- | --- |
+| `ASSET` | `evm-extended` |
+| `TYPE` | `balances` |
+| `VERSION` | `v0.6.0` |
+
+```
+https://github.com/pinax-network/substreams-evm-extended/releases/download/evm-extended-balances-v0.6.0/evm-extended-clickhouse-balances-v0.6.0.spkg
+```
+
+The database is `bsc:evm-extended-balances@v0.6.0`, apart from the RPC-era
+`bsc:evm-balances@v0.3.x`. On BSC, run the sink with the flags of the Token
+API's BSC balances live sink (2026-10-13); other chains use other values, and
+only BSC is documented here:
+
+```sh
+substreams-sink-sql run "$SUBSTREAMS_SINK_DSN" "$PKG" <start-block>: \
+  -e bsc.substreams.pinax.network:443 \
+  --undo-buffer-size=5 \
+  --live-block-flush-interval=20 \
+  --batch-block-flush-interval=1000 \
+  --batch-row-flush-interval=50000 \
+  --live-block-time-delta=3m0s \
+  --idle-timeout=5m \
+  --on-module-hash-mistmatch=error
+```
+
+| Flag | BSC | Effect |
+| --- | --- | --- |
+| `--undo-buffer-size` | 5 | blocks held back from head; a deeper fork stops the sink (see [Reorgs](#build-and-deploy)) |
+| `--live-block-flush-interval` | 20 | flush every 20 blocks once live |
+| `--batch-block-flush-interval` | 1000 | flush every 1,000 blocks while catching up |
+| `--batch-row-flush-interval` | 50000 | or once 50,000 rows are buffered |
+| `--live-block-time-delta` | 3m0s | a block within 3 minutes of wall-clock counts as live |
+| `--idle-timeout` | 5m | reconnect after 5 minutes without data |
+| `--on-module-hash-mistmatch` | `error` | refuse a cursor of another `db_out` |
+
+None of these changes what is stored: at any flush interval ClickHouse
+receives one row per key and block.
 
 ## Cutover and backfill
 
