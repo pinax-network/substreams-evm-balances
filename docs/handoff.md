@@ -1,6 +1,6 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-11, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-13, for whoever picks it up next. Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -16,40 +16,114 @@ authorizes a live step.
 
 ## Balance packages
 
+Since v0.7.0 (owner, 2026-10-13) each balance package ships its `map_events`
+and its own `db_out` in one spkg, is released by its own tag and writes its
+own ClickHouse database; [ClickHouse](clickhouse.md) has the tables, the
+deployment and the reasons. v0.7.0 is built but not released, and neither
+package has run a noop or a sink at v0.7.0.
+
+| Package | Version and spkg | Release tag | BSC database | `map_events` output |
+| --- | --- | --- | --- | --- |
+| [`native/balances`](../native/balances/README.md) | `evm_balances_native` v0.7.0, `spkg/evm-balances-native-v0.7.0.spkg` | `evm-balances-native-v0.7.0` | `bsc:evm-balances-native@v0.7.0` | `evm.balances.v1.NativeEvents` |
+| [`erc20/balances`](../erc20/balances/README.md) | `evm_balances_erc20` v0.7.0, `spkg/evm-balances-erc20-v0.7.0.spkg` | `evm-balances-erc20-v0.7.0` | `bsc:evm-balances-erc20@v0.7.0` | `evm.balances.v1.Events` |
+
 The committed spkgs are CI's canonical Linux builds (Rust 1.99.0, substreams
 CLI v1.22.0), taken from the "Package hashes" job's `packages` artifact.
 Identify a build by its module hash, never by the spkg sha256. None is
-live-qualified.
+live-qualified. The v0.7.0 module hashes and WASM sha256:
+
+| Package | Module | Module hash | WASM sha256 |
+| --- | --- | --- | --- |
+| `spkg/evm-balances-native-v0.7.0.spkg` | `map_events` | `0759418fb023485e9ca06bfe7a0c1c5c0d2c4c63` | `c448342379378455221f116cbf74813a18d47c8a02d258042a677cbd1cb965e0` |
+| | `db_out` | `29f7d1596fc6454ce5df7bcdf53636e11a533cf8` | same WASM |
+| `spkg/evm-balances-erc20-v0.7.0.spkg` | `map_events` | `65629a0baac9167970079510489900648822fce5` | `a2c12a1284ad571308b5afcbed72e847d777680dba2210bdd5e5e5572eeb484d` |
+| | `db_out` | `73627870ed1c72a9b76ad69f46fa94f9979afbb4` | same WASM |
+
+- **`native/balances`** v0.7.0 adds `db_out` and emits `NativeEvents`,
+  `Events` without the contract, which native amounts never have (field 1
+  reserved, the same bytes). It restores the BSC `Block.ver` 3 fee pool
+  payout, on which native v0.2.2 refused blocks 363, 12,700,000 and
+  25,401,003, and accepts block 0, where it emits the genesis allocations
+  ([README](../native/balances/README.md#genesis-v070)). Not qualified. The
+  last qualified build is historical: the prost build was live-qualified on
+  BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
+  it emitted in the stated windows
+  ([evidence](../native/balances/README.md#live-qualification-bsc-2026-09-23)).
+  No build since then is qualified.
+- **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's. Not
+  qualified. Offline, on five captured BSC intervals scored against every row
+  the RPC reference package emitted for them, it reproduces 58.5–62.8% of
+  those rows with 99.92–100% value precision
+  ([measured](../erc20/balances/README.md#measured) gives each interval and
+  its scored holders). v0.4.0 runs in the BSC shadow below. The earlier
+  layout package v0.1.0, another source, was checked on live BSC on
+  2026-09-23
+  ([report at `9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md)).
+
+The combined `evm-balances` package (v0.4.0 to v0.6.1: one `db_out` for both
+tables in one database, released by plain `v<version>` tags) is retired.
+v0.6.1 is its last release, and its source is at
+[`5101e32`](https://github.com/pinax-network/substreams-evm-balances/tree/5101e327b47d63c1b1740c88a79e4e6841fb7650/evm-balances).
+Older versions under `spkg/` are historical builds: native v0.1.0 to v0.2.2
+and erc20 v0.1.0, v0.2.0 and v0.4.0, which the package READMEs describe, and
+evm-balances v0.4.0 to v0.6.1, described at that commit.
+`spkg/erc20-balances-v0.3.4.spkg` is the immutable RPC reference
+([migration](migration.md)); versions skip v0.3.x so that no build can
+overwrite it.
+
+## Current deployment (BSC)
+
+The retired combined package v0.6.1 has run on BSC as a shadow since
+2026-10-13:
+release `v0.6.1`, database `bsc:evm-balances@v0.6.1`, filled by a backfill
+run of the sink from block 127,000,000 and by a live sink from block
+127,455,000 that runs with the Token API's BSC flags, undo buffer 5
+([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). The Token
+API still reads the RPC-era `bsc:evm-balances@v0.3.x`. The shadow runs these
+CI builds:
 
 | Package | Version and spkg | Module | Module hash | WASM sha256 |
 | --- | --- | --- | --- | --- |
-| [`native/balances`](../native/balances/README.md) | v0.2.2, `spkg/native-balances-v0.2.2.spkg` | `map_events` | `378d27a630f0f2c8589f4396b308edff9c981ffd` | `8fc5a84901b498570efdf8cd54f5a077dc040b07ddc5bffa923016e2e909c235` |
-| [`erc20/balances`](../erc20/balances/README.md) | v0.4.0, `spkg/erc20-balances-v0.4.0.spkg` | `map_events` | `d8a9db86240ca6466270f140798fae0b8db05f7b` | `17a847aa77346058a160553c1fe3f79ab42cc4c0c5de1e0f3997e3a7b28e05d1` |
-| [`evm-balances`](../evm-balances/README.md) | v0.6.1, `spkg/evm-balances-v0.6.1.spkg` | `db_out` | `b3313b50a193a78e295350fc6e83b77d3b0fd5c8` | `1e6520fab2764d445754140aa45081307aa624cc9b86750c8c12ddfb7490eba7` |
+| `native/balances` | v0.2.2, `spkg/native-balances-v0.2.2.spkg` | `map_events` | `378d27a630f0f2c8589f4396b308edff9c981ffd` | `8fc5a84901b498570efdf8cd54f5a077dc040b07ddc5bffa923016e2e909c235` |
+| `erc20/balances` | v0.4.0, `spkg/erc20-balances-v0.4.0.spkg` | `map_events` | `d8a9db86240ca6466270f140798fae0b8db05f7b` | `17a847aa77346058a160553c1fe3f79ab42cc4c0c5de1e0f3997e3a7b28e05d1` |
+| `evm-balances` | v0.6.1, `spkg/evm-balances-v0.6.1.spkg` | `db_out` | `b3313b50a193a78e295350fc6e83b77d3b0fd5c8` | `1e6520fab2764d445754140aa45081307aa624cc9b86750c8c12ddfb7490eba7` |
 
-- **`native/balances`** takes only the block, with no params. Not qualified.
-  The last qualified build is historical: the prost build was live-qualified
-  on BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the
-  accounts it emitted in the stated windows
-  ([evidence](../native/balances/README.md#live-qualification-bsc-2026-09-23)).
-  No build since then is qualified.
-- **`erc20/balances`** is inference only. Not qualified, and it has not run in
-  a Substreams engine. Offline, on five captured BSC intervals scored against
-  every row the RPC reference package emitted for them, it reproduces
-  58.5–62.8% of those rows with 99.92–100% value precision
-  ([measured](../erc20/balances/README.md#measured) gives each interval and
-  its scored holders). The earlier layout package v0.1.0, another source, was
-  checked on live BSC on 2026-09-23
-  ([report at `9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md)).
-- **`evm-balances`** imports both maps with the module hashes above and
-  embeds the schema `ed1c3bff…`. Not qualified; it has not run in a
-  Substreams engine or a sink.
+Its first FINAL comparison with the RPC-era database
+([contract, section 8](initialization-and-completeness.md#8-final-comparison-with-the-rpc-era-database)),
+over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
+balances among 10,223,501 same-block pairs (precision 0.999844)
+([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
+That is shadow evidence for v0.6.1, not live qualification. The two v0.7.0
+sinks replace this shadow after their noops pass.
 
-Older versions under `spkg/` (native v0.1.0 and v0.2.0, erc20 v0.1.0 and
-v0.2.0, evm-balances v0.4.0 and v0.5.0) are historical builds that the package
-READMEs describe. `spkg/erc20-balances-v0.3.4.spkg` is the immutable RPC
-reference ([migration](migration.md)); versions skip v0.3.x so that no build
-can overwrite it.
+A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
+below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had
+run that day. The captured refusals, blocks 363, 12,700,000 and 25,401,003,
+are the `Block.ver` 3 fee pool payout that native v0.7.0 restores. A
+production-mode stream from block 1 also runs block 0, because Substreams
+processes whole 1,000-block segments; native v0.2.2 refused block 0, and
+v0.7.0 accepts it.
+
+## Next steps (owner)
+
+Each step needs the owner's OK. Nothing is written to ClickHouse before the
+package's noop over that range passes (owner, 2026-10-13).
+
+1. Release v0.7.0: tags `evm-balances-native-v0.7.0` and
+   `evm-balances-erc20-v0.7.0`, cut after the CI-built spkgs are committed.
+2. Noop both packages' `db_out` over the full BSC history; native can now
+   start at block 0.
+3. Per package, run the backfill (the sink over past blocks) and the live
+   sink into its own database, `bsc:evm-balances-native@v0.7.0` or
+   `bsc:evm-balances-erc20@v0.7.0`
+   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). They
+   replace the v0.6.1 shadow.
+4. Token API (pinax-api): add the per-network database setting
+   `native-balances` next to `balances`, so that its native routes read the
+   native database and its other routes the ERC-20 database.
+5. Cut over each database on its own
+   ([cutover and backfill](clickhouse.md#cutover-and-backfill),
+   [contract](initialization-and-completeness.md)).
 
 ## Other packages
 
@@ -79,7 +153,7 @@ checks, the toolchain pin and the "Package hashes" job. Run the commands of
 the "Rust checks" job in [`ci.yml`](../.github/workflows/ci.yml) before a pull
 request. A change to a balance package's WASM bumps its version and commits
 the spkg from the job's `packages` artifact in the same pull request.
-`substreams pack` also embeds the three balance packages' READMEs, so a README
+`substreams pack` also embeds the two balance packages' READMEs, so a README
 edit changes their spkgs but not their module hashes. `make pack` writes
 straight into `spkg/`; on a host other than CI's Linux it overwrites the
 committed spkg with other module hashes, so restore it with
@@ -105,6 +179,10 @@ committed spkg with other module hashes, so restore it with
 - [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542):
   the per-package CLI native-sink ClickHouse paths, replaced by `evm-balances`
   on 2026-10-05.
+- [`5101e32`](https://github.com/pinax-network/substreams-evm-balances/tree/5101e327b47d63c1b1740c88a79e4e6841fb7650/evm-balances):
+  the combined `evm-balances` package (v0.4.0 to v0.6.1) with its README and
+  example SQL, retired on 2026-10-13 when each balance package got its own
+  `db_out` (v0.7.0).
 
 ## Open work
 
@@ -115,24 +193,25 @@ under the roadmap
 the path to production:
 
 - [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124):
-  qualify the balance packages above on BSC, then cut Token API over to
-  `evm-balances`. Every live step needs the owner's OK. The offline
+  qualify the balance packages above on BSC, then cut Token API over to their
+  two databases. Every live step needs the owner's OK. The offline
   preconditions are met apart from the BSC reader release (#116).
 - [#116](https://github.com/pinax-network/substreams-evm-balances/issues/116):
   BSC producer drift under firehose-tracer 5.5.0. The erc20 read policy (P2)
   and truncation guard landed in PR #137. Open: the reader release and height
   from infra, `Call` fields
   35/36 once a substreams-ethereum release has them (0.12.0 does not), and
-  the rows-per-block alert in ops (the query is in the
-  [`evm-balances` README](../evm-balances/README.md)).
+  the rows-per-block alert in ops (the query is in
+  [ClickHouse](clickhouse.md#monitoring)).
 - [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117):
   per-network start heights, a producer and tracer record per network, and
-  the endpoint identity check in the `evm-balances` README. BSC keeps no
-  `networks:` entry and starts at 0 (owner, 2026-10-06).
+  the endpoint identity check in [ClickHouse](clickhouse.md#build-and-deploy).
+  BSC keeps no `networks:` entry and starts at 0 (owner, 2026-10-06), which
+  native accepts since v0.7.0.
 - [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7):
   the [cutover contract](initialization-and-completeness.md) and its offline
-  checks are done (PR #144); the cold start per network (#8) and the live
-  checks during #124 B2 remain.
+  checks are done (PR #144), per package since v0.7.0; the cold start per
+  network (#8) and the live checks during #124 B2 remain.
 - [#123](https://github.com/pinax-network/substreams-evm-balances/issues/123):
   how Token API treats wrong computed balances and stale RPC-era pairs,
   decided before #124 B3.
@@ -142,25 +221,29 @@ the path to production:
 Done on 2026-10-06: the Rust 1.99.0 hash batch (#118), the "Package hashes"
 CI job (#119), the sink pin
 [substreams-sink-sql v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0),
-commit `933a187` (#120, [README](../evm-balances/README.md#build-and-deploy)),
+commit `933a187` (#120, [deploy](clickhouse.md#build-and-deploy)),
 and the release flow (#122). On 2026-10-13 the owner made
 [`evm-balances-v0.6.0`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-v0.6.0)
 the only release: it now carries `native-balances-v0.2.1.spkg` and
 `erc20-balances-v0.4.0.spkg` (the CI builds of tags `native-balances-v0.2.1`
-and `erc20-balances-v0.4.0`, commit `313f8d1`, with the module hashes above)
+and `erc20-balances-v0.4.0`, commit `313f8d1`)
 and notes on what is included and how to deploy it, without `HASHES.txt`. The
 separate native and erc20 releases were deleted; their tags remain. Later
 that day sinks moved to the Token API undo buffer (BSC: 5) instead of
 `--final-blocks-only`, accepting that a fork deeper than the buffer leaves
-orphaned rows ([README](../evm-balances/README.md#token-api-live-sink-bsc)).
-The first prod-c backfill of v0.6.0 stopped on BSC block 127,411,449, which
-native refused on the producer's CALLCODE self-transfer pair; v0.6.1 (native
-v0.2.2, #149) drops that pair. The owner then made releases plain
+orphaned rows ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
+The first production backfill of v0.6.0 stopped on BSC block 127,411,449,
+which native refused on the producer's CALLCODE self-transfer pair; v0.6.1
+(native v0.2.2, #149) drops that pair. The owner then made releases plain
 `v<version>` tags, named the BSC database `bsc:evm-balances@<version>` and
 renamed this repository from `substreams-evm-extended` to
-`substreams-evm-balances` (GitHub redirects the old URLs). The DEX code moves
-to the new `pinax-network/substreams-evm-dex`, and this repository is pruned
-to balances. Releases are not live qualification.
+`substreams-evm-balances` (GitHub redirects the old URLs). The DEX code moved
+to the new `pinax-network/substreams-evm-dex`, and this repository was pruned
+to balances. That evening the owner split the balance packages (v0.7.0): each
+is released by its own tag (`evm-balances-native-v<version>`,
+`evm-balances-erc20-v<version>`) into its own database, and the combined
+package with its plain `v<version>` tags is retired. Releases are not live
+qualification.
 
 Upstream, open: deterministic spkg packing,
 [streamingfast/substreams#978](https://github.com/streamingfast/substreams/pull/978);
