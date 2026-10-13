@@ -62,7 +62,21 @@ incomplete instead of guessing:
 | Persisted record with ordinal 0 | `persisted native balance change has no execution ordinal` |
 | Value longer than 32 bytes | `native balance exceeds uint256` |
 | Two records of one account with the same ordinal | `ambiguous native balance execution order` |
-| A record's old value differs from the account's previous new value | `discontinuous native balance changes within block` |
+| A record's old value differs from the account's previous new value, apart from the self-transfer pair below | `discontinuous native balance changes within block` |
+
+**Self-transfer pair (v0.2.2).** A value transfer from an account to itself,
+a CALLCODE with value or a CALL whose caller is its address, does not move the
+balance, and geth records nothing for it. The BSC producer records it as two
+`TRANSFER` records of that account at consecutive ordinals of the call, both
+computed from the same prior balance `b`: `b -> b - v` and `b -> b + v`, where
+`v` is the call's value. The second record's old value breaks continuity
+although the balance never moved. In a succeeded transaction's non-reverted
+call, exactly this pair is dropped, so the account's other records must chain
+across it. Any other shape, including the same records under another call
+type, value or ordinal gap, still fails the block. v0.2.1 refused BSC block
+127,411,449 on it (transaction `0x5c664637…`, account `0x1a84c890…`, a
+CALLCODE of 0.08 BNB); the captured transaction is the regression fixture
+[`tests/fixtures/bsc-127411449-callcode-self-transfer.json`](tests/fixtures/bsc-127411449-callcode-self-transfer.json).
 
 The failed-transaction reason guard exists because BNB blob-fee rewards
 (`REASON_REWARD_BLOB_FEE`, 17), OP-stack deposit mints (`INCREASE_MINT`, 18)
@@ -101,7 +115,7 @@ BSC evidence below still refers to its original packages and parameters.
 ```sh
 cargo test --locked -p native-balances -p evm-persist
 make -C native/balances build      # workspace release WASM; no network
-make -C native/balances pack       # spkg/native-balances-v0.2.1.spkg
+make -C native/balances pack       # spkg/native-balances-v0.2.2.spkg
 make -C native/balances gui        # or `prod`; streams from ENDPOINT
 ```
 
@@ -115,7 +129,8 @@ substreams 0.8.0 build had WASM `0bc2e2cf…` and, under `bsc`, module
 v0.2.0 source changes the native module and dependent `db_out` hashes again.
 It has no new live qualification. v0.2.1 is the same source built with Rust
 1.99.0 and reproducible paths (#118): CI's canonical Linux build has WASM
-`d3b6a549…` and module `72453949…`, also not live-qualified.
+`d3b6a549…` and module `72453949…`, also not live-qualified. v0.2.2 adds the
+self-transfer pair exception above.
 [`evm-balances`](../../evm-balances/README.md) imports this manifest and writes
 its rows to ClickHouse.
 

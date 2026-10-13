@@ -6,6 +6,7 @@ const FIXTURE_BLOCK: &[u8] = include_bytes!("../../../erc20/balances/tests/fixtu
 const FIXTURE_ORACLE: &str = include_str!("../../../erc20/balances/tests/fixtures/bsc-122260950.json");
 const PROTOTYPE_ROWS: &str = include_str!("../tests/fixtures/bsc-122260950-prototype-native-rows.json");
 const SYSTEM_FEE_ADDRESS: &str = "fffffffffffffffffffffffffffffffffffffffe";
+const SELF_TRANSFER: &str = include_str!("../tests/fixtures/bsc-127411449-callcode-self-transfer.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -539,4 +540,123 @@ mod wrapper_backing {
         // Only the sender's gas debit and the system fee credit persist.
         assert_eq!(native.len(), 2);
     }
+}
+
+fn hex_big(v: &Value) -> Option<eth::BigInt> {
+    let bytes = hex::decode(v.as_str().unwrap()).unwrap();
+    (!bytes.is_empty()).then_some(eth::BigInt { bytes })
+}
+/// The captured transaction of block 127,411,449 whose CALLCODE (call 3) moves
+/// value from 0x1a84c890… to itself.
+fn captured_self_transfer() -> (eth::Block, Vec<u8>) {
+    let f: Value = serde_json::from_str(SELF_TRANSFER).unwrap();
+    let calls = f["calls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| eth::Call {
+            index: c["index"].as_u64().unwrap() as u32,
+            parent_index: c["parent_index"].as_u64().unwrap() as u32,
+            depth: c["depth"].as_u64().unwrap() as u32,
+            call_type: (c["call_type"].as_i64().unwrap() as i32).into(),
+            caller: hex::decode(c["caller"].as_str().unwrap()).unwrap(),
+            address: hex::decode(c["address"].as_str().unwrap()).unwrap(),
+            value: hex_big(&c["value"]).into(),
+            state_reverted: c["state_reverted"].as_bool().unwrap(),
+            balance_changes: c["balance_changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| eth::BalanceChange {
+                    address: hex::decode(r["address"].as_str().unwrap()).unwrap(),
+                    old_value: hex_big(&r["old_value"]).into(),
+                    new_value: hex_big(&r["new_value"]).into(),
+                    ordinal: r["ordinal"].as_u64().unwrap(),
+                    reason: (r["reason"].as_i64().unwrap() as i32).into(),
+                })
+                .collect(),
+            ..Default::default()
+        })
+        .collect();
+    let mut b = block();
+    b.transaction_traces = vec![eth::TransactionTrace {
+        status: eth::TransactionTraceStatus::Succeeded.into(),
+        calls,
+        ..Default::default()
+    }];
+    (b, hex::decode("1a84c8905acf4a53048f55535f449e09d51e108e").unwrap())
+}
+
+#[test]
+fn captured_callcode_self_transfer_pair_is_dropped_and_the_account_chains_across_it() {
+    let (b, account) = captured_self_transfer();
+    // The pair is persisted (a succeeded transaction, non-reverted calls)...
+    assert_eq!(records(&b).unwrap().iter().filter(|r| r.address == account).count(), 4);
+    // ...but only the call's value moved through the account: in, then back out.
+    let rows = changes(&b).unwrap();
+    let row = rows.iter().find(|r| r.address == account).unwrap();
+    assert_eq!((row.old_amount.as_str(), row.amount.as_str()), ("0", "0"));
+    assert_eq!((row.first_ordinal, row.ordinal, row.records), (5967, 5976, 2));
+    // The sender's gas, transfer and refund records are untouched.
+    let sender = hex::decode("396df4bcc23da0d53956db81738908e31ce94e0d").unwrap();
+    assert_eq!(rows.iter().find(|r| r.address == sender).unwrap().records, 4);
+}
+
+#[test]
+fn the_self_transfer_shape_is_the_only_continuity_exception() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // A CALLCODE is only a self-transfer of its own value.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].value = big(1).into();
+    assert!(fails(&b));
+    // A CALL to another account is a transfer, not a self-transfer.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].call_type = eth::CallType::CALL.into();
+    assert!(fails(&b));
+    // A DELEGATECALL moves no value.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].call_type = eth::CallType::DELEGATE.into();
+    assert!(fails(&b));
+    // The two records must be adjacent.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].balance_changes[1].ordinal = 5973;
+    assert!(fails(&b));
+    // Both must start from the same balance.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].balance_changes[1].old_value = big(1).into();
+    assert!(fails(&b));
+    // And be transfers.
+    let (mut b, _) = captured_self_transfer();
+    b.transaction_traces[0].calls[2].balance_changes[1].reason = eth::balance_change::Reason::GasRefund.into();
+    assert!(fails(&b));
+}
+
+#[test]
+fn a_call_to_itself_with_value_is_the_same_self_transfer() {
+    let mut b = block();
+    b.transaction_traces = vec![tx(eth::Call {
+        call_type: eth::CallType::CALL.into(),
+        caller: vec![7; 20],
+        address: vec![7; 20],
+        value: big(3).into(),
+        balance_changes: vec![
+            change(7, 10, Some(5), Some(2)),
+            change(7, 11, Some(5), Some(8)),
+            change(7, 12, Some(5), Some(9)),
+        ],
+        ..Default::default()
+    })];
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        (row(&rows, 7).old_amount.as_str(), row(&rows, 7).amount.as_str(), row(&rows, 7).records),
+        ("5", "9", 1)
+    );
+    // Credit first, then debit, is the same pair.
+    b.transaction_traces[0].calls[0].balance_changes = vec![change(7, 10, Some(5), Some(8)), change(7, 11, Some(5), Some(2))];
+    assert!(changes(&b).unwrap().is_empty());
+    // In a failed transaction the call's records do not persist at all.
+    b.transaction_traces[0].status = eth::TransactionTraceStatus::Reverted.into();
+    assert!(changes(&b).unwrap().is_empty());
 }
