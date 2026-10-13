@@ -7,8 +7,8 @@ database is complete, with the checks and the repair that enforce it. The
 host-ledger specification this page replaces is kept in
 [history](history/initialization-and-completeness-host-ledger-2026-09-19-to-2026-10-06.md).
 
-**Scope.** [`evm-balances`](../evm-balances/README.md) v0.6.0 (`db_out`
-`2710d961…`, native `72453949…`, erc20 `d8a9db86…`, schema `ed1c3bff…`, the
+**Scope.** [`evm-balances`](../evm-balances/README.md) v0.6.1 (`db_out`
+`b3313b50…`, native `378d27a6…`, erc20 `d8a9db86…`, schema `ed1c3bff…`, the
 upstream v0.3.4 tables), written by pinax-network/substreams-sink-sql v4.13.0,
 commit `933a187`. None of these is live-qualified
 ([#124](https://github.com/pinax-network/substreams-evm-extended/issues/124)).
@@ -16,6 +16,9 @@ Unless marked live, every number below was measured offline on captured BSC
 Extended blocks: window a is 122,288,006–122,289,029 and window b is
 123,561,000–123,562,023 (1,024 blocks each). The methods and full results are
 in [PR #144](https://github.com/pinax-network/substreams-evm-extended/pull/144).
+They were measured with v0.6.0, which differs from v0.6.1 only in native's
+self-transfer pair (#149): v0.6.0 refuses any block that has one, and it
+processed both windows, so their output is the same under v0.6.1.
 
 ## 1. One database per network
 

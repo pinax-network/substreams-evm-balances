@@ -9,13 +9,14 @@
 //!
 //! Balances are account state, reduced from the producer's persisted
 //! `BalanceChange` records in execution order. They are not a sum of inferred
-//! transfers: CALLCODE/DELEGATECALL value, value-bearing calls and transfer logs
-//! are not consulted. Which records persist is decided by the shared
+//! transfers: value-bearing calls and transfer logs are not summed. A call's
+//! value is read only to recognize the producer's self-transfer pair (see
+//! [`changes`]). Which records persist is decided by the shared
 //! [`evm_persist`] rules (failed-transaction gas effects, reverted frames,
 //! system calls, block-level records).
 use evm_persist as persist;
 use proto::pb::evm::balances::v1 as balances_pb;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use substreams::{errors::Error, scalar::BigInt};
 use substreams_ethereum::pb::eth::v2 as eth;
 
@@ -148,12 +149,74 @@ pub fn records(block: &eth::Block) -> Result<Vec<Record>, Error> {
     Ok(collected.records)
 }
 
+/// A value transfer from an account to itself, a CALLCODE with value or a CALL
+/// whose caller is its address, does not move the balance; geth records
+/// nothing for it. The BSC producer records it as two `TRANSFER` records of
+/// that account, at consecutive ordinals of the call, both computed from the
+/// same prior balance `b`: `b -> b - v` and `b -> b + v`, where `v` is the
+/// call's value (block 127,411,449, transaction `0x5c664637…`). The second
+/// record's old value breaks continuity although the balance never moved.
+/// Returns those pairs, as `(account, ordinal)`, from non-reverted calls of
+/// succeeded transactions. Only this exact shape is recognized.
+fn self_transfer_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
+    let mut pairs = HashSet::new();
+    let transfer = |c: &&eth::BalanceChange| c.reason.as_known() == Some(eth::balance_change::Reason::Transfer);
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        for call in trx.calls.iter().filter(|c| !c.state_reverted) {
+            let to_itself = match call.call_type.as_known() {
+                Some(eth::CallType::CALLCODE) => true,
+                Some(eth::CallType::CALL) => call.caller == call.address,
+                _ => false,
+            };
+            let Ok(v) = value(call.value.as_option().map(|v| v.bytes.as_slice())) else {
+                continue;
+            };
+            if !to_itself || v == [0; 32] {
+                continue;
+            }
+            let v = BigInt::from_unsigned_bytes_be(&v);
+            let mut own: Vec<&eth::BalanceChange> = call.balance_changes.iter().filter(|c| c.address == call.caller).filter(transfer).collect();
+            own.sort_by_key(|c| c.ordinal);
+            for pair in own.windows(2) {
+                let (first, second) = (pair[0], pair[1]);
+                if first.ordinal == 0 || second.ordinal != first.ordinal + 1 {
+                    continue;
+                }
+                let words = (
+                    value(first.old_value.as_option().map(|v| v.bytes.as_slice())),
+                    value(first.new_value.as_option().map(|v| v.bytes.as_slice())),
+                    value(second.old_value.as_option().map(|v| v.bytes.as_slice())),
+                    value(second.new_value.as_option().map(|v| v.bytes.as_slice())),
+                );
+                let (Ok(old), Ok(first_new), Ok(second_old), Ok(second_new)) = words else {
+                    continue;
+                };
+                if old != second_old {
+                    continue;
+                }
+                let [b, n1, n2] = [old, first_new, second_new].map(|w| BigInt::from_unsigned_bytes_be(&w));
+                let (debit, credit) = (b.clone() - v.clone(), b + v.clone());
+                if (n1 == debit && n2 == credit) || (n1 == credit && n2 == debit) {
+                    pairs.insert((call.caller.clone(), first.ordinal));
+                    pairs.insert((call.caller.clone(), second.ordinal));
+                }
+            }
+        }
+    }
+    pairs
+}
+
 /// Reduce persisted records by execution ordinal into one row per account.
 /// Every record needs a canonical 20-byte account, a positive ordinal, values
 /// that fit `uint256`, a strictly increasing ordinal per account and old/new
-/// continuity. Ambiguous or discontinuous producer data fails the block.
+/// continuity. Ambiguous or discontinuous producer data fails the block. The
+/// one exception is the producer's self-transfer pair (`self_transfer_pairs`):
+/// both of its records are dropped, so the account's other records must chain
+/// across it.
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
+    let pairs = self_transfer_pairs(block);
+    records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
     // Array order is not execution order: block-level records follow the
     // transactions in the message but can precede or follow them by ordinal.
     records.sort_by_key(|r| r.ordinal);

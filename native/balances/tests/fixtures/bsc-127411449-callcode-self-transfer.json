@@ -1,0 +1,123 @@
+{
+ "source": "BSC Firehose (bsc.firehose.pinax.network), fetched 2026-10-13 with firecore tools firehose-single-block-client; values hex, enums numeric as printed",
+ "block_number": 127411449,
+ "block_hash": "9110f4917598d871f3ba5422d7ed82750df0cb001553488cf2e3055e5cf01d10",
+ "block_ver": 5,
+ "tx_hash": "5c66463777b25172f60c6be95745ab9c9d1b28788a59f76f2118db1b74dd524f",
+ "tx_index": 81,
+ "tx_status": 1,
+ "tx_from": "396df4bcc23da0d53956db81738908e31ce94e0d",
+ "tx_to": "1a84c8905acf4a53048f55535f449e09d51e108e",
+ "calls": [
+  {
+   "index": 1,
+   "parent_index": 0,
+   "depth": 0,
+   "call_type": 1,
+   "caller": "396df4bcc23da0d53956db81738908e31ce94e0d",
+   "address": "1a84c8905acf4a53048f55535f449e09d51e108e",
+   "value": "011c37937e080000",
+   "state_reverted": false,
+   "balance_changes": [
+    {
+     "address": "396df4bcc23da0d53956db81738908e31ce94e0d",
+     "old_value": "024e642b5911d800",
+     "new_value": "024e61d6f0cab880",
+     "ordinal": 5963,
+     "reason": 7
+    },
+    {
+     "address": "396df4bcc23da0d53956db81738908e31ce94e0d",
+     "old_value": "024e61d6f0cab880",
+     "new_value": "01322a4372c2b880",
+     "ordinal": 5966,
+     "reason": 5
+    },
+    {
+     "address": "1a84c8905acf4a53048f55535f449e09d51e108e",
+     "old_value": "",
+     "new_value": "011c37937e080000",
+     "ordinal": 5967,
+     "reason": 5
+    },
+    {
+     "address": "396df4bcc23da0d53956db81738908e31ce94e0d",
+     "old_value": "024e61d6f0cab880",
+     "new_value": "024e61f219ac7700",
+     "ordinal": 5980,
+     "reason": 9
+    },
+    {
+     "address": "fffffffffffffffffffffffffffffffffffffffe",
+     "old_value": "09c216c65362c2",
+     "new_value": "09c45005b8c3c2",
+     "ordinal": 5981,
+     "reason": 8
+    }
+   ]
+  },
+  {
+   "index": 2,
+   "parent_index": 1,
+   "depth": 1,
+   "call_type": 3,
+   "caller": "1a84c8905acf4a53048f55535f449e09d51e108e",
+   "address": "941aedba8716a8c1b4ea7a551ac718f1b038ae07",
+   "value": "011c37937e080000",
+   "state_reverted": false,
+   "balance_changes": []
+  },
+  {
+   "index": 3,
+   "parent_index": 2,
+   "depth": 2,
+   "call_type": 2,
+   "caller": "1a84c8905acf4a53048f55535f449e09d51e108e",
+   "address": "c26f32b722062fdcd4cf537af222edab2d9c3bef",
+   "value": "011c37937e080000",
+   "state_reverted": false,
+   "balance_changes": [
+    {
+     "address": "1a84c8905acf4a53048f55535f449e09d51e108e",
+     "old_value": "011c37937e080000",
+     "new_value": "",
+     "ordinal": 5971,
+     "reason": 5
+    },
+    {
+     "address": "1a84c8905acf4a53048f55535f449e09d51e108e",
+     "old_value": "011c37937e080000",
+     "new_value": "02386f26fc100000",
+     "ordinal": 5972,
+     "reason": 5
+    }
+   ]
+  },
+  {
+   "index": 4,
+   "parent_index": 1,
+   "depth": 1,
+   "call_type": 1,
+   "caller": "1a84c8905acf4a53048f55535f449e09d51e108e",
+   "address": "396df4bcc23da0d53956db81738908e31ce94e0d",
+   "value": "011c37937e080000",
+   "state_reverted": false,
+   "balance_changes": [
+    {
+     "address": "1a84c8905acf4a53048f55535f449e09d51e108e",
+     "old_value": "011c37937e080000",
+     "new_value": "",
+     "ordinal": 5976,
+     "reason": 5
+    },
+    {
+     "address": "396df4bcc23da0d53956db81738908e31ce94e0d",
+     "old_value": "01322a4372c2b880",
+     "new_value": "024e61d6f0cab880",
+     "ordinal": 5977,
+     "reason": 5
+    }
+   ]
+  }
+ ]
+}

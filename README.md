@@ -29,9 +29,9 @@ sha256). None is live-qualified.
 
 | Package | Module | Module hash | WASM sha256 |
 | --- | --- | --- | --- |
-| `spkg/native-balances-v0.2.1.spkg` | `map_events` | `72453949f9227b31dad20f80fabc09774d740d1b` | `d3b6a5497b230d2c…` |
+| `spkg/native-balances-v0.2.2.spkg` | `map_events` | `378d27a630f0f2c8589f4396b308edff9c981ffd` | `8fc5a84901b49857…` |
 | `spkg/erc20-balances-v0.4.0.spkg` | `map_events` | `d8a9db86240ca6466270f140798fae0b8db05f7b` | `17a847aa77346058…` |
-| `spkg/evm-balances-v0.6.0.spkg` | `db_out` | `2710d961971add90e77e9693690a9abba03b1546` | `b8bb73e4c9a01869…` |
+| `spkg/evm-balances-v0.6.1.spkg` | `db_out` | `b3313b50a193a78e295350fc6e83b77d3b0fd5c8` | `1e6520fab2764d44…` |
 
 `evm-balances` imports the two maps with the same module hashes, and embeds
 the schema `ed1c3bff…`.
