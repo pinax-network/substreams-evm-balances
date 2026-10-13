@@ -114,19 +114,23 @@ RPC is used for qualification, not inside the maps.
 
 ## Releases
 
-`native/balances`, `erc20/balances` and `evm-balances` are released by tag,
-`<package>-v<version>` (for example `native-balances-v0.2.1`), equal to the
-manifest's version. One version names one module hash: a change to a
-package's WASM bumps its version and commits the spkg that CI's "Package
-hashes" job built. The tag then runs
+Only `evm-balances` is released, by tag `evm-balances-v<version>` equal to
+the manifest's version; its release also carries the `native/balances` and
+`erc20/balances` spkgs it imports. One version names one module hash: a change
+to a package's WASM bumps its version and commits the spkg that CI's "Package
+hashes" job built, and a change to an imported map also changes the `db_out`
+hash, so it bumps `evm-balances` too. The tag then runs
 [`release.yml`](.github/workflows/release.yml), which:
 
-- builds and packs the package on Linux, CI's canonical builder;
-- writes `HASHES.txt`: commit, rustc, substreams CLI, module hashes, WASM
-  sha256 and, for evm-balances, the schema sha256;
-- requires `substreams registry verify` to pass with no warning, and the
-  module hashes of the committed spkg;
-- publishes a GitHub release with the spkg and `HASHES.txt`.
+- builds and packs the three packages on Linux, CI's canonical builder;
+- requires `substreams registry verify` to pass with no warning, the module
+  hashes of each committed spkg, map packages equal to the maps inside
+  `evm-balances`, and the embedded schema of `make schema`;
+- records the module hashes, WASM sha256 and schema sha256 in the run's
+  summary;
+- publishes a GitHub release with the three spkgs and the notes of
+  [`.github/release-notes.md`](.github/release-notes.md): what is included and
+  how to deploy it.
 
 Identify a release by its module hashes, never by the spkg sha256: an edited
 README changes the spkg bytes, and with substreams CLI v1.22.0 so does every

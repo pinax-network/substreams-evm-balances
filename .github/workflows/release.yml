@@ -1,18 +1,18 @@
 name: Release
 
-# A tag `<package>-v<version>` (native-balances, erc20-balances or
-# evm-balances) builds that package on Linux, the canonical builder, and
-# publishes a GitHub release with the spkg and HASHES.txt. A pull request that
-# changes this workflow dry-runs all three packages without releasing.
+# Only evm-balances is released (owner, 2026-10-13). A tag
+# `evm-balances-v<version>` builds it on Linux, the canonical builder, packs
+# it with the two packages it imports, and publishes a GitHub release with
+# the three spkgs and the notes of .github/release-notes.md. A pull request
+# that changes this workflow or the notes dry-runs it without releasing.
 on:
   push:
     tags:
-      - "native-balances-v*"
-      - "erc20-balances-v*"
       - "evm-balances-v*"
   pull_request:
     paths:
       - .github/workflows/release.yml
+      - .github/release-notes.md
 
 permissions:
   contents: read
@@ -24,53 +24,31 @@ env:
   SUBSTREAMS_SHA256: 6eef6182d8d9e3c0147a3d03f38fc2b9c0f96900d040132294a0b540e691ae67
 
 jobs:
-  resolve:
-    name: Resolve packages
-    runs-on: ubuntu-latest
-    outputs:
-      packages: ${{ steps.resolve.outputs.packages }}
-    steps:
-      - id: resolve
-        run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then
-            case "$GITHUB_REF_NAME" in
-              native-balances-v*) dirs='["native/balances"]' ;;
-              erc20-balances-v*) dirs='["erc20/balances"]' ;;
-              evm-balances-v*) dirs='["evm-balances"]' ;;
-              *) echo "::error::no package for tag $GITHUB_REF_NAME"; exit 1 ;;
-            esac
-          else
-            dirs='["native/balances", "erc20/balances", "evm-balances"]'
-          fi
-          echo "packages=$dirs" >> "$GITHUB_OUTPUT"
-
   release:
-    name: Release ${{ matrix.dir }}
-    needs: resolve
+    name: Release evm-balances
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    strategy:
-      matrix:
-        dir: ${{ fromJSON(needs.resolve.outputs.packages) }}
-    env:
-      DIR: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Package and tag
         run: |
-          name=$(awk '$1 == "name:" {print $2; exit}' "$DIR/substreams.yaml")
-          version=$(awk '$1 == "version:" {print $2; exit}' "$DIR/substreams.yaml")
-          tag="${name//_/-}-$version"
+          spkg() {
+            name=$(awk '$1 == "name:" {print $2; exit}' "$1/substreams.yaml")
+            version=$(awk '$1 == "version:" {print $2; exit}' "$1/substreams.yaml")
+            echo "${name//_/-}-$version"
+          }
+          tag=$(spkg evm-balances)
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
-            echo "::error::tag $GITHUB_REF_NAME, but $DIR/substreams.yaml is $name $version"
+            echo "::error::tag $GITHUB_REF_NAME, but evm-balances/substreams.yaml is $tag"
             exit 1
           fi
           echo "TAG=$tag" >> "$GITHUB_ENV"
           echo "SPKG=$tag.spkg" >> "$GITHUB_ENV"
+          echo "NATIVE_SPKG=$(spkg native/balances).spkg" >> "$GITHUB_ENV"
+          echo "ERC20_SPKG=$(spkg erc20/balances).spkg" >> "$GITHUB_ENV"
       # The sink that evm-balances supports, from its Makefile (#120).
       - name: Supported sink
-        if: matrix.dir == 'evm-balances'
         run: |
           sink=$(awk '$1 == "SINK_VERSION" {print $3}' evm-balances/Makefile)
           commit=$(awk '$1 == "SINK_COMMIT" {print $3}' evm-balances/Makefile)
@@ -89,69 +67,60 @@ jobs:
           echo "$SUBSTREAMS_SHA256  $RUNNER_TEMP/substreams.tar.gz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/substreams.tar.gz" -C "$RUNNER_TEMP" substreams
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+      # make -C evm-balances build builds the imported packages one at a time,
+      # so their WASM equals their standalone builds'.
       - name: Build and pack
         run: |
-          if [ "$DIR" = evm-balances ]; then make -C evm-balances build schema; else make -C "$DIR" build; fi
+          make -C evm-balances build schema
           mkdir dist
-          substreams pack "$DIR/substreams.yaml" -o "dist/{spkgDefaultName}"
-          test -f "dist/$SPKG"
-      - name: Hashes
-        run: |
-          case "$DIR" in
-            native/balances) wasms=native_balances ;;
-            erc20/balances) wasms=erc20_balances ;;
-            evm-balances) wasms="native_balances erc20_balances evm_balances" ;;
-          esac
-          {
-            echo "package: $TAG"
-            echo "commit: $GITHUB_SHA"
-            echo "rustc: $(rustc -V)"
-            echo "substreams: $SUBSTREAMS_VERSION"
-            if [ -n "${SINK:-}" ]; then echo "sink: pinax-network/substreams-sink-sql $SINK ($SINK_COMMIT)"; fi
-            echo
-            echo "# module hashes (substreams info)"
-            substreams info "dist/$SPKG" | awk '/^Name:/ {n = $2} /^Hash:/ {print n, $2}'
-            echo
-            echo "# WASM sha256"
-            for w in $wasms; do (cd target/wasm32-unknown-unknown/release && sha256sum "$w.wasm"); done
-            if [ "$DIR" = evm-balances ]; then
-              schema=$(mktemp -d)
-              substreams info "dist/$SPKG" --output-sinkconfig-files-path "$schema" > /dev/null
-              echo
-              echo "# schema sha256"
-              echo "$(sha256sum evm-balances/clickhouse/schema.sql | cut -d' ' -f1)  evm-balances/clickhouse/schema.sql"
-              echo "$(sha256sum "$schema/schema" | cut -d' ' -f1)  embedded schema"
-            fi
-          } > dist/HASHES.txt
-          cat dist/HASHES.txt
+          for p in evm-balances native/balances erc20/balances; do substreams pack "$p/substreams.yaml" -o "dist/{spkgDefaultName}"; done
+          for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do test -f "dist/$s"; done
       - name: Registry verify
         run: |
-          substreams registry verify "dist/$SPKG" | tee "$RUNNER_TEMP/verify.txt"
-          if grep -q "warning" "$RUNNER_TEMP/verify.txt"; then echo "::error::registry verify reported warnings"; exit 1; fi
-      # The release must carry the module hashes of the committed spkg, which
-      # CI's Package hashes job already checks against the source.
-      - name: Matches the committed spkg
+          for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do
+            substreams registry verify "dist/$s" | tee "$RUNNER_TEMP/verify.txt"
+            if grep -q "warning" "$RUNNER_TEMP/verify.txt"; then echo "::error::registry verify reported warnings for $s"; exit 1; fi
+          done
+      # Each spkg must carry the module hashes of its committed spkg, which
+      # CI's Package hashes job already checks against the source, and each
+      # map package those of the same map inside evm-balances. The embedded
+      # schema must equal make schema's.
+      - name: Matches the committed spkgs
         run: |
           hashes() { substreams info "$1" | awk '/^Name:/ {n = $2} /^Hash:/ {print n, $2}'; }
-          diff <(hashes "dist/$SPKG") <(hashes "spkg/$SPKG")
+          for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do diff <(hashes "dist/$s") <(hashes "spkg/$s"); done
+          diff <(hashes "dist/$NATIVE_SPKG" | sed 's/^/native_balances:/') <(hashes "dist/$SPKG" | grep '^native_balances:')
+          diff <(hashes "dist/$ERC20_SPKG" | sed 's/^/erc20_balances:/') <(hashes "dist/$SPKG" | grep '^erc20_balances:')
+          schema=$(mktemp -d)
+          substreams info "dist/$SPKG" --output-sinkconfig-files-path "$schema" > /dev/null
+          cmp evm-balances/clickhouse/schema.sql "$schema/schema"
+      # The run's record of what it built; the release carries no hash file.
+      - name: Summary
+        run: |
+          {
+            echo "### $TAG ($GITHUB_SHA, $(rustc -V), substreams $SUBSTREAMS_VERSION)"
+            echo
+            echo '| Package | Module | Hash |'
+            echo '| --- | --- | --- |'
+            for s in "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG"; do
+              substreams info "dist/$s" | awk -v s="$s" '/^Name:/ {n = $2} /^Hash:/ {print "| " s " | " n " | `" $2 "` |"}'
+            done
+            echo
+            echo '| WASM | sha256 |'
+            echo '| --- | --- |'
+            (cd target/wasm32-unknown-unknown/release && sha256sum native_balances.wasm erc20_balances.wasm evm_balances.wasm) | awk '{print "| " $2 " | `" $1 "` |"}'
+            echo
+            echo "\`evm-balances/clickhouse/schema.sql\`: \`$(sha256sum evm-balances/clickhouse/schema.sql | cut -d' ' -f1)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Notes
+        run: |
+          envsubst '${TAG} ${SPKG} ${NATIVE_SPKG} ${ERC20_SPKG} ${SINK} ${SINK_COMMIT}' < .github/release-notes.md > "$RUNNER_TEMP/notes.md"
+          if grep -n '\${' "$RUNNER_TEMP/notes.md"; then echo "::error::unrendered placeholder in the release notes"; exit 1; fi
+          cat "$RUNNER_TEMP/notes.md"
       - name: Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          {
-            echo "\`$SPKG\`, built by this workflow on Linux, CI's canonical builder (\`$(rustc -V)\`, substreams CLI $SUBSTREAMS_VERSION)."
-            echo
-            echo "**Not live-qualified.** No dated live evidence exists for these module hashes; qualification evidence names its module hashes explicitly."
-            echo
-            echo "Identify this build by the module hashes in HASHES.txt, never by the spkg sha256: an edited README changes the spkg bytes, and with substreams CLI v1.22.0 so does every pack of a manifest with several \`networks:\` entries (streamingfast/substreams#978)."
-            echo
-            if [ -n "${SINK:-}" ]; then
-              echo "Supported sink: [pinax-network/substreams-sink-sql $SINK](https://github.com/pinax-network/substreams-sink-sql/releases/tag/$SINK), commit \`$SINK_COMMIT\` (\`make -C evm-balances install-sink\`)."
-              echo
-            fi
-            echo '```'
-            cat dist/HASHES.txt
-            echo '```'
-          } > "$RUNNER_TEMP/notes.md"
-          gh release create "$TAG" "dist/$SPKG" dist/HASHES.txt --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          cd dist
+          gh release create "$TAG" "$SPKG" "$NATIVE_SPKG" "$ERC20_SPKG" --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag

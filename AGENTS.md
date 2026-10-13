@@ -135,10 +135,15 @@ committed spkgs from the job's `packages` artifact, not from a local pack.
 Compare module hashes, never spkg sha256: an edited README changes the spkg
 bytes, and with substreams CLI v1.22.0 so does every pack of a manifest with
 several `networks:` entries (streamingfast/substreams#978). Today's
-single-network packages do pack byte-identically across CI runs. Releases are cut by tag, `<package>-v<version>` equal to the
-manifest version, after the spkg is committed; `release.yml` publishes the
-CI-built spkg with `HASHES.txt` (README, Releases). A release states that it is
-not live-qualified unless dated evidence names its module hashes.
+single-network packages do pack byte-identically across CI runs. Only
+`evm-balances` is released (owner, 2026-10-13), by tag
+`evm-balances-v<version>` equal to the manifest version, after the spkgs are
+committed. `release.yml` publishes its CI-built spkg and those of
+`native/balances` and `erc20/balances`, which it imports, with the notes of
+`.github/release-notes.md`: what is included and how to deploy it, no hash
+file (README, Releases). The separate native and erc20 releases were deleted;
+their tags remain. A release states that it is not live-qualified unless
+dated evidence names its module hashes.
 
 The workspace is on substreams 0.8.0, substreams-ethereum 0.12.0 and buffa
 0.9.2 (2026-10-05). `proto/src/pb` is generated from `proto/v1` by `buf
