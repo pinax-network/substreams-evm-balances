@@ -10,12 +10,13 @@ from its `Transfer` flows and persisted storage. There are no layouts, token
 lists or RPC calls.
 
 This module requires Firehose Extended blocks. It lives in
-`substreams-evm-extended` so Extended-only processing stays separate from the
-original repository. [`evm-balances`](../../evm-balances/README.md) imports this
+`substreams-evm-balances` (formerly `substreams-evm-extended`) so Extended-only
+processing stays separate from the original repository.
+[`evm-balances`](../../evm-balances/README.md) imports this
 manifest and writes its rows into the substreams-evm `erc20_balances` table and
 views; this package has no `db_out`. The earlier CLI native-sink path and its
 smoke evidence are at
-[`cb62110`](https://github.com/pinax-network/substreams-evm-extended/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse).
+[`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse).
 [Migration provenance](../../docs/migration.md) distinguishes
 the preserved historical package from the package built in this repository.
 
@@ -74,7 +75,7 @@ longer recorded preimages are never decoded. Per block and per contract
 firehose-tracer 5.5.0 and later, such as StreamingFast reth-bsc
 v0.1.2-fh3.1-3 (released 2026-09-29), keep `Block.ver` 5 but change two
 things this package reads
-([#116](https://github.com/pinax-network/substreams-evm-extended/issues/116)):
+([#116](https://github.com/pinax-network/substreams-evm-balances/issues/116)):
 
 - `Call.keccak_preimages` keeps only the preimages that explain a storage
   write of their transaction or system call. A `balanceOf` of a holder whose
@@ -192,14 +193,14 @@ shared `proto` crate. The committed `spkg/erc20-balances-v0.1.0.spkg`
 params; no build writes to it. The inference source is packed (v0.2.0 and
 v0.4.0, below) but has only been checked offline: it has not run in a
 Substreams engine
-([#124](https://github.com/pinax-network/substreams-evm-extended/issues/124)).
+([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 A build is a new artifact and inherits none of the layout package's checks.
 `spkg/erc20-balances-v0.3.4.spkg` is the immutable RPC reference. See
 [rename provenance](../../docs/migration.md#module-rename). The
 committed `spkg/erc20-balances-v0.2.0.spkg` (module `6539de92…`, Rust 1.88)
 predates the [producer-release](#producer-releases) rules; v0.4.0 is the
 first build with them
-([#118](https://github.com/pinax-network/substreams-evm-extended/issues/118)).
+([#118](https://github.com/pinax-network/substreams-evm-balances/issues/118)).
 The committed v0.4.0 is CI's canonical Linux build: WASM `17a847aa…`, module
 `d8a9db86…`, not live-qualified.
 
@@ -215,7 +216,7 @@ the same.
 
 ## History
 
-Until [9b41c7f](https://github.com/pinax-network/substreams-evm-extended/tree/9b41c7f/erc20/balances),
+Until [9b41c7f](https://github.com/pinax-network/substreams-evm-balances/tree/9b41c7f/erc20/balances),
 `map_events` took caller-qualified storage layouts as params and failed closed
 on any unreviewed write. That commit has the layout code, its tests and
 fixtures, and the qualification documents and evidence for 425 BSC tokens. Its
@@ -234,4 +235,4 @@ On the five intervals above, the two approaches compare as follows:
   and 3 in the other intervals).
 
 The qualification host tools were removed earlier; see
-[`6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/erc20/balances/tools).
+[`6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/erc20/balances/tools).

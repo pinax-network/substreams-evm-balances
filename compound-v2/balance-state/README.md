@@ -12,7 +12,7 @@ all of them without computing any:
 | `exchangeRateStored` conversion | `(cash + totalBorrows - totalReserves) * 1e18 / totalSupply`, or `initialExchangeRateMantissa` when supply is zero | `GlobalState` market words + cash |
 | `balanceOfUnderlying` | shares times the exchange rate **after** `accrueInterest`, which needs the rate model, the accrual block and the block clock | the above + rate-model rows |
 
-The consumer evaluates with the formulas of the former [`conformance::compound_v2`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/compound_v2.rs)
+The consumer evaluates with the formulas of the former [`conformance::compound_v2`](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/compound_v2.rs)
 (removed with the host tools on 2026-10-03) at a canonical block clock: `accrue_with` reproduces the block-delta,
 borrow-rate, truncation and ordering of the bound cToken revision
 (`CTokenRevision::Legacy2019` for the 2019 cUSDC/cETH: borrow-rate cap 5e14
@@ -131,7 +131,7 @@ observations or a qualified exact checkpoint must initialize the new model;
 unobserved values remain unknown on quiet blocks. A consumer also keeps an
 invalidated model suspended until a valid newer BOUND. See the
 [contract](../../docs/balance-state-contract.md) and the synthetic
-[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
+[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
 
 This emission revision has offline synthetic validation only. Previously
 saved replay results and live package digests describe their original builds;
@@ -169,4 +169,4 @@ and every parameter refusal. `conformance::compound_v2` (at `6dade89`) had exact
 computed outside the crate for accrual over one and ten blocks, the kink and
 jump branches, both borrow-rate caps and the 2019 WhitePaper rate. There is no captured-block
 replay for this package yet; see issue
-[#14](https://github.com/pinax-network/substreams-evm-extended/issues/14).
+[#14](https://github.com/pinax-network/substreams-evm-balances/issues/14).

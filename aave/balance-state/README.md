@@ -5,7 +5,7 @@ A single RPC-free `map_events` reads Firehose Extended blocks and emits
 for explicitly qualified Aave V3 aToken epochs. It does not emit
 `evm.balances.v1`; the aToken's observable `balanceOf` is evaluated by the
 consumer from the rows below at a canonical block clock, with the exact
-model of the former [`conformance::aave`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/aave.rs)
+model of the former [`conformance::aave`](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/aave.rs)
 (removed with the host tools on 2026-10-03).
 
 ## What is emitted
@@ -107,7 +107,7 @@ the market suspended, and a newer BOUND must discard retained basis after
 suspension even with compatible storage (`basis_carryover = true`); fresh
 observations or a verified checkpoint are required. See the
 [contract](../../docs/balance-state-contract.md) and the synthetic
-[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
+[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
 
 This emission revision has offline synthetic validation only. Previously
 saved replay results and live package digests describe their original builds;
@@ -184,7 +184,7 @@ solc 0.8.27 ([layout](../../docs/evidence/storage-layouts/aave-v3-origin@8305565
 The historical packed map from 2026-09-22 (`spkg` sha256 `a6db4088…`, wasm `7611bbf1…`)
 was streamed from `bsc.substreams.pinax.network` and every emitted row was
 checked with the host tool `aave-balance-state-tools live-parity`
-([source at `6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/aave/balance-state/tools); removed since) against RPC getters at
+([source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/aave/balance-state/tools); removed since) against RPC getters at
 the row's exact block hash ([report](docs/evidence/live-parity-bsc-2026-09-22-rev3.json);
 events sha256 `9d1c5978…`, byte-identical to the pre-`rustfmt` build
 `baef8568…` of [rev2](docs/evidence/live-parity-bsc-2026-09-22-rev2.json)):
@@ -226,7 +226,7 @@ pinned source.
 No RPC, no synthetic holder fan-out, no evaluated balances in the output, no
 `evm.balances.v1` rows, no `db_out` or custom sink. Variable-debt tokens,
 Ethereum Core markets, legacy revisions and other chains need their own
-epochs and fixtures ([#8](https://github.com/pinax-network/substreams-evm-extended/issues/8)).
+epochs and fixtures ([#8](https://github.com/pinax-network/substreams-evm-balances/issues/8)).
 Initialization and checkpoints are shared under
-[#7](https://github.com/pinax-network/substreams-evm-extended/issues/7);
+[#7](https://github.com/pinax-network/substreams-evm-balances/issues/7);
 live qualification covers only the epoch and interval stated above.

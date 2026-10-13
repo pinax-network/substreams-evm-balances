@@ -12,7 +12,7 @@ description: How roadmap issues in pinax-network/substreams-evm-extended move fr
    and evidence as well as the original issue body. Each live step needs the
    owner's explicit OK under the live-use rule in
    [`AGENTS.md`](../../AGENTS.md#evidence); historical reports do not authorize
-   a new live run, and the `dex/pool-state` hold stays separate.
+   a new live run.
 2. **Branch from a fresh main** (`git checkout main && git pull`) with a short
    kebab-case branch name (`claude/<topic>` for Claude sessions). Other
    agents may have branches open; pull before branching and never rebase

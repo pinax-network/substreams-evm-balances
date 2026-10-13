@@ -1,6 +1,6 @@
 # Versioned balance-state contract (`evm.balance_state.v1`)
 
-Issue [#12](https://github.com/pinax-network/substreams-evm-extended/issues/12)
+Issue [#12](https://github.com/pinax-network/substreams-evm-balances/issues/12)
 asks for a versioned extraction contract for balances whose observable value
 depends on shared protocol state or time. `evm.balances.v1.Balance.amount`
 means `balanceOf(account)` and is unchanged; scaled units, share counts,
@@ -16,11 +16,11 @@ formulas recorded in [extraction coverage](extraction-coverage.md).
   their `evm.balances.v1.Events` output. They gain nothing.
 - Each protocol family gets a small companion package with exactly one
   RPC-free `map_events` whose output type is `evm.balance_state.v1.Events`:
-  `aave/balance-state` ([#13](https://github.com/pinax-network/substreams-evm-extended/issues/13)),
-  `compound-v2/balance-state` ([#14](https://github.com/pinax-network/substreams-evm-extended/issues/14)),
-  `compound-v3/balance-state` ([#15](https://github.com/pinax-network/substreams-evm-extended/issues/15)),
-  later `lido/balance-state` ([#23](https://github.com/pinax-network/substreams-evm-extended/issues/23)),
-  `erc4626/balance-state` ([#24](https://github.com/pinax-network/substreams-evm-extended/issues/24))
+  `aave/balance-state` ([#13](https://github.com/pinax-network/substreams-evm-balances/issues/13)),
+  `compound-v2/balance-state` ([#14](https://github.com/pinax-network/substreams-evm-balances/issues/14)),
+  `compound-v3/balance-state` ([#15](https://github.com/pinax-network/substreams-evm-balances/issues/15)),
+  later `lido/balance-state` ([#23](https://github.com/pinax-network/substreams-evm-balances/issues/23)),
+  `erc4626/balance-state` ([#24](https://github.com/pinax-network/substreams-evm-balances/issues/24))
   and a chain-scoped alias declaration for Arc. Output is confined to the
   facts a consumer needs to evaluate a balance; no prices, APY, health
   factors, liquidation policy or wallet classification.
@@ -57,7 +57,7 @@ fields, `oneof` or `optional` inside a row.
 | Canonical block number/hash/parent/timestamp on every block; finality and undo left to the stream | `BlockClock`, exactly one per delivered block; no finality field; forks handled by `BlockUndoSignal` or `final_blocks_only` |
 | Identities and order from transaction/call/log identity and ordinals; block and system scopes without a transaction hash; change boundary vs end-of-block stated | `scope`, `transaction_index`, `transaction_hash`, `call_index`, `log_index`, `ordinal`, `first_ordinal`, `change_count`, `boundary` on every fact row |
 | One shared update affects initialized holders without synthetic holder writes | A `GlobalState` row is emitted; no `HolderBasis` row exists without a holder write. Consumers retain state and evaluate at a chosen clock (below) |
-| Missing, known zero, unsupported model, invalidated dependency, reverted are distinct; upgrade/dependency invalidation defined; #7 reused | Absence = missing; `"0"` = known zero; `EPOCH_EVENT_KIND_SUSPENDED` = unsupported model; `EPOCH_EVENT_KIND_INVALIDATED` with `reason` and evidence = invalidated dependency; reverted effects never become rows. Checkpoints and rollback stay with [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7) |
+| Missing, known zero, unsupported model, invalidated dependency, reverted are distinct; upgrade/dependency invalidation defined; #7 reused | Absence = missing; `"0"` = known zero; `EPOCH_EVENT_KIND_SUSPENDED` = unsupported model; `EPOCH_EVENT_KIND_INVALIDATED` with `reason` and evidence = invalidated dependency; reverted effects never become rows. Checkpoints and rollback stay with [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7) |
 | Compatibility, versioning, Rust fixtures; no renumbering, hidden cache, RPC, extra map, `db_out` or custom sink | Rules below; `proto/src/balance_state_tests.rs`; `evm.balances.v1` asserted byte-identical in the same test run |
 | Native sink mapping and cross-output identities without promising atomic publication | Section "Sink mapping" below |
 
@@ -124,7 +124,7 @@ spec 5) require new artifact qualification. Saved replay/live evidence remains
 bound to its historical package and initialized-holder interval.
 
 The host retention consumers (removed with the host tools on 2026-10-03; at
-[`6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention))
+[`6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention))
 validated positive, ordered emitted observation spans against their epoch's
 activation, actual successor BOUND and any current-block invalidation cutoff.
 A consumer should keep these checks. CHANGE rows identify one effect; a final
@@ -218,7 +218,7 @@ The cutoff is block-local because the maps are stateless. A later heartbeat
 or a restored pointer does not prove that an earlier invalidation was safe;
 consumers must retain the suspension until a qualified newer epoch is bound.
 The synthetic projector-to-ledger tests in
-[`common/retention/tests/projector_invalidation.rs`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs)
+[`common/retention/tests/projector_invalidation.rs`](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs)
 (at `6dade89`) exercised all five packages, row counts, restored/equal-value
 pointers, unknown writes on both sides, shared code dependencies, suspension,
 successor binding, undo and replacement blocks. They did not qualify any
@@ -232,7 +232,7 @@ those inputs, never carried forward),
 the `BlockClock` of N for `timestamp` and `number`, and applies the epoch's
 formula ([extraction coverage §3](extraction-coverage.md#3-initial-protocol-markets-implementations-and-epochs);
 the Rust conformance models of
-[#16](https://github.com/pinax-network/substreams-evm-extended/issues/16) are
+[#16](https://github.com/pinax-network/substreams-evm-balances/issues/16) are
 at `6dade89`):
 
 | Family | Holder basis | Global fields | Clock input |

@@ -9,7 +9,10 @@ evidence of what was read and when, not qualification of any deployment.
 
 "Used by" names the consumer when each note was written. The host tools and
 `conformance` were removed on 2026-10-03 (`6dade89`), and the `erc20/balances`
-layout path on 2026-10-05 (`9b41c7f`); the notes for issues #3, #4, #5 and #61
+layout path on 2026-10-05 (`9b41c7f`). `aave/actions`, `evm/executions`,
+`erc20/events` and `dex/pool-state` left this repository on 2026-10-13
+(`ca00aba`; the last two moved to substreams-evm-transfers and
+substreams-evm-dex). The notes for issues #3, #4, #5 and #61
 supported that former layout path. Paths and main-branch URLs in these notes
 that point into `erc20/balances/docs` or `erc20/balances/tests` resolve at
 `9b41c7f`.

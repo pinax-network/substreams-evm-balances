@@ -4,13 +4,9 @@ members = [
   "common/persist",
   "common/epochs",
   "erc20/balances",
-  "erc20/events",
   "native/balances",
   "evm-balances",
-  "aave/actions",
   "aave/balance-state",
-  "evm/executions",
-  "dex/pool-state",
   "compound-v2/balance-state",
   "compound-v3/balance-state",
   "lido/balance-state",
@@ -19,16 +15,13 @@ members = [
 resolver = "2"
 
 [workspace.package]
-description = "EVM Substreams using Firehose Extended blocks"
+description = "EVM balance Substreams from Firehose Extended blocks"
 edition = "2021"
 version = "0.0.0"
 license = "Apache-2.0"
 
 [workspace.dependencies]
 substreams = "0.8.0"
-# v2.0.0 is the port to substreams 0.8.0 and substreams-ethereum 0.12.0
-# (pinax-network/substreams-abis#55; same tree as its head 9914005).
-substreams-abis = { git = "https://github.com/pinax-network/substreams-abis.git", tag = "v2.0.0" }
 substreams-ethereum = "0.12.0"
 # Generated messages (proto/src/pb) and test encoding; the versions substreams
 # 0.8.0 and substreams-ethereum 0.12.0 are built on.

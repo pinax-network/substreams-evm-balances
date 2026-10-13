@@ -1,12 +1,17 @@
 # Repository guidance
 
-This repository contains EVM Substreams that consume Firehose **Extended**
-blocks. The Rust workspace members are the shared protobuf crate, the shared
-`common/persist` persisted-effect rules, the `common/epochs` schedule helper,
-and the packages `erc20/balances`, `erc20/events`, `native/balances`,
-`aave/balance-state`, `aave/actions`, `compound-v2/balance-state`,
-`compound-v3/balance-state`, `lido/balance-state`, `erc4626/balance-state`,
-`evm/executions`, `dex/pool-state` and `evm-balances`.
+This repository, `pinax-network/substreams-evm-balances` (renamed from
+`substreams-evm-extended` on 2026-10-13), contains the EVM balance Substreams
+that consume Firehose **Extended** blocks. The Rust workspace members are the
+shared protobuf crate, the shared `common/persist` persisted-effect rules, the
+`common/epochs` schedule helper, and the packages `erc20/balances`,
+`native/balances`, `aave/balance-state`, `compound-v2/balance-state`,
+`compound-v3/balance-state`, `lido/balance-state`, `erc4626/balance-state` and
+`evm-balances`. At the owner's direction (2026-10-13) DEX code lives in
+`pinax-network/substreams-evm-dex` and transfer events in
+`pinax-network/substreams-evm-transfers`: `dex/pool-state` and `erc20/events`
+moved there with their history, and `evm/executions` and `aave/actions` were
+removed. All four remain in this repository's history at `ca00aba`.
 
 The repository holds Substreams package code only: map crates, the
 `evm-balances` db_out crate, manifests, SQL, Makefiles, regression tests and
@@ -23,8 +28,8 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   companion `evm.balance_state.v1.Events` instead, never a replacement for
   `Balance.amount`. `erc20/balances` keeps its embedded copy of the
   persistence rules; `common/persist` must not diverge from it.
-- Require Extended block data. The protocol balance-state packages and
-  `aave/actions` also require explicit, independently qualified layouts and
+- Require Extended block data. The protocol balance-state packages also
+  require explicit, independently qualified layouts and
   bindings (markets, epochs, vaults, pools). Except in `erc20/balances` (next
   item), unknown writes and unreviewed runtime or dependency changes must fail
   closed.
@@ -50,17 +55,6 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   contract's rows for the block on a successful `balanceOf` call without a
   36-byte input or return data. Each qualification records the reader release
   (client and tracer version), not just `Block.ver`.
-- `dex/pool-state` emits the existing `dex.pool_state.v1.BlockPoolState` through
-  one `map_events(Block)`. Preserve pool-state protobuf names/field numbers,
-  exact integers, canonical log order and explicit invalid markers. Require
-  Extended blocks and successful transaction call traces; never fall back to
-  receipt logs. Contract ABI sources and generated structs stay in
-  `substreams-abis`, not this repository. At the owner's direction
-  (2026-10-05) that pin moved with the substreams 0.8.0 bump from tag `v1.5.0`
-  to tag `v2.0.0`, the owner's release of the port to substreams 0.8.0 and
-  substreams-ethereum 0.12.0 (pinax-network/substreams-abis#55). Otherwise the
-  pinned types are reused without a dependency version change.
-  Read `dex/pool-state/README.md`; extraction is not pool or price admission.
 - `evm-balances` is the only `db_out` (owner, 2026-10-05). It imports
   `native/balances` and `erc20/balances` as local manifests and writes the
   substreams-evm ClickHouse tables with the row format of upstream `db_out` at
@@ -93,21 +87,17 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   available (BSC resumed on 2026-09-22), an earlier OK or a historical report
   authorize nothing new. Keep credentials (`SUBSTREAMS_API_KEY`, RPC URLs,
   sink DSNs) in environment variables only, and never print access-bearing
-  endpoint URLs or secrets into logs or evidence. The `dex/pool-state` hold
-  below is separate and stays in force. Other documents point here instead of
-  restating this rule.
+  endpoint URLs or secrets into logs or evidence. Other documents point here
+  instead of restating this rule.
 - Verify new work ad hoc (for example in clickhouse-local or with scratch
   queries), and report the method and results in the pull request. Keep
   regression tests in Rust inside the package crates.
 - Preserve captured fixtures, source/runtime bindings, failed attempts and
   historical evidence: in the tree, or at a cited commit when the owner removes
   a package path (the `erc20/balances` layout path: `9b41c7f`; the per-package
-  CLI native-sink ClickHouse paths: `cb62110`). Use fresh output
-  directories for new live checks.
-- The IVSpikes-associated pool-state migration is offline only. Its new
-  Extended-only package/digest is not qualified by historical live evidence.
-  The owner's existing hold on its Substreams/Firehose/RPC checks remains in
-  force until explicit reauthorization; do not start a source or RPC smoke test.
+  CLI native-sink ClickHouse paths: `cb62110`; `dex/pool-state`,
+  `erc20/events`, `evm/executions` and `aave/actions`: `ca00aba`). Use fresh
+  output directories for new live checks.
 - Compare with the immutable canonical RPC reference package. Distinguish newly
   built packages from historical package digests rather than rewriting evidence.
 - Coverage claims must state the tested interval and initialized observed-holder
@@ -152,14 +142,19 @@ The workspace is on substreams 0.8.0, substreams-ethereum 0.12.0 and buffa
 0.9.2 (2026-10-05). `proto/src/pb` is generated from `proto/v1` by `buf
 generate` in `proto/` (`buf.gen.yaml`: the `buf.build/anthropics/buffa` plugin
 v0.9.2, the version and options the SDK crates use); regenerate it rather than
-editing it. Only `pb/mod.rs` is written by hand.
+editing it. Only `pb/mod.rs` is written by hand. `proto/` still carries the
+`dex.pool_state.v1`, `uniswap.v2`/`uniswap.v3` pool-state, `erc20.events.v1`,
+`evm.executions.v1` and `aave.actions.v1` types of the packages that left on
+2026-10-13, only so `evm-balances`' `db_out` WASM keeps v0.6.1's hash: its
+build links every proto type through buffa's `json` feature. Remove them with
+the next release that changes that hash anyway (owner, 2026-10-13).
 
 Package Makefiles build WASM with `--locked` and the `RUSTFLAGS` of the
 root `build.mk`, which remap the checkout, `CARGO_HOME` and the Rust sources
 (`--remap-path-prefix`). WASM and module hashes then depend only on the source
 and the pinned toolchain, not on the checkout directory, the user, or whether
 rust-src is installed, and RUSTFLAGS set in the shell are ignored. Keep this
-in every WASM build, including the `dex/pool-state` README command. Handlers
+in every WASM build. Handlers
 decode their input with buffa's default limits
 (32 MiB of repeated elements per block); the measured headroom is in the
 dated [substreams 0.8.0 section](docs/history/handoff-2026-09-21-to-2026-10-06.md#substreams-080-2026-10-05)

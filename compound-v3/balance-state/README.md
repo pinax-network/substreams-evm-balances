@@ -5,7 +5,7 @@ A single RPC-free `map_events` reads Firehose Extended blocks and emits
 for explicitly qualified Compound III (Comet) market epochs. It does not
 emit `evm.balances.v1`; the market's observable `balanceOf` / `borrowBalanceOf`
 is evaluated by the consumer from the rows below at a canonical block clock,
-with the exact model of the former [`conformance::comet`](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/comet.rs)
+with the exact model of the former [`conformance::comet`](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/comet.rs)
 (removed with the host tools on 2026-10-03).
 
 ## What is emitted
@@ -117,7 +117,7 @@ the market suspended, and a newer BOUND must discard retained basis after
 suspension even with compatible storage (`basis_carryover = true`); fresh
 observations or a verified checkpoint are required. See the
 [contract](../../docs/balance-state-contract.md) and the synthetic
-[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
+[projector-to-consumer tests](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/common/retention/tests/projector_invalidation.rs).
 
 This emission revision has offline synthetic validation only. Previously
 saved replay results and live package digests describe their original builds;
@@ -155,4 +155,4 @@ writes; reverted frames, FAILED and REVERTED transactions; every
 `validate_block` refusal; pre-activation blocks; two markets in one block;
 determinism under input permutation; and every parameter refusal. There is
 no captured-block replay for this package yet; see issue
-[#15](https://github.com/pinax-network/substreams-evm-extended/issues/15).
+[#15](https://github.com/pinax-network/substreams-evm-balances/issues/15).
