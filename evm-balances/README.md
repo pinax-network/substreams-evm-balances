@@ -201,7 +201,7 @@ Releases are tagged `v<version>` and publish `evm-balances-v<version>.spkg`
 | `ASSET` | `evm` |
 | `TYPE` | `balances` |
 | `VERSION` | `v0.6.1` |
-| `SPKG_URL` | `https://github.com/pinax-network/substreams-evm-extended/releases/download/v0.6.1/evm-balances-v0.6.1.spkg` |
+| `SPKG_URL` | `https://github.com/pinax-network/substreams-evm-balances/releases/download/v0.6.1/evm-balances-v0.6.1.spkg` |
 
 The database is `bsc:evm-balances@v0.6.1`, next to the RPC-era
 `bsc:evm-balances@v0.3.x`: only the version tells them apart, and Token API

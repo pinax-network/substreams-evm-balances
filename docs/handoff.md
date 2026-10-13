@@ -154,11 +154,11 @@ orphaned rows ([README](../evm-balances/README.md#token-api-live-sink-bsc)).
 The first prod-c backfill of v0.6.0 stopped on BSC block 127,411,449, which
 native refused on the producer's CALLCODE self-transfer pair; v0.6.1 (native
 v0.2.2, #149) drops that pair. The owner then made releases plain
-`v<version>` tags and named the BSC database `bsc:evm-balances@<version>`.
-The DEX code moves to the new `pinax-network/substreams-evm-dex`; once it
-has, this repository is pruned to balances, renamed `substreams-evm-balances`,
-and the Argo workflows and live sinks move to the new URL. Releases are not
-live qualification.
+`v<version>` tags, named the BSC database `bsc:evm-balances@<version>` and
+renamed this repository from `substreams-evm-extended` to
+`substreams-evm-balances` (GitHub redirects the old URLs). The DEX code moves
+to the new `pinax-network/substreams-evm-dex`, and this repository is pruned
+to balances. Releases are not live qualification.
 
 Upstream, open: deterministic spkg packing,
 [streamingfast/substreams#978](https://github.com/streamingfast/substreams/pull/978);
