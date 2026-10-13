@@ -9,6 +9,9 @@ export SUBSTREAMS_SINK_DSN ?= clickhouse://default:@localhost:9000/default
 # commit. `install-sink` builds it; `setup` and `dev` refuse any other build.
 SINK_VERSION := v4.13.0
 SINK_COMMIT := 933a187
+# Reorgs: an undo buffer as the Token API's BSC balances live sink uses, not
+# --final-blocks-only (owner, 2026-10-13). See README, Token API live sink.
+UNDO_BUFFER_SIZE ?= 5
 .DEFAULT_GOAL := pack
 
 # substreams pack embeds the imported packages' WASM without building it.
@@ -71,4 +74,4 @@ setup: build schema check-sink
 
 .PHONY: dev
 dev: build schema check-sink
-	substreams-sink-sql run "$$SUBSTREAMS_SINK_DSN" substreams.yaml -e $(ENDPOINT) $(START_BLOCK): --final-blocks-only --on-module-hash-mistmatch=warn --batch-block-flush-interval 1 --live-block-flush-interval 1 --infinite-retry --development-mode
+	substreams-sink-sql run "$$SUBSTREAMS_SINK_DSN" substreams.yaml -e $(ENDPOINT) $(START_BLOCK): --undo-buffer-size $(UNDO_BUFFER_SIZE) --on-module-hash-mistmatch=warn --batch-block-flush-interval 1 --live-block-flush-interval 1 --infinite-retry --development-mode

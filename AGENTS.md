@@ -74,7 +74,10 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   concatenation. It adds no map, store, params or RPC. Do not add other
   `db_out` or database-change modules, or custom sinks. Other packages' map
   outputs remain the contract for external native sinks; local sink state
-  belongs under `out/`.
+  belongs under `out/`. Its sinks run with `--undo-buffer-size`, as the Token
+  API live sinks do (BSC: 5), not `--final-blocks-only` (owner, 2026-10-13):
+  a fork deeper than the buffer stops the sink and leaves the rows it wrote
+  for the orphaned blocks, an accepted risk.
 - `native/balances` is params-free at the owner's direction (2026-10-06):
   `map_events(block)` has no producer-version gate or manifest network allowlist.
   Keep its complete Extended-block, failed-transaction reason and persisted
@@ -136,10 +139,13 @@ Compare module hashes, never spkg sha256: an edited README changes the spkg
 bytes, and with substreams CLI v1.22.0 so does every pack of a manifest with
 several `networks:` entries (streamingfast/substreams#978). Today's
 single-network packages do pack byte-identically across CI runs. Only
-`evm-balances` is released (owner, 2026-10-13), by tag
-`evm-balances-v<version>` equal to the manifest version, after the spkgs are
-committed. `release.yml` publishes its CI-built spkg and those of
-`native/balances` and `erc20/balances`, which it imports, with the notes of
+`evm-balances` is released (owner, 2026-10-13). Tag and asset follow the
+Token API live-sink package URL with `ASSET` `evm-extended` and `TYPE`
+`balances`: tag `evm-extended-balances-v<version>`, `<version>` equal to the
+manifest version, cut after the spkgs are committed, and the `db_out` spkg
+published as `evm-extended-clickhouse-balances-v<version>.spkg`.
+`release.yml` publishes it with the CI-built spkgs of `native/balances` and
+`erc20/balances`, which it imports, and the notes of
 `.github/release-notes.md`: what is included and how to deploy it, no hash
 file (README, Releases). The separate native and erc20 releases were deleted;
 their tags remain. A release states that it is not live-qualified unless
