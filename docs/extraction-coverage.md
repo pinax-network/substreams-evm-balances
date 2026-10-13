@@ -333,10 +333,10 @@ this document.
 ## 5. Output identity, ordering and consumption
 
 - **Identity**: balance rows are end-of-block state keyed by `(block clock, contract-or-absent, address)`; fact rows (#18, #19, #20) carry `(block hash, transaction index and hash, call index, log index or ordinal)` and, for block and system scopes, an explicit scope without a transaction hash. The [balance-state contract](https://github.com/pinax-network/substreams-evm-balances/issues/12) encodes these identities for the protocol packages.
-- **Ordering**: within a block by execution ordinal (versions 4/5 only); across blocks by the stream clock. Rows inside `Events` are sorted deterministically.
+- **Ordering**: within a block by execution ordinal (versions 4/5 only); across blocks by the stream clock. Rows inside `Events` and `NativeEvents` are sorted deterministically.
 - **Clock advancement**: every delivered block advances the clock, including blocks with empty output. Consumers must not infer completeness from nonempty rows or sink markers.
 - **Unknown states**: *missing/uninitialized* (no observation since the consumer's checkpoint), *known zero* (an observed zero value), *unsupported model* (layout or version not qualified; the map fails closed), *invalidated dependency* (a pinned implementation, slot or rate model changed; retained state must be rebuilt) and *reverted* (attempted, never persisted) are distinct and are never collapsed into zero. Initialization and checkpoints are shared under [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7).
-- **Balances in ClickHouse**: [`evm-balances`](../evm-balances/README.md) is the one `db_out`. It writes the two balance maps into the substreams-evm tables (`erc20_balances`, `native_balances`, `blocks` and the history views) through substreams-sink-sql; what a row and its absence mean, replays and completeness are in the [cutover contract](initialization-and-completeness.md). No custom sink.
+- **Balances in ClickHouse**: each balance package carries its own `db_out` ([ClickHouse](clickhouse.md)) into the substreams-evm tables, through substreams-sink-sql: `native/balances` writes `native_balances`, `blocks` and the native history views into `<chain>:evm-balances-native@<version>`, and `erc20/balances` writes `erc20_balances`, `blocks` and the ERC-20 history views into `<chain>:evm-balances-erc20@<version>`. Until v0.6.1 the combined `evm-balances` package wrote both into one database. What a row and its absence mean, replays and completeness are in the [cutover contract](initialization-and-completeness.md). No custom sink.
 - **Other packages in a native sink**: their map outputs stay the contract for external native Substreams sinks. The CLI's ClickHouse sink derives one table per repeated message, keyed `(_block_number_, _row_id_)` in a `ReplacingMergeTree`; `_blocks_` lists nonempty-output blocks only, and writes are not multi-table transactions, so audits bind the sink's rows to independently captured clocks.
 
 ## 6. Open questions
@@ -394,9 +394,9 @@ that will close it.
 
 ## 7. Boundary
 
-Extended-block Substreams extraction only, one RPC-free map per package,
-one `db_out` (`evm-balances`) for the balance tables and native Substreams
-sinks for the other outputs, all tests in Rust. No Token API,
+Extended-block Substreams extraction only, one RPC-free map per package, a
+`db_out` in each balance package for its own balance tables and native
+Substreams sinks for the other outputs, all tests in Rust. No Token API,
 prices, APY, health factors, portfolio aggregation, RPC fallback service or
 universal labeling. Each live Substreams, Firehose, RPC or sink step needs
 the owner's OK ([live use](../AGENTS.md#evidence)); this document was

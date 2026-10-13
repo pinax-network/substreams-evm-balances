@@ -6,25 +6,27 @@ that consume Firehose **Extended** blocks. The Rust workspace members are the
 shared protobuf crate, the shared `common/persist` persisted-effect rules, the
 `common/epochs` schedule helper, and the packages `erc20/balances`,
 `native/balances`, `aave/balance-state`, `compound-v2/balance-state`,
-`compound-v3/balance-state`, `lido/balance-state`, `erc4626/balance-state` and
-`evm-balances`. At the owner's direction (2026-10-13) DEX code lives in
+`compound-v3/balance-state`, `lido/balance-state` and `erc4626/balance-state`.
+At the owner's direction (2026-10-13) DEX code lives in
 `pinax-network/substreams-evm-dex` and transfer events in
 `pinax-network/substreams-evm-transfers`: `dex/pool-state` and `erc20/events`
 moved there with their history, and `evm/executions` and `aave/actions` were
 removed. All four remain in this repository's history at `ca00aba`.
 
-The repository holds Substreams package code only: map crates, the
-`evm-balances` db_out crate, manifests, SQL, Makefiles, regression tests and
-fixtures. Host-side diagnostic tools, reference models and harnesses were
+The repository holds Substreams package code only: map crates (the two
+balance packages with their `db_out`), manifests, SQL, Makefiles, regression
+tests and fixtures. Host-side diagnostic tools, reference models and harnesses were
 removed on 2026-10-03. They remain in git history at `6dade89`, which the
 dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
 
 ## Production boundary
 
 - Keep one RPC-free `map_events` module per map package and the shared
-  `evm.balances.v1.Events` output for balance packages. Preserve the canonical
-  balances protobuf field numbers and wire types; do not introduce a custom
-  storage protobuf or map cache. Protocol balance-state packages emit the
+  `evm.balances.v1` output for balance packages: `Events` for ERC-20 and, at
+  the owner's direction (2026-10-13), `NativeEvents` for native, which is
+  `Events` without the always-absent contract (field 1 reserved, the same
+  bytes). Preserve the canonical balances protobuf field numbers and wire
+  types; do not introduce a custom storage protobuf or map cache. Protocol balance-state packages emit the
   companion `evm.balance_state.v1.Events` instead, never a replacement for
   `Balance.amount`. `erc20/balances` keeps its embedded copy of the
   persistence rules; `common/persist` must not diverge from it.
@@ -43,9 +45,10 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   qualified. The former layout path, with its tests, fixtures and qualification
   evidence, is in git history at `9b41c7f`. Its last packed build is the
   committed `spkg/erc20-balances-v0.1.0.spkg` (2026-09-23), which predates the
-  typed-path and enumerable-set source at `9b41c7f`; the inference package is
-  v0.4.0 (v0.2.0 until the Rust 1.99.0 batch, #118). Versions skip v0.3.x so
-  that no build can overwrite the RPC reference `spkg/erc20-balances-v0.3.4.spkg`.
+  typed-path and enumerable-set source at `9b41c7f`. The inference package was
+  `erc20_balances` v0.4.0 (v0.2.0 until the Rust 1.99.0 batch, #118); versions
+  skipped v0.3.x so that no build can overwrite the RPC reference
+  `spkg/erc20-balances-v0.3.4.spkg`. Since v0.7.0 it is `evm_balances_erc20`.
 - `Block.ver` alone does not identify producer semantics. Producers on
   firehose-tracer 5.5.0 and later keep `Block.ver` 5 but record only the Keccak
   preimages that explain a storage write, and cut call data past
@@ -55,29 +58,39 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   contract's rows for the block on a successful `balanceOf` call without a
   36-byte input or return data. Each qualification records the reader release
   (client and tracer version), not just `Block.ver`.
-- `evm-balances` is the only `db_out` (owner, 2026-10-05). It imports
-  `native/balances` and `erc20/balances` as local manifests and writes the
-  substreams-evm ClickHouse tables with the row format of upstream `db_out` at
-  substreams-evm@`cb8607f`: tables, keys, columns and value encoding. It
-  encodes them with `substreams-database-change` 5.0.0, where every field also
-  carries `update_op = UPDATE_OP_SET`; upstream's 3.0.0 has no such field, and
-  the SQL sink reads only a CREATE field's name and value. Its Makefile builds
-  the imported packages one at a time, so their WASM and module hashes equal
-  the standalone packages'. Its `clickhouse/schema.*.sql` are
-  upstream's files byte for byte; its manifest's `sink:` section embeds their
-  concatenation. It adds no map, store, params or RPC. Do not add other
-  `db_out` or database-change modules, or custom sinks. Other packages' map
+- The two balance packages each ship their `map_events` and a `db_out` in one
+  spkg (owner, 2026-10-13): `native/balances` is `evm_balances_native`, written
+  to `<chain>:evm-balances-native@<version>`, and `erc20/balances` is
+  `evm_balances_erc20`, written to `<chain>:evm-balances-erc20@<version>`.
+  Each version and database moves on its own, so an ERC-20 change never
+  resyncs native, and a native refusal never stops ERC-20. The combined
+  `evm-balances` package (one `db_out` for both, until v0.6.1, 2026-10-05 to
+  2026-10-13) is retired; its source is at `5101e32`. Each `db_out` writes its
+  half of the substreams-evm ClickHouse tables with the row format of upstream
+  `db_out` at substreams-evm@`cb8607f`: tables, keys, columns and value
+  encoding. It encodes them with `substreams-database-change` 5.0.0, where
+  every field also carries `update_op = UPDATE_OP_SET`; upstream's 3.0.0 has no
+  such field, and the SQL sink reads only a CREATE field's name and value. Each
+  package's `clickhouse/schema.*.sql` are upstream's files byte for byte,
+  except its half of `schema.1.table.balances.sql` (the two halves rejoin it);
+  its manifest's `sink:` section embeds their concatenation. Each package keeps
+  its own copy of the row helpers. A `db_out` adds no store, params or RPC. Do
+  not add other `db_out` or database-change modules, or custom sinks. The map
   outputs remain the contract for external native sinks; local sink state
-  belongs under `out/`. Its sinks run with `--undo-buffer-size`, as the Token
-  API live sinks do (BSC: 5), not `--final-blocks-only` (owner, 2026-10-13):
-  a fork deeper than the buffer stops the sink and leaves the rows it wrote
-  for the orphaned blocks, an accepted risk.
+  belongs under `out/`. The sinks run with `--undo-buffer-size`, as the Token
+  API live sinks do (BSC: 5), not `--final-blocks-only` (owner, 2026-10-13): a
+  fork deeper than the buffer stops the sink and leaves the rows it wrote for
+  the orphaned blocks, an accepted risk. See `docs/clickhouse.md`.
 - `native/balances` is params-free at the owner's direction (2026-10-06):
   `map_events(block)` has no producer-version gate or manifest network allowlist.
   Keep its complete Extended-block, failed-transaction reason and persisted
-  balance continuity checks. Accepting a block is not network qualification;
-  network-specific persistence work remains separate. `evm-balances` imports
-  both balance maps without params and defaults to `network: bsc` for routing.
+  balance continuity checks. Its only continuity exceptions are recognized
+  producer shapes with a captured fixture: the self-transfer pair (v0.2.2) and
+  the `Block.ver` 3 fee pool payout (v0.7.0). Since v0.7.0 block 0 emits the
+  genesis allocations when every balance record in it is a `GENESIS_BALANCE`
+  from zero. Accepting a block is not network qualification; network-specific
+  persistence work remains separate. Both packages default to `network: bsc`
+  for routing.
 - Host-side qualification can use RPC. Production balance processing cannot.
 
 ## Evidence
@@ -115,39 +128,40 @@ wasm32 compiles the handlers), a WASM workspace check and rustdoc, all with
 warnings denied. Live RPC, stream and holder checks are separate from offline
 CI.
 
-CI's "Package hashes" job builds `native/balances`, `erc20/balances` and
-`evm-balances` on Linux through their Makefiles, with the checksum-pinned
-substreams CLI v1.22.0. It fails unless each committed
-`spkg/<name>-<version>.spkg` carries the module hashes of its source, and the
-embedded schema equals `make -C evm-balances schema`. A PR that changes one
-of these WASMs therefore bumps its version and commits the repacked spkg in
-the same PR. That job's Linux build is canonical (2026-10-06): a macOS build
+CI's "Package hashes" job builds `native/balances` and `erc20/balances` on
+Linux through their Makefiles, with the checksum-pinned substreams CLI
+v1.22.0. It fails unless each committed `spkg/<name>-<version>.spkg` carries
+the module hashes of its source, and each embedded schema equals its
+`make -C <package> schema`. A PR that changes one of these WASMs therefore
+bumps its version and commits the repacked spkg in the same PR. That job's Linux build is canonical (2026-10-06): a macOS build
 of the same source gives other module hashes, because cargo's symbol
 metadata includes the host and LTO then merges functions differently. Take
 committed spkgs from the job's `packages` artifact, not from a local pack.
 Compare module hashes, never spkg sha256: an edited README changes the spkg
 bytes, and with substreams CLI v1.22.0 so does every pack of a manifest with
 several `networks:` entries (streamingfast/substreams#978). Today's
-single-network packages do pack byte-identically across CI runs. Only
-`evm-balances` is released (owner, 2026-10-13), by tag `v<version>` equal to
-its manifest version, cut after the spkgs are committed. `release.yml`
-publishes `evm-balances-v<version>.spkg` with the CI-built spkgs of `native/balances` and
-`erc20/balances`, which it imports, and the notes of
-`.github/release-notes.md`: what is included and how to deploy it, no hash
-file (README, Releases). The separate native and erc20 releases were deleted;
-their tags remain. A release states that it is not live-qualified unless
-dated evidence names its module hashes.
+single-network packages do pack byte-identically across CI runs. Each balance
+package is released on its own (owner, 2026-10-13), by a tag equal to its spkg
+name, `evm-balances-native-v<version>` or `evm-balances-erc20-v<version>`, cut
+after the spkg is committed. `release.yml` publishes the CI-built spkg with the
+notes of `.github/release-notes/<native|erc20>.md`: what is included and how to
+deploy it, no hash file (README, Releases). The plain `v<version>` tags and the
+`evm-balances` releases before v0.7.0 belong to the retired combined package. A
+release states that it is not live-qualified unless dated evidence names its
+module hashes.
 
 The workspace is on substreams 0.8.0, substreams-ethereum 0.12.0 and buffa
 0.9.2 (2026-10-05). `proto/src/pb` is generated from `proto/v1` by `buf
 generate` in `proto/` (`buf.gen.yaml`: the `buf.build/anthropics/buffa` plugin
 v0.9.2, the version and options the SDK crates use); regenerate it rather than
-editing it. Only `pb/mod.rs` is written by hand. `proto/` still carries the
-`dex.pool_state.v1`, `uniswap.v2`/`uniswap.v3` pool-state, `erc20.events.v1`,
-`evm.executions.v1` and `aave.actions.v1` types of the packages that left on
-2026-10-13, only so `evm-balances`' `db_out` WASM keeps v0.6.1's hash: its
-build links every proto type through buffa's `json` feature. Remove them with
-the next release that changes that hash anyway (owner, 2026-10-13).
+editing it. Only `pb/mod.rs` is written by hand. A `db_out` links every
+message of the `proto` crate into its WASM through buffa's `json` feature, so
+`evm.balance_state.v1` sits behind the crate's default `balance-state`
+feature, which the two balance packages turn off: an edit to the balance-state
+messages then cannot change their hashes. The types of the packages that left
+on 2026-10-13 were removed with v0.7.0. The SQL sink's descriptors are the
+committed `spkg/evm-balances-sink-protodefs-v0.1.0.spkg`, built from
+`proto/sink`.
 
 Package Makefiles build WASM with `--locked` and the `RUSTFLAGS` of the
 root `build.mk`, which remap the checkout, `CARGO_HOME` and the Rust sources

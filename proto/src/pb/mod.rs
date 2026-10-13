@@ -3,6 +3,12 @@
 //! `proto/buf.gen.yaml`); run `buf generate` in `proto/` to regenerate. This
 //! file is written by hand and keeps the module paths of the earlier prost
 //! code.
+//!
+//! `evm.balance_state.v1` sits behind the default `balance-state` feature.
+//! `native/balances` and `erc20/balances` turn it off: their `db_out` links
+//! every message of this crate into the WASM (buffa's `json` feature), so a
+//! change to the balance-state messages would otherwise change their module
+//! hashes.
 
 macro_rules! include_buffa {
     ($package:literal) => {
@@ -16,44 +22,10 @@ pub mod evm {
             include_buffa!("evm.balances.v1");
         }
     }
+    #[cfg(feature = "balance-state")]
     pub mod balance_state {
         pub mod v1 {
             include_buffa!("evm.balance_state.v1");
-        }
-    }
-    pub mod executions {
-        pub mod v1 {
-            include_buffa!("evm.executions.v1");
-        }
-    }
-}
-pub mod erc20 {
-    pub mod events {
-        pub mod v1 {
-            include_buffa!("erc20.events.v1");
-        }
-    }
-}
-pub mod aave {
-    pub mod actions {
-        pub mod v1 {
-            include_buffa!("aave.actions.v1");
-        }
-    }
-}
-
-pub mod uniswap {
-    pub mod v2 {
-        include_buffa!("uniswap.v2");
-    }
-    pub mod v3 {
-        include_buffa!("uniswap.v3");
-    }
-}
-pub mod dex {
-    pub mod pool_state {
-        pub mod v1 {
-            include_buffa!("dex.pool_state.v1");
         }
     }
 }

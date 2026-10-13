@@ -3,5 +3,5 @@
 #[allow(clippy::derivable_impls)]
 pub mod pb;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "balance-state"))]
 mod balance_state_tests;

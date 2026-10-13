@@ -15,3 +15,14 @@ message BalanceChange {
   optional bytes contract = 1; // log.address (`None` for native balances)
   bytes address = 2;
 }
+
+// Native balances: `Events` without the contract, which native amounts never
+// have. The field numbers are `Events`' and `Balance`'s, so the same bytes
+// decode as `Events` with no contract.
+message NativeEvents { repeated NativeBalance balances = 1; }
+
+message NativeBalance {
+  reserved 1; // Balance.contract
+  bytes address = 2;
+  string amount = 3; // balance after the block, a decimal uint256
+}

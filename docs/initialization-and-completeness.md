@@ -1,36 +1,61 @@
-# evm-balances cutover contract: initialization and completeness
+# Balance cutover contract: initialization and completeness
 
 Issue [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7).
-What an `evm-balances` database contains after the cutover from the RPC-era
-sink, which values can be stale, what a replayed flush does, and when a
-database is complete, with the checks and the repair that enforce it. The
-host-ledger specification this page replaces is kept in
+What the `evm-balances-native` and `evm-balances-erc20` databases contain
+after the cutover from the RPC-era sink, which values can be stale, what a
+replayed flush does, and when a database is complete, with the checks and the
+repair that enforce it. Each package's database is cut over on its own and
+checked with the files in that package's `clickhouse/examples/`
+([native](../native/balances/clickhouse/examples/),
+[ERC-20](../erc20/balances/clickhouse/examples/)); until v0.6.1 one combined
+`evm-balances` database held both packages' tables. The host-ledger
+specification this page replaces is kept in
 [history](history/initialization-and-completeness-host-ledger-2026-09-19-to-2026-10-06.md).
 
-**Scope.** [`evm-balances`](../evm-balances/README.md) v0.6.1 (`db_out`
-`b3313b50…`, native `378d27a6…`, erc20 `d8a9db86…`, schema `ed1c3bff…`, the
-upstream v0.3.4 tables), written by pinax-network/substreams-sink-sql v4.13.0,
-commit `933a187`. None of these is live-qualified
+**Scope.** [`native/balances`](../native/balances/README.md) and
+[`erc20/balances`](../erc20/balances/README.md) v0.7.0, each with its own
+`db_out` that writes its half of the upstream v0.3.4 tables into its own
+database ([ClickHouse](clickhouse.md)), written by
+pinax-network/substreams-sink-sql v4.13.0, commit `933a187`. Their module
+hashes:
+
+| Package | Module | Module hash | WASM sha256 |
+| --- | --- | --- | --- |
+| `spkg/evm-balances-native-v0.7.0.spkg` | `map_events` | `0759418fb023485e9ca06bfe7a0c1c5c0d2c4c63` | `c448342379378455221f116cbf74813a18d47c8a02d258042a677cbd1cb965e0` |
+| | `db_out` | `29f7d1596fc6454ce5df7bcdf53636e11a533cf8` | same WASM |
+| `spkg/evm-balances-erc20-v0.7.0.spkg` | `map_events` | `65629a0baac9167970079510489900648822fce5` | `a2c12a1284ad571308b5afcbed72e847d777680dba2210bdd5e5e5572eeb484d` |
+| | `db_out` | `73627870ed1c72a9b76ad69f46fa94f9979afbb4` | same WASM |
+
+None of these is live-qualified
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 Unless marked live, every number below was measured offline on captured BSC
 Extended blocks: window a is 122,288,006–122,289,029 and window b is
 123,561,000–123,562,023 (1,024 blocks each). The methods and full results are
 in [PR #144](https://github.com/pinax-network/substreams-evm-balances/pull/144).
-They were measured with v0.6.0, which differs from v0.6.1 only in native's
-self-transfer pair (#149): v0.6.0 refuses any block that has one, and it
-processed both windows, so their output is the same under v0.6.1.
+They were measured with the combined `evm-balances` v0.6.0, which wrote both
+balance tables and one `blocks` into one database, and with the combined
+example files that v0.7.0 splits into one copy per package. v0.6.0 differs
+from v0.6.1 only in native's self-transfer pair (#149): v0.6.0 refuses any
+block that has one, and it processed both windows, so their output is the
+same under v0.6.1. v0.7.0 changes native's output only for `Block.ver` 3
+fee pool payouts and for block 0, neither of which these version-5 windows
+contain, and leaves the ERC-20 map unchanged, so each balance table gets the
+same rows; `blocks` now lists, per database, only the blocks with that
+package's rows.
 
 ## 1. One database per network
 
-- No table stores a chain id and blocks carry none. `db_out` has no params and
-  no `initialBlock`, so its module hash, which keys the sink cursor, is the
-  same on every network. Write each network to its own database, named
-  `<network>:evm-balances@<version>` as
+- No table stores a chain id and blocks carry none. Neither `db_out` has
+  params or an `initialBlock`, so each one's module hash, which keys its sink
+  cursor, is the same on every network. Write each network and package to its
+  own database, named `<network>:evm-balances-native@<version>` and
+  `<network>:evm-balances-erc20@<version>` (owner, 2026-10-13;
+  [ClickHouse](clickhouse.md#token-api-live-sinks-bsc) has the BSC sinks).
+  The names extend the `<network>:evm-balances@<version>` that
   [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117)
-  proposed (owner, 2026-10-13; the
-  [README](../evm-balances/README.md#token-api-live-sink-bsc) has the BSC
-  sink). Only the version tells it apart from the RPC-era
-  `<network>:evm-balances@v0.3.x`.
+  proposed and the combined package used until v0.6.1, and stay apart from
+  the RPC-era `<network>:evm-balances@v0.3.x`, which holds both packages'
+  tables.
 - Before a sink starts or resumes, compare the hash of the first block it will
   process with `eth_getBlockByNumber` on that network's RPC, and do not start
   on a mismatch (#117). A wrong endpoint writes another chain's balances, and
@@ -43,8 +68,8 @@ processed both windows, so their output is the same under v0.6.1.
 
 ## 2. Sink and flags
 
-- **Sink.** v4.13.0, commit `933a187`, as the
-  [README](../evm-balances/README.md#build-and-deploy) pins it.
+- **Sink.** v4.13.0, commit `933a187`, as
+  [ClickHouse](clickhouse.md#build-and-deploy) pins it.
 - **Undo buffer, not final blocks only** (owner, 2026-10-13). The sink runs
   with `--undo-buffer-size` as the Token API live sinks do (BSC: 5) and
   without `--final-blocks-only`. The ClickHouse sink cannot revert written
@@ -53,8 +78,10 @@ processed both windows, so their output is the same under v0.6.1.
   restarted from its cursor it continues on the canonical chain, and the rows
   of the orphaned blocks stay: balance rows and `transactions` of blocks that
   are no longer canonical, and a second `blocks` row at those heights with
-  another hash. That is an accepted risk; step 1 of
-  [`check-replays-and-completeness.sql`](../evm-balances/clickhouse/examples/check-replays-and-completeness.sql)
+  another hash. That is an accepted risk; step 1 of each package's
+  `check-replays-and-completeness.sql`
+  ([native](../native/balances/clickhouse/examples/check-replays-and-completeness.sql),
+  [ERC-20](../erc20/balances/clickhouse/examples/check-replays-and-completeness.sql))
   reports such heights (`blocks_with_two_hashes`).
 - **Flush interval: any.** Every block flushes on its own at interval 1 from
   the first block after a start, and at any interval ClickHouse receives one
@@ -71,7 +98,7 @@ processed both windows, so their output is the same under v0.6.1.
 | --- | --- | --- |
 | `native_balances` | the account's persisted balance changed in that block; the value is its end-of-block balance | no change in that block |
 | `erc20_balances` | the inference proved the pair's end-of-block value in that block | unknown: the pair may have changed |
-| `blocks` | the block wrote at least one balance row | no output, or not published (section 6 tells which) |
+| `blocks` | the block wrote at least one balance row of the database's package | no output of that package, or not published (section 6 tells which) |
 | `historical_*_balances_state` | the rows inserted in that window | no row inserted in that window |
 
 - Absence is never a zero. A known zero is a stored row whose balance is 0.
@@ -85,8 +112,10 @@ processed both windows, so their output is the same under v0.6.1.
   `eth_getBalance` at four block hashes
   ([#58](https://github.com/pinax-network/substreams-evm-balances/pull/58),
   [report](../native/balances/docs/evidence/live-retention-checkpoint-bsc-2026-09-23.json)).
-- A block that native refuses stops the stream: there is one `db_out`, so no
-  ERC-20 row of that block or later is written either.
+- A block that native refuses stops only the native sink: each package has
+  its own `db_out`, sink and database, so the ERC-20 rows go on. Until v0.6.1
+  one `db_out` wrote both, and a native refusal also stopped every ERC-20 row
+  of that block and later.
 
 ## 4. Stale pairs
 
@@ -115,8 +144,9 @@ processed both windows, so their output is the same under v0.6.1.
 How the sink stores a flush (v4.13.0):
 
 - Each table is one INSERT, in the order the tables first got rows after the
-  start: `erc20_balances`, `native_balances`, then `blocks` when the first
-  block has all three. The cursor follows.
+  start: the package's balance table, then `blocks` (in the combined database
+  until v0.6.1: `erc20_balances`, `native_balances`, then `blocks` when the
+  first block had all three). The cursor follows.
 - The cursor is an asynchronous insert that the sink does not wait for
   (`clickhouse.WithStdAsync(false)` in `db/flush.go`). A cursor row that
   ClickHouse rejects or loses is not reported to the sink.
@@ -137,8 +167,8 @@ the restart re-inserts them). The effects:
 - **FINAL balances, open, close, high, low** and the window block bounds do not
   change: the replayed rows are identical.
 
-Measured on window a with the sink's own flush code (rows: ERC-20 / native,
-equal in all 8 intervals):
+Measured on window a with the sink's own flush code, in one combined database
+(rows: ERC-20 / native, equal in all 8 intervals):
 
 | Replay | Replayed blocks | Extra `blocks` rows | Extra `transactions` |
 | --- | --- | --- | --- |
@@ -149,14 +179,17 @@ equal in all 8 intervals):
 
 The same replay on window b (blocks 123,561,400–123,561,499) gave 100 extra
 `blocks` rows and 33,780 / 16,959 extra rows. In every case FINAL and every bar
-apart from `transactions` equal an un-replayed load.
+apart from `transactions` equal an un-replayed load. Since v0.7.0 a replay
+touches only the database of the sink that replayed.
 
-- **Detect** with
-  [`check-replays-and-completeness.sql`](../evm-balances/clickhouse/examples/check-replays-and-completeness.sql):
+- **Detect** with the package's `check-replays-and-completeness.sql`
+  ([native](../native/balances/clickhouse/examples/check-replays-and-completeness.sql),
+  [ERC-20](../erc20/balances/clickhouse/examples/check-replays-and-completeness.sql)):
   duplicate `blocks` rows, and `transactions` per 1-minute window against the
   rows the stream emitted. It found exactly the cases above.
-- **Repair** with
-  [`repair-replayed-range.sql`](../evm-balances/clickhouse/examples/repair-replayed-range.sql):
+- **Repair** with the package's `repair-replayed-range.sql`
+  ([native](../native/balances/clickhouse/examples/repair-replayed-range.sql),
+  [ERC-20](../erc20/balances/clickhouse/examples/repair-replayed-range.sql)):
   stop the sink, re-stream a range from at least one minute before to one
   minute after the replay into a staging database, and the file subtracts the
   replayed rows from `transactions` and keeps one `blocks` row per block. It
@@ -164,8 +197,10 @@ apart from `transactions` equal an un-replayed load.
   databases above equal an un-replayed load: `blocks` rows with their copies,
   FINAL, and every bar of all 8 intervals.
 - **Or accept** `transactions` as approximate for the range: record the range
-  and its excess rows, and remove the duplicate `blocks` rows with
-  [`dedupe-blocks.sql`](../evm-balances/clickhouse/examples/dedupe-blocks.sql).
+  and its excess rows, and remove the duplicate `blocks` rows with the
+  package's `dedupe-blocks.sql`
+  ([native](../native/balances/clickhouse/examples/dedupe-blocks.sql),
+  [ERC-20](../erc20/balances/clickhouse/examples/dedupe-blocks.sql)).
   Windows before S hold RPC-era rows that the package cannot reproduce, so
   replays there can only be accepted.
 - The RPC-era database has the same exposure: it uses the same sink and
@@ -177,15 +212,18 @@ apart from `transactions` equal an un-replayed load.
 A database is **complete over a block interval** that the sink has passed
 when:
 
-1. every block of the interval that has output has exactly one `blocks` row,
-   and no other block of the interval has one; and
+1. every block of the interval that has output of the database's package has
+   exactly one `blocks` row, and no other block of the interval has one; and
 2. in every 1-minute window inside the interval, the summed `transactions` of
-   each history state equals the rows the stream emitted for it.
+   the database's history state equals the rows the stream emitted for it.
 
 Cursor progress does not show either. `blocks` alone cannot show a gap,
 because a block without output has no row (live: 1 of 5,000 BSC blocks had
-none, #7). Check both with
-[`check-replays-and-completeness.sql`](../evm-balances/clickhouse/examples/check-replays-and-completeness.sql),
+no native output, #7; the ERC-20 database has no row for any block without an
+ERC-20 row). Check both with the package's
+`check-replays-and-completeness.sql`
+([native](../native/balances/clickhouse/examples/check-replays-and-completeness.sql),
+[ERC-20](../erc20/balances/clickhouse/examples/check-replays-and-completeness.sql)),
 given the per-block row counts of a sampled interval from `substreams run` of
 the same package or from an offline replay. Offline at flush interval 1 without
 a replay, the stored rows equal the emitted rows in every covered window:
@@ -194,43 +232,68 @@ a replay, the stored rows equal the emitted rows in every covered window:
 
 ## 7. Initialization
 
+Each package's database is initialized on its own.
+
 **Backfill from the RPC-era database**, where a network has one. Stop the
-RPC-era sink at S−1, set up a fresh database, start at S, then run
-[`backfill-from-rpc-database.sql`](../evm-balances/clickhouse/examples/backfill-from-rpc-database.sql)
-([procedure](../evm-balances/README.md#cutover-and-backfill)). Its DDL and
-boundary checks throw before anything is copied. Partition copies do not fire
-the materialized views, so `transactions` is not counted twice, and windows
-that span S merge both sides. Offline at S = 122,288,518 the result equals a
-single load of window a: FINAL keys 34,458 / 17,670 and view bars
-313,003 / 164,379, and a v0.3.5-schema database is refused before any copy
-(PR #142, after PR #115). Open: Token API configuration attributes the
-production databases to evm-balances v0.3.3, while this package embeds the
-v0.3.4 schema; step 0 must pass on the real database.
+RPC-era sink at S−1, set up a fresh database for the package, start the
+package at S, then run its `backfill-from-rpc-database.sql`
+([native](../native/balances/clickhouse/examples/backfill-from-rpc-database.sql),
+[ERC-20](../erc20/balances/clickhouse/examples/backfill-from-rpc-database.sql);
+[procedure](clickhouse.md#cutover-and-backfill)). It copies three partitions
+from the RPC-era database, which holds both packages' tables: `blocks`, the
+package's balance table and its state table. The RPC-era `blocks` lists the
+blocks with any balance row, so both databases take the same history of it.
+Its DDL check and its boundary check, which needs the RPC-era `blocks` to end
+before the package's first block, throw before anything is copied. Partition
+copies do not fire the materialized views, so `transactions` is not counted
+twice, and windows that span S merge both sides. Offline at S = 122,288,518
+the result of the combined file, which copied five partitions into one
+database, equals a single load of window a: FINAL keys 34,458 / 17,670 and
+view bars 313,003 / 164,379, and a v0.3.5-schema database is refused before
+any copy (PR #142, after PR #115). Open: Token API configuration attributes
+the production databases to evm-balances v0.3.3, while these packages embed
+the v0.3.4 schema; step 0 of each file must pass on the real database.
+
+**From block 0.** Since v0.7.0 native accepts block 0 when every balance
+record in it is a `GENESIS_BALANCE` from zero, and emits the genesis
+allocations there ([Genesis](../native/balances/README.md#genesis-v070);
+captured on BSC only). Native v0.2.2 refused block 0, which also stopped a
+production-mode stream from block 1, because Substreams processes whole
+1,000-block segments. Either package can now start at block 0 instead of
+taking the RPC-era history; whether native passes the whole BSC history is for
+its noop to show (#124). For ERC-20, a pair the inference never emits then has
+no row, where the backfill keeps its RPC-era value. Which path each BSC
+database takes is an owner decision (#124 B1). `db_out` fails on a block 0
+whose clock has no timestamp (Ethereum, Arbitrum and Boba;
+[provenance](clickhouse.md#provenance)).
 
 **Networks without an RPC-era database** (Arc, Robinhood, Ink, Soneium, Zora
 and Linea;
 [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8)).
-Starting at S leaves every holder unchanged since S unknown, and native refuses
-block 0, whose genesis allocations are not traced balance changes. The cold
-start is an **open owner decision**, recorded per network in #8:
+Starting at S leaves every holder unchanged since S unknown. The cold start is
+an **open owner decision** per package, recorded per network in #8:
 
 - (a) start at the first Extended block, which is feasible for Arc, whose
-  mainnet started on 2026-09-16;
+  mainnet started on 2026-09-16; from block 0 native emits the genesis
+  allocations where the producer records them as `GENESIS_BALANCE` records
+  from zero, as on BSC;
 - (b) a host-side checkpoint at S−1 for a stated holder list, read at the hash
   of S−1 (how it enters the tables is part of the decision);
 - (c) accept incomplete holder sets and say so.
 
 ## 8. FINAL comparison with the RPC-era database
 
-During the shadow period (#124 B2) the new database is compared daily with the
-RPC-era database of the same network, by
-[`compare-final-with-rpc-database.sql`](../evm-balances/clickhouse/examples/compare-final-with-rpc-database.sql)
+During the shadow period (#124 B2) each new database is compared daily with
+the RPC-era database of the same network, by its package's
+`compare-final-with-rpc-database.sql`
+([native](../native/balances/clickhouse/examples/compare-final-with-rpc-database.sql),
+[ERC-20](../erc20/balances/clickhouse/examples/compare-final-with-rpc-database.sql))
 over an interval [`from`, `to`] that both sinks have processed:
 
 - **Reference pairs**: pairs whose FINAL row in the RPC-era database lies in
   the interval. A pair whose new FINAL row is later leaves the scope.
 - **Compared**: only reference pairs that both databases last updated at the
-  same block. Native must be exact; the file throws on a native difference.
+  same block. Native must be exact; the native file throws on a difference.
 - **ERC-20**: recall is exact pairs over reference pairs, precision is exact
   pairs over compared pairs. Report both with the interval and the reference
   pairs and tokens. For ERC-20 the reference pairs are RPC-era candidate
@@ -249,8 +312,8 @@ throw.
 
 ## 9. Reporting
 
-Report these separately, each with its interval and holder scope, and never
-summed into one coverage figure:
+Report these separately for each database, each with its interval and holder
+scope, and never summed into one coverage figure:
 
 - emitted rows;
 - holders whose FINAL row comes from the backfill (block below S) and those
@@ -260,11 +323,16 @@ summed into one coverage figure:
 
 ## 10. Open
 
-- **Owner decisions:** the cold start per network (#8); the stale-pair policy
-  (#123); S, the production flags and the shadow length (#124 B1).
-- **Live, each step with the owner's OK, during #124 B2:** step 0 of the
-  backfill on the production database; duplicate `blocks` rows; completeness
-  over a sampled interval; the daily FINAL comparison; and an estimate of stale
-  ERC-20 pairs from a stated sample of pairs whose last row predates S,
-  compared with `balanceOf` at a recent block hash.
-- **#117:** the endpoint identity check in the `evm-balances` README.
+- **Owner decisions:** the cold start per network and package (#8); the
+  stale-pair policy (#123); per package, S or a start at block 0, the
+  production flags and the shadow length (#124 B1).
+- **Live, each step with the owner's OK, during #124 B2, in each database:**
+  step 0 of the backfill on the production database; duplicate `blocks` rows;
+  completeness over a sampled interval; the daily FINAL comparison; and an
+  estimate of stale ERC-20 pairs from a stated sample of pairs whose last row
+  predates S, compared with `balanceOf` at a recent block hash.
+- **Token API:** before the cutover, a `native-balances` database setting per
+  network next to `balances`, so that the native routes read the native
+  database ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
+- **#117:** the endpoint identity check in
+  [ClickHouse](clickhouse.md#build-and-deploy).

@@ -1,8 +1,8 @@
 # substreams-evm-balances
 
 EVM balance Substreams from Firehose Extended blocks: native and ERC-20
-balances, the protocol balance-state packages, and the `evm-balances` `db_out`
-into the Token API's ClickHouse tables. Formerly `substreams-evm-extended`
+balances, each with a `db_out` into the Token API's ClickHouse tables, and the
+protocol balance-state packages. Formerly `substreams-evm-extended`
 (renamed 2026-10-13). Its siblings are
 [substreams-evm-dex](https://github.com/pinax-network/substreams-evm-dex) (swaps
 and pool state) and
@@ -10,24 +10,29 @@ and pool state) and
 (transfer events); the RPC-based modules stay in
 [substreams-evm](https://github.com/pinax-network/substreams-evm).
 
-The first module is [ERC-20 balances](erc20/balances/README.md). One RPC-free
-`map_events(block)` infers each block's ERC-20 balances from `Transfer` flows
-and persisted storage changes, with no params or layouts, and emits
-`evm.balances.v1.Events`, with the exact protobuf used by the RPC balance
-implementation. Blocks without the required Extended data are rejected.
+Two packages carry the balances, each with an RPC-free `map_events(block)`
+and a `db_out` in one spkg, released and synced on their own
+([ClickHouse](docs/clickhouse.md)):
 
-[Native balances](native/balances/README.md) is a second one-map package with
-the same protobuf: `Balance.contract` is absent and `amount` is the final
-persisted native balance of every account changed in the block. It ports the
-historical RPC-free native reducer. It was live-qualified on BSC on 2026-09-23
-(WASM `48d89d28…`, module `5a2a2e0c…`); no later build is.
+- [`evm-balances-native`](native/balances/README.md) (`native/balances`):
+  `map_events` emits `evm.balances.v1.NativeEvents`, the final persisted
+  native balance of every account changed in the block, from the genesis
+  allocations at block 0 on. It ports the historical RPC-free native reducer;
+  an earlier build was live-qualified on BSC on 2026-09-23 (WASM `48d89d28…`,
+  module `5a2a2e0c…`), no later build is. `db_out` writes `native_balances`,
+  `blocks` and the native history into `<chain>:evm-balances-native@<version>`.
+- [`evm-balances-erc20`](erc20/balances/README.md) (`erc20/balances`):
+  `map_events` infers each block's ERC-20 balances from `Transfer` flows and
+  persisted storage changes, with no params or layouts, and emits
+  `evm.balances.v1.Events`, the exact protobuf of the RPC balance
+  implementation. `db_out` writes `erc20_balances`, `blocks` and the ERC-20
+  history into `<chain>:evm-balances-erc20@<version>`.
 
-[`evm-balances`](evm-balances/README.md) imports both packages and writes the
-substreams-evm ClickHouse tables (`blocks`, `erc20_balances`,
-`native_balances` and the historical OHLC views) through one `db_out`, with
-upstream's SQL byte for byte embedded in its spkg. It is the workspace's only
-`db_out` and database-change dependency. The earlier per-package CLI
-native-sink paths are at
+Blocks without the required Extended data are rejected. The tables are the
+substreams-evm ClickHouse tables, with upstream's SQL embedded in each spkg, so
+the Token API reads them unchanged. Until v0.6.1 one combined `evm-balances`
+package wrote both into one database (source at `5101e32`); the earlier
+per-package CLI native-sink paths are at
 [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542).
 
 The committed packages are CI's canonical Linux builds (Rust 1.99.0,
@@ -36,12 +41,15 @@ sha256). None is live-qualified.
 
 | Package | Module | Module hash | WASM sha256 |
 | --- | --- | --- | --- |
-| `spkg/native-balances-v0.2.2.spkg` | `map_events` | `378d27a630f0f2c8589f4396b308edff9c981ffd` | `8fc5a84901b49857…` |
-| `spkg/erc20-balances-v0.4.0.spkg` | `map_events` | `d8a9db86240ca6466270f140798fae0b8db05f7b` | `17a847aa77346058…` |
-| `spkg/evm-balances-v0.6.1.spkg` | `db_out` | `b3313b50a193a78e295350fc6e83b77d3b0fd5c8` | `1e6520fab2764d44…` |
+| `spkg/evm-balances-native-v0.7.0.spkg` | `map_events` | `0759418fb023485e9ca06bfe7a0c1c5c0d2c4c63` | `c448342379378455…` |
+| | `db_out` | `29f7d1596fc6454ce5df7bcdf53636e11a533cf8` | same WASM |
+| `spkg/evm-balances-erc20-v0.7.0.spkg` | `map_events` | `65629a0baac9167970079510489900648822fce5` | `a2c12a1284ad5713…` |
+| | `db_out` | `73627870ed1c72a9b76ad69f46fa94f9979afbb4` | same WASM |
 
-`evm-balances` imports the two maps with the same module hashes, and embeds
-the schema `ed1c3bff…`.
+Each spkg embeds its half of the schema (native `0566d859…`, ERC-20
+`ad492406…`). The last builds before the split are native v0.2.2 (`378d27a6…`),
+erc20 v0.4.0 (`d8a9db86…`) and the combined `evm-balances` v0.6.1 (`db_out`
+`b3313b50…`).
 
 Picking this up? Start with [`docs/handoff.md`](docs/handoff.md) (package
 status, hashes and open work; the dated record is under `docs/history/`) and
@@ -55,19 +63,18 @@ shares one protobuf contract without copying generated types:
 - `proto/v1/balances.proto`: canonical balance schema.
 - `proto/v1/balance_state.proto`: versioned holder/global balance-state
   companion schema for protocol packages ([contract](docs/balance-state-contract.md)).
-- `proto/src/pb/`: shared generated Rust types (buffa, from `buf generate` in `proto/`).
-- `proto/v1/executions.proto`, `erc20_events.proto`, `aave_actions.proto`,
-  `dex-pool-state.proto` and `dex/`: types of packages that left on
-  2026-10-13, kept only so `evm-balances`' `db_out` keeps v0.6.1's hash (see
-  [AGENTS.md](AGENTS.md)); removed with the next hash-changing release.
+- `proto/src/pb/`: shared generated Rust types (buffa, from `buf generate` in
+  `proto/`). `evm.balance_state.v1` sits behind the default `balance-state`
+  feature, which the two balance packages turn off ([AGENTS.md](AGENTS.md)).
+- `proto/sink/`: sources of the SQL sink's pinned descriptors,
+  `spkg/evm-balances-sink-protodefs-v0.1.0.spkg`.
 
 Shared crates and packages:
 
 - `common/persist/`: shared persisted-effect rules for Extended blocks.
 - `common/epochs/`: epoch-schedule helper for the protocol balance-state packages.
-- `erc20/balances/`: Extended-block ERC-20 balance module.
-- `native/balances/`: Extended-block native balance module.
-- [`evm-balances/`](evm-balances/README.md): one `db_out` from `native/balances` and `erc20/balances` into the substreams-evm ClickHouse schema, which its spkg embeds.
+- `erc20/balances/`: Extended-block ERC-20 balances and their `db_out` (`evm-balances-erc20`).
+- `native/balances/`: Extended-block native balances and their `db_out` (`evm-balances-native`).
 - `aave/balance-state/`: Aave V3 aToken holder basis and reserve state module.
 - `compound-v2/balance-state/`: Compound v2 cToken shares, market words, cash and rate-model dependency module.
 - `erc4626/balance-state/`: ERC-4626 vault shares, total supply and source-bound conversion inputs (Aave static aToken, Savings DAI, OpenZeppelin).
@@ -93,7 +100,8 @@ packages also requires the Substreams CLI.
 
 ```sh
 cargo test --workspace --lib --bins --tests --locked
-make -C erc20/balances build
+make -C native/balances build schema
+make -C erc20/balances build schema
 ```
 
 `make pack` writes into `spkg/`. Only CI's Linux build gives the committed
@@ -111,25 +119,25 @@ RPC is used for qualification, not inside the maps.
 
 ## Releases
 
-Only `evm-balances` is released, by tag `v<version>` equal to its manifest's
-version. The release publishes `evm-balances-v<version>.spkg` next to the
-`native/balances` and `erc20/balances` spkgs it imports; the
-[Token API live sink](evm-balances/README.md#token-api-live-sink-bsc) takes
-its URL as `SPKG_URL`. One version names one module hash: a change
-to a package's WASM bumps its version and commits the spkg that CI's "Package
-hashes" job built, and a change to an imported map also changes the `db_out`
-hash, so it bumps `evm-balances` too. The tag then runs
-[`release.yml`](.github/workflows/release.yml), which:
+Each balance package is released on its own, by a tag equal to its spkg name:
+`evm-balances-native-v<version>` or `evm-balances-erc20-v<version>`. The
+release publishes that spkg; the
+[Token API live sinks](docs/clickhouse.md#token-api-live-sinks-bsc) take its
+URL as `SPKG_URL`. One version names one module hash: a change to a package's
+WASM bumps its version and commits the spkg that CI's "Package hashes" job
+built. The tag then runs [`release.yml`](.github/workflows/release.yml), which:
 
-- builds and packs the three packages on Linux, CI's canonical builder;
+- builds and packs the package on Linux, CI's canonical builder;
 - requires `substreams registry verify` to pass with no warning, the module
-  hashes of each committed spkg, map packages equal to the maps inside
-  `evm-balances`, and the embedded schema of `make schema`;
+  hashes of the committed spkg and the embedded schema of `make schema`;
 - records the module hashes, WASM sha256 and schema sha256 in the run's
   summary;
-- publishes a GitHub release with the three spkgs and the notes of
-  [`.github/release-notes.md`](.github/release-notes.md): what is included and
-  how to deploy it.
+- publishes a GitHub release with the spkg and the notes of
+  [`.github/release-notes/`](.github/release-notes/): what is included and how
+  to deploy it.
+
+The plain `v<version>` tags (`v0.6.1`) are the retired combined `evm-balances`
+package's.
 
 Identify a release by its module hashes, never by the spkg sha256: an edited
 README changes the spkg bytes, and with substreams CLI v1.22.0 so does every
@@ -156,9 +164,11 @@ networks are tracked in
 [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8). The
 repository name is not a claim of verified coverage on every EVM network.
 
-The inference package is packed and committed (`spkg/erc20-balances-v0.4.0.spkg`,
-above) but has only been checked offline against saved data: it has not run in
-a Substreams engine. Its BSC qualification is
+The inference runs in the BSC shadow deployment of 2026-10-13
+(`bsc:evm-balances@v0.6.1`, from block 127,000,000): its first FINAL
+comparison with the RPC-era database, over blocks 127,000,000–127,460,000,
+found 1,592 wrong balances among 10,223,501 same-block pairs (precision
+0.999844). Its BSC qualification is
 [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124), and
 each live step needs the owner's OK ([live use](AGENTS.md#evidence)).
 

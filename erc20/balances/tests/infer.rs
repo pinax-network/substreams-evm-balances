@@ -670,11 +670,12 @@ fn captured_block_without_read_preimages_keeps_its_rows() {
 }
 
 #[test]
-fn package_has_one_block_only_map_and_only_the_shared_protobuf() {
+fn package_has_one_block_only_map_its_db_out_and_only_the_shared_protobuf() {
     let manifest = include_str!("../substreams.yaml");
     let modules = manifest.lines().filter(|line| line.starts_with("  - name:")).collect::<Vec<_>>();
-    assert_eq!(modules, vec!["  - name: map_events"]);
+    assert_eq!(modules, vec!["  - name: map_events", "  - name: db_out"]);
     assert!(manifest.contains("    inputs:\n      - source: sf.ethereum.type.v2.Block\n    output:\n"));
+    assert!(manifest.contains("    inputs:\n      - source: sf.substreams.v1.Clock\n      - map: map_events\n    output:\n"));
     assert!(!manifest.contains("params"));
     assert!(manifest.contains("files: [balances.proto]"));
     assert!(manifest.contains("type: proto:evm.balances.v1.Events"));

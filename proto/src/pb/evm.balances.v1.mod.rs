@@ -50,3 +50,15 @@ pub use self::__buffa::view::BalanceChangeView;
 pub use self::__buffa::view::BalanceChangeOwnedView;
 #[doc(inline)]
 pub use self::__buffa::lazy_view::BalanceChangeLazyView;
+#[doc(inline)]
+pub use self::__buffa::view::NativeEventsView;
+#[doc(inline)]
+pub use self::__buffa::view::NativeEventsOwnedView;
+#[doc(inline)]
+pub use self::__buffa::lazy_view::NativeEventsLazyView;
+#[doc(inline)]
+pub use self::__buffa::view::NativeBalanceView;
+#[doc(inline)]
+pub use self::__buffa::view::NativeBalanceOwnedView;
+#[doc(inline)]
+pub use self::__buffa::lazy_view::NativeBalanceLazyView;

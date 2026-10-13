@@ -16,14 +16,19 @@ captured fixtures, report links and audit commands keep their paths.
 Unrelated protocol modules, `common`, database-change dependencies, `db_out`
 modules and custom database sinks were not migrated. The workspace has since
 grown to the packages in the [README](../README.md#layout); the tools were
-removed on 2026-10-03, and `evm-balances` (2026-10-05) is its one `db_out`.
+removed on 2026-10-03. From 2026-10-05 the combined `evm-balances` package was
+its one `db_out`; since v0.7.0 (2026-10-13) each balance package carries its
+own ([ClickHouse](clickhouse.md)).
 
 The canonical RPC reference is retained as an immutable standalone SPKG; its
 dependencies are embedded. Its source modules do not need to be copied here.
 The native ClickHouse sink consumed the unchanged Events protobuf directly
 ([setup and validation at `cb62110`](https://github.com/pinax-network/substreams-evm-balances/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse/README.md));
-since 2026-10-05 balances reach ClickHouse through
-[`evm-balances`](../evm-balances/README.md).
+from 2026-10-05 balances reached ClickHouse through the combined
+`evm-balances` package (until v0.6.1, source at
+[`5101e32`](https://github.com/pinax-network/substreams-evm-balances/tree/5101e327b47d63c1b1740c88a79e4e6841fb7650/evm-balances)),
+and since v0.7.0 (2026-10-13) through each balance package's own `db_out`
+([ClickHouse](clickhouse.md)).
 
 The old PR's history and discussions remain available at their original URL.
 The source repository retains its shared balance protobuf and RPC-based balance
@@ -55,7 +60,9 @@ The table and the paragraph above describe the migration revision. On
 file is preserved at
 [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/proto/src/pb/evm.balances.v1.rs).
 The statements below about unchanged generated Rust types likewise describe
-the code before that date.
+the code before that date. On 2026-10-13 (v0.7.0) `balances.proto` gained
+`NativeEvents` and `NativeBalance`, native's output, so its sha256 is no
+longer the table's; `Events`, `Balance` and `BalanceChange` are unchanged.
 
 The migrated SPKG has different package metadata and embedded documentation.
 Its digest is recorded separately in [migration evidence](evidence/migration.json).
@@ -109,7 +116,7 @@ work remains explicitly tracked by the migrated reports.
 
 The module now lives at `erc20/balances`, with Cargo crate `erc20-balances`
 (its `erc20-balances-tools` crate was removed on 2026-10-03), Substreams
-package name `erc20_balances`, and WASM filename `erc20_balances.wasm`. The schema stays in repository-root `proto/`;
+package name `erc20_balances` (`evm_balances_erc20` since v0.7.0), and WASM filename `erc20_balances.wasm`. The schema stays in repository-root `proto/`;
 its wire types, field numbers, generated Rust types and namespace are unchanged.
 
 Layout-package builds targeted `spkg/erc20-balances-v0.1.0.spkg`. Its first build
@@ -123,9 +130,10 @@ byte-identical WASM and package qualification claims apply only to their
 recorded migration revisions, not the renamed build.
 
 Since 2026-10-05 the package is inference only: v0.2.0, then v0.4.0 from the
-Rust 1.99.0 batch (#118), skipping v0.3.x. Its builds target
-`spkg/erc20-balances-v<version>.spkg`, so no build overwrites the committed
-v0.1.0 layout package or the v0.3.4 RPC reference.
+Rust 1.99.0 batch (#118), skipping v0.3.x. Its builds targeted
+`spkg/erc20-balances-v<version>.spkg`, and since v0.7.0
+`spkg/evm-balances-erc20-v<version>.spkg`, so no build overwrites the
+committed v0.1.0 layout package or the v0.3.4 RPC reference.
 
 Captured evidence and fixture contents are byte-identical after relocation.
 They may retain `erc20/balances-storage` paths and old crate names because those

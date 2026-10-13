@@ -1,12 +1,15 @@
 use super::*;
 use buffa::Message;
 use serde_json::Value;
+use std::str::FromStr;
 
 const FIXTURE_BLOCK: &[u8] = include_bytes!("../../../erc20/balances/tests/fixtures/bsc-122260950.pb");
 const FIXTURE_ORACLE: &str = include_str!("../../../erc20/balances/tests/fixtures/bsc-122260950.json");
 const PROTOTYPE_ROWS: &str = include_str!("../tests/fixtures/bsc-122260950-prototype-native-rows.json");
 const SYSTEM_FEE_ADDRESS: &str = "fffffffffffffffffffffffffffffffffffffffe";
 const SELF_TRANSFER: &str = include_str!("../tests/fixtures/bsc-127411449-callcode-self-transfer.json");
+const FEE_POOL_PAYOUTS: &str = include_str!("../tests/fixtures/bsc-fee-pool-payout-ver3.json");
+const GENESIS: &str = include_str!("../tests/fixtures/bsc-0-genesis.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -62,7 +65,6 @@ fn captured_block_matches_all_82_historical_native_rpc_balances() {
     for expected in native {
         let address = hex::decode(expected["address"].as_str().unwrap().trim_start_matches("0x")).unwrap();
         let actual = events.balances.iter().find(|b| b.address == address).unwrap();
-        assert_eq!(actual.contract, None);
         assert_eq!(actual.amount, expected["balance"].as_str().unwrap(), "address {}", expected["address"]);
     }
     // Sorted by account for deterministic sink rows.
@@ -175,7 +177,6 @@ fn takes_last_persisted_value_by_ordinal_and_preserves_first_old() {
     assert_eq!((rows[0].first_ordinal, rows[0].ordinal, rows[0].records), (10, 30, 2));
     let events = project(&b).unwrap();
     assert_eq!(events.balances[0].amount, "0");
-    assert_eq!(events.balances[0].contract, None);
 }
 
 #[test]
@@ -341,6 +342,7 @@ fn incomplete_blocks_are_rejected() {
     b = block();
     b.number = 0;
     b.header.as_option_mut().unwrap().number = 0;
+    b.balance_changes = vec![change(4, 1, Some(0), Some(1))];
     assert!(project(&b).unwrap_err().to_string().contains("genesis"));
     b = block();
     b.transaction_traces = vec![eth::TransactionTrace::default()];
@@ -368,24 +370,32 @@ fn block_version_does_not_gate_valid_or_ambiguous_balance_records() {
 }
 
 #[test]
-fn empty_block_emits_no_rows_and_native_rows_omit_the_contract_field() {
+fn empty_block_emits_no_rows_and_native_bytes_decode_as_events_without_a_contract() {
     assert!(project(&block()).unwrap().balances.is_empty());
-    let events = balances_pb::Events {
+    let native = balances_pb::NativeEvents {
+        balances: vec![balances_pb::NativeBalance {
+            address: vec![4; 20],
+            amount: "7".into(),
+        }],
+    };
+    let bytes = native.encode_to_vec();
+    // NativeEvents.balances (tag 1, length), then NativeBalance.address (tag 2):
+    // field 1 of a balance is reserved, so there are no contract bytes.
+    assert_eq!(&bytes[..4], &[0x0a, 25, 0x12, 20]);
+    // The same bytes are `Events` with an absent contract, as before v0.7.0.
+    let shared = balances_pb::Events {
         balances: vec![balances_pb::Balance {
             contract: None,
             address: vec![4; 20],
             amount: "7".into(),
         }],
     };
-    let bytes = events.encode_to_vec();
-    // Events.balances (tag 1, length), then Balance.address (tag 2) directly:
-    // an absent contract writes no field-1 bytes, unlike an empty byte string.
-    assert_eq!(&bytes[..4], &[0x0a, 25, 0x12, 20]);
-    let decoded = balances_pb::Events::decode_from_slice(bytes.as_slice()).unwrap();
-    assert_eq!(decoded.balances[0].contract, None);
+    assert_eq!(shared.encode_to_vec(), bytes);
+    assert_eq!(balances_pb::Events::decode_from_slice(bytes.as_slice()).unwrap(), shared);
+    // An empty contract is a present field 1, which only ERC-20 rows carry.
     let erc20 = balances_pb::Balance {
         contract: Some(vec![]),
-        ..events.balances[0].clone()
+        ..shared.balances[0].clone()
     };
     assert_eq!(erc20.encode_to_vec()[..2], [0x0a, 0]);
 }
@@ -546,38 +556,34 @@ fn hex_big(v: &Value) -> Option<eth::BigInt> {
     let bytes = hex::decode(v.as_str().unwrap()).unwrap();
     (!bytes.is_empty()).then_some(eth::BigInt { bytes })
 }
+fn captured_change(r: &Value) -> eth::BalanceChange {
+    eth::BalanceChange {
+        address: hex::decode(r["address"].as_str().unwrap()).unwrap(),
+        old_value: hex_big(&r["old_value"]).into(),
+        new_value: hex_big(&r["new_value"]).into(),
+        ordinal: r["ordinal"].as_u64().unwrap(),
+        reason: (r["reason"].as_i64().unwrap() as i32).into(),
+    }
+}
+fn captured_call(c: &Value) -> eth::Call {
+    eth::Call {
+        index: c["index"].as_u64().unwrap() as u32,
+        parent_index: c["parent_index"].as_u64().unwrap() as u32,
+        depth: c["depth"].as_u64().unwrap() as u32,
+        call_type: (c["call_type"].as_i64().unwrap() as i32).into(),
+        caller: hex::decode(c["caller"].as_str().unwrap()).unwrap(),
+        address: hex::decode(c["address"].as_str().unwrap()).unwrap(),
+        value: hex_big(&c["value"]).into(),
+        state_reverted: c["state_reverted"].as_bool().unwrap(),
+        balance_changes: c["balance_changes"].as_array().unwrap().iter().map(captured_change).collect(),
+        ..Default::default()
+    }
+}
 /// The captured transaction of block 127,411,449 whose CALLCODE (call 3) moves
 /// value from 0x1a84c890… to itself.
 fn captured_self_transfer() -> (eth::Block, Vec<u8>) {
     let f: Value = serde_json::from_str(SELF_TRANSFER).unwrap();
-    let calls = f["calls"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|c| eth::Call {
-            index: c["index"].as_u64().unwrap() as u32,
-            parent_index: c["parent_index"].as_u64().unwrap() as u32,
-            depth: c["depth"].as_u64().unwrap() as u32,
-            call_type: (c["call_type"].as_i64().unwrap() as i32).into(),
-            caller: hex::decode(c["caller"].as_str().unwrap()).unwrap(),
-            address: hex::decode(c["address"].as_str().unwrap()).unwrap(),
-            value: hex_big(&c["value"]).into(),
-            state_reverted: c["state_reverted"].as_bool().unwrap(),
-            balance_changes: c["balance_changes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|r| eth::BalanceChange {
-                    address: hex::decode(r["address"].as_str().unwrap()).unwrap(),
-                    old_value: hex_big(&r["old_value"]).into(),
-                    new_value: hex_big(&r["new_value"]).into(),
-                    ordinal: r["ordinal"].as_u64().unwrap(),
-                    reason: (r["reason"].as_i64().unwrap() as i32).into(),
-                })
-                .collect(),
-            ..Default::default()
-        })
-        .collect();
+    let calls = f["calls"].as_array().unwrap().iter().map(captured_call).collect();
     let mut b = block();
     b.transaction_traces = vec![eth::TransactionTrace {
         status: eth::TransactionTraceStatus::Succeeded.into(),
@@ -659,4 +665,235 @@ fn a_call_to_itself_with_value_is_the_same_self_transfer() {
     // In a failed transaction the call's records do not persist at all.
     b.transaction_traces[0].status = eth::TransactionTraceStatus::Reverted.into();
     assert!(changes(&b).unwrap().is_empty());
+}
+
+/// Blocks 363, 12,700,000 and 25,401,003 (`Block.ver` 3) as captured from BSC
+/// Firehose: block 363 whole, the other two from the fee pool's last
+/// transaction fee on, with every block-level record and every record of the
+/// coinbase.
+fn captured_fee_pool_payouts() -> Vec<eth::Block> {
+    let f: Value = serde_json::from_str(FEE_POOL_PAYOUTS).unwrap();
+    f["blocks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            let number = c["number"].as_u64().unwrap();
+            let mut b = block();
+            b.ver = c["ver"].as_i64().unwrap() as i32;
+            b.number = number;
+            b.header = buffa::MessageField::some(eth::BlockHeader {
+                number,
+                coinbase: hex::decode(c["coinbase"].as_str().unwrap()).unwrap(),
+                ..b.header.as_option().unwrap().clone()
+            });
+            b.balance_changes = c["block_balance_changes"].as_array().unwrap().iter().map(captured_change).collect();
+            b.transaction_traces = c["transactions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|t| eth::TransactionTrace {
+                    index: t["index"].as_u64().unwrap() as u32,
+                    hash: hex::decode(t["hash"].as_str().unwrap()).unwrap(),
+                    status: (t["status"].as_i64().unwrap() as i32).into(),
+                    calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
+                    ..Default::default()
+                })
+                .collect();
+            b
+        })
+        .collect()
+}
+fn coinbase(b: &eth::Block) -> Vec<u8> {
+    b.header.as_option().unwrap().coinbase.clone()
+}
+fn fee(address: &[u8], ordinal: u64, old: u64, new: u64) -> eth::BalanceChange {
+    eth::BalanceChange {
+        address: address.to_vec(),
+        reason: eth::balance_change::Reason::RewardTransactionFee.into(),
+        ..change(0, ordinal, Some(old), Some(new))
+    }
+}
+
+#[test]
+fn captured_ver3_fee_pool_payouts_are_restored_and_chain() {
+    let pool = hex::decode(SYSTEM_FEE_ADDRESS).unwrap();
+    // Per block: the pool's balance before its payouts, and the system reward
+    // the coinbase receives and sends on (1/16 of it).
+    let expected = [
+        (363, "1765700000000000", "110356250000000"),
+        (12700000, "524137595951089443", "32758599746943090"),
+        (25401003, "65907155340083753", "4119197208755234"),
+    ];
+    let blocks = captured_fee_pool_payouts();
+    assert_eq!(blocks.len(), expected.len());
+    for (b, (number, before, reward)) in blocks.iter().zip(expected) {
+        assert_eq!((b.number, b.ver), (number, 3));
+        // The producer recorded the first payout's pool debit as `n -> n`, and
+        // the shared rules drop it as a no-op.
+        let zero = b.balance_changes.iter().find(|c| c.address == pool && c.old_value == c.new_value).unwrap();
+        assert!(records(b).unwrap().iter().all(|r| r.ordinal != zero.ordinal));
+        // Restored: the pool from its balance before the payouts to `n`.
+        let payouts = fee_pool_payouts(b);
+        assert_eq!(payouts.len(), 1, "block {number}");
+        assert_eq!(payouts[0].ordinal, zero.ordinal);
+        let restored = (
+            amount(&value(payouts[0].old_value.as_deref()).unwrap()),
+            amount(&value(payouts[0].new_value.as_deref()).unwrap()),
+        );
+        let n = (BigInt::from_str(before).unwrap() - BigInt::from_str(reward).unwrap()).to_string();
+        assert_eq!(restored, (before.to_string(), n));
+        // The pool chains through it and pays out everything; the coinbase
+        // passes both payouts on: two fee credits, two transfers.
+        let rows = changes(b).unwrap();
+        let p = rows.iter().find(|r| r.address == pool).unwrap();
+        assert_eq!(
+            (p.amount.as_str(), p.ordinal),
+            ("0", b.balance_changes.iter().filter(|c| c.address == pool).map(|c| c.ordinal).max().unwrap())
+        );
+        let c = rows.iter().find(|r| r.address == coinbase(b)).unwrap();
+        assert_eq!((c.amount.as_str(), c.records), (c.old_amount.as_str(), 4));
+    }
+    // Block 363 is whole: every account of the block.
+    let rows = changes(&blocks[0]).unwrap();
+    let got: Vec<(String, &str, &str, u32)> = rows
+        .iter()
+        .map(|r| (hex::encode(&r.address), r.old_amount.as_str(), r.amount.as_str(), r.records))
+        .collect();
+    let want = [
+        ("0000000000000000000000000000000000001000", "0", "1655343750000000", 1),
+        ("0000000000000000000000000000000000001002", "0", "110356250000000", 1),
+        ("0000000000000000000000000000000000001006", "0", "100000000000000000000", 1),
+        ("446aa6e0dc65690403df3f127750da1322941f3e", "500000000000000000000", "399998234300000000000", 3),
+        ("6488aa4d1955ee33403f8ccb1d4de5fb97c7ade2", "0", "0", 4),
+        (SYSTEM_FEE_ADDRESS, "0", "0", 3),
+    ];
+    assert_eq!(got, want.map(|(a, o, n, r)| (a.to_string(), o, n, r)));
+}
+
+#[test]
+fn the_fee_pool_payout_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    let pool = hex::decode(SYSTEM_FEE_ADDRESS).unwrap();
+    let block_363 = || captured_fee_pool_payouts().swap_remove(0);
+    // Block-level records of block 363: the pool's `n -> n` at ordinal 17, the
+    // coinbase's credit at 18, the pool's last payout at 27 and its credit at 28.
+    assert_eq!(block_363().balance_changes.iter().map(|c| c.ordinal).collect::<Vec<_>>(), [17, 18, 27, 28]);
+    // The credit must follow at the next ordinal...
+    let mut b = block_363();
+    b.balance_changes[1].ordinal = 19;
+    assert!(fails(&b));
+    // ...be a fee credit...
+    let mut b = block_363();
+    b.balance_changes[1].reason = eth::balance_change::Reason::Transfer.into();
+    assert!(fails(&b));
+    // ...of the block's coinbase.
+    let mut b = block_363();
+    let header = b.header.as_option().unwrap().clone();
+    b.header = buffa::MessageField::some(eth::BlockHeader {
+        coinbase: vec![9; 20],
+        ..header
+    });
+    assert!(fails(&b));
+    // The pool's record must be the `n -> n` one.
+    let mut b = block_363();
+    b.balance_changes[0].old_value = big(1).into();
+    assert!(fails(&b));
+    // Restored, the debit still has to chain: the pool's previous balance must
+    // be `n + r`.
+    let mut b = block_363();
+    let credit = b.transaction_traces[0].calls[0].balance_changes.iter_mut().find(|c| c.address == pool).unwrap();
+    credit.new_value = big(1765700000000016).into();
+    assert!(fails(&b));
+
+    // The credit must be 1/16 of the pool. Here n + r is the pool's balance
+    // either way, so only that rule tells the shapes apart.
+    let base = vec![0xc; 20];
+    let mut b = block();
+    b.header = buffa::MessageField::some(eth::BlockHeader {
+        coinbase: base.clone(),
+        ..b.header.as_option().unwrap().clone()
+    });
+    b.transaction_traces = vec![tx(eth::Call {
+        balance_changes: vec![fee(&pool, 5, 0, 32)],
+        ..Default::default()
+    })];
+    b.balance_changes = vec![fee(&pool, 10, 30, 30), fee(&base, 11, 0, 2), fee(&pool, 20, 30, 0), fee(&base, 21, 2, 32)];
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        (
+            row_of(&rows, &pool).old_amount.as_str(),
+            row_of(&rows, &pool).amount.as_str(),
+            row_of(&rows, &pool).records
+        ),
+        ("0", "0", 3)
+    );
+    assert_eq!(row_of(&rows, &base).amount, "32");
+    b.balance_changes = vec![fee(&pool, 10, 29, 29), fee(&base, 11, 0, 3), fee(&pool, 20, 29, 0), fee(&base, 21, 3, 32)];
+    assert!(fails(&b));
+}
+fn row_of<'a>(rows: &'a [Change], address: &[u8]) -> &'a Change {
+    rows.iter().find(|r| r.address == address).unwrap()
+}
+
+/// BSC block 0 as captured from Firehose: one synthetic genesis transaction
+/// whose call allocates three balances (its code changes are omitted).
+fn captured_genesis() -> eth::Block {
+    let f: Value = serde_json::from_str(GENESIS).unwrap();
+    let bytes = |key: &str| hex::decode(f[key].as_str().unwrap()).unwrap();
+    let mut b = block();
+    b.ver = f["block_ver"].as_i64().unwrap() as i32;
+    b.number = 0;
+    b.hash = bytes("block_hash");
+    b.header = buffa::MessageField::some(eth::BlockHeader {
+        number: 0,
+        parent_hash: bytes("parent_hash"),
+        state_root: bytes("state_root"),
+        coinbase: bytes("coinbase"),
+        ..Default::default()
+    });
+    b.transaction_traces = vec![eth::TransactionTrace {
+        hash: bytes("tx_hash"),
+        status: (f["tx_status"].as_i64().unwrap() as i32).into(),
+        from: bytes("tx_from"),
+        to: bytes("tx_to"),
+        calls: f["calls"].as_array().unwrap().iter().map(captured_call).collect(),
+        ..Default::default()
+    }];
+    b
+}
+
+#[test]
+fn captured_bsc_genesis_allocations_are_the_rows_of_block_0() {
+    let events = project(&captured_genesis()).unwrap();
+    let rows: Vec<(String, &str)> = events.balances.iter().map(|r| (hex::encode(&r.address), r.amount.as_str())).collect();
+    assert_eq!(
+        rows,
+        [
+            ("0000000000000000000000000000000000001004".to_string(), "176405560900000000000000000"),
+            ("446aa6e0dc65690403df3f127750da1322941f3e".to_string(), "500000000000000000000"),
+            ("b005741528b86f5952469d80a8614591e3c5b632".to_string(), "500000000000000000000"),
+        ]
+    );
+}
+
+#[test]
+fn the_genesis_block_holds_only_allocations_from_zero() {
+    fn refused(b: &eth::Block) -> bool {
+        project(b).unwrap_err().to_string().contains("not a genesis allocation")
+    }
+    // Another reason...
+    let mut b = captured_genesis();
+    b.transaction_traces[0].calls[0].balance_changes[0].reason = eth::balance_change::Reason::Transfer.into();
+    assert!(refused(&b));
+    // ...an allocation that does not start from zero...
+    let mut b = captured_genesis();
+    b.transaction_traces[0].calls[0].balance_changes[0].old_value = big(1).into();
+    assert!(refused(&b));
+    // ...or any other record in block 0 refuses it.
+    let mut b = captured_genesis();
+    b.balance_changes = vec![change(4, 30, Some(0), Some(1))];
+    assert!(refused(&b));
 }

@@ -23,8 +23,19 @@ execution order: block-level records are serialized after the transactions but
 the fee reset at block 122260950 (ordinal 3244) must follow the last
 transaction credit (ordinal 3237). Per-account continuity (`old == previous
 new`) and strictly increasing ordinals are required; ties and gaps fail the
-block. Ordinal 0 is rejected; there is no fixture for a legitimate zero-ordinal
-persisted record, so genesis allocations are unsupported rather than guessed.
+block. The only exceptions are two recognized producer shapes, each with a
+captured fixture ([rules](../README.md#persistence-and-fail-closed-rules)):
+the self-transfer pair (v0.2.2), whose two records are dropped, and the BSC
+`Block.ver` 3 fee pool payout (v0.7.0): the producer recorded the 1/16
+system-reward debit of the fee pool `0xff…fe` as `n -> n`, and native
+restores it as `n + r -> n` from the coinbase credit `r` at the next ordinal,
+where `r = (n + r) >> 4`, then checks `n + r` for continuity like any record.
+Ordinal 0 is rejected; there is no fixture for a legitimate zero-ordinal
+persisted record. BSC's genesis allocations do not need one: block 0 records
+them as `GENESIS_BALANCE` records from zero at positive ordinals (11, 24 and
+26). Since v0.7.0 block 0 is accepted when every balance record in it is such
+an allocation, and emits one row per funded account
+([genesis](../README.md#genesis-v070)); native v0.2.2 refused block 0.
 
 ## Reason matrix
 
@@ -49,7 +60,7 @@ saved-data replay of 1,439 BSC producer-version-5 blocks.
 | `REWARD_FEE_RESET` | 14 | persists | fails the block | none observed; the BSC v5 reset is recorded as `REWARD_TRANSACTION_FEE` at block level |
 | `REWARD_MINE_UNCLE`, `REWARD_MINE_BLOCK` | 1, 2 | persist (block level) | fails the block | none observed (BSC has no mining rewards) |
 | `DAO_REFUND_CONTRACT`, `DAO_ADJUST_BALANCE` | 3, 4 | persist (Ethereum DAO fork block) | fails the block | none observed; Ethereum fixture required |
-| `GENESIS_BALANCE` | 6 | block 0 rejected | fails the block | none observed |
+| `GENESIS_BALANCE` | 6 | persists; block 0 is accepted only when every balance record in it is one, from zero (v0.7.0; v0.2.2 rejected block 0) | fails the block | none in the replay; BSC block 0: 3 (Tx) ([fixture](../tests/fixtures/bsc-0-genesis.json)) |
 | `WITHDRAWAL` | 16 | persists (Ethereum execution-layer withdrawals, block level) | fails the block | none observed; Ethereum fixture required |
 | `INCREASE_MINT`, `REVERT` | 18, 19 | persist if observed | **fails the block** – OP-stack deposit semantics unqualified | none observed |
 | `MONAD_TX_POST_STATE` | 20 | persists if observed | fails the block | out of scope |
@@ -90,7 +101,7 @@ below are historical and retain the parameter lists used at capture time.
 | --- | --- | --- |
 | BSC (chain id 56) | 5 | Replayed: 1,439 blocks, 0 projection errors, 0 clock or continuity mismatches, 82/82 same-block RPC rows at 122260950. Fee-reset and blob-fee-reward semantics observed. **Live-qualified on 2026-09-23** (package `fbb46fc7…`): 1,024 saved control blocks equal to the offline replay and to `eth_getBalance` (76,139/76,139), and 5,000 contiguous recent blocks without a refused block, 200,344/200,344 same-block `eth_getBalance` checks (see the README). |
 | BSC | 4 | 71 saved blocks at heights 51,995,162–104,975,334 reduce with 0 projection errors and 0 continuity mismatches when version 4 was explicitly enabled (4,461 additional continuity checks); no native RPC oracle. The current map no longer gates this version. |
-| BSC | 3 | Accepted by the historical prototype; no saved block. The former parameter gate excluded it because the version-3 tracer recorded system-call ordinals on a different scale from transaction ordinals and set every root call's `begin_ordinal` to 0 ([geth Firehose tracer](https://github.com/streamingfast/go-ethereum/blob/70f5118d6443624792f49501627a1cd80f51e8e9/eth/tracers/firehose.go), [firehose-ethereum CHANGELOG v2.10.0](https://github.com/streamingfast/firehose-ethereum/blob/9485efe2e6290e525fd4978b50462516ec752672/CHANGELOG.md)). Global ordinal reduction across scopes is not trustworthy on version 3. The current map accepts this version but retains ordinal and continuity checks; those checks do not establish complete detection of ordering defects. |
+| BSC | 3 | Accepted by the historical prototype. Captured on 2026-10-13: block 0 ([genesis](../tests/fixtures/bsc-0-genesis.json)) and blocks 363, 12,700,000 and 25,401,003 ([fee pool payouts](../tests/fixtures/bsc-fee-pool-payout-ver3.json); 363 whole, the others in part). The former parameter gate excluded it because the version-3 tracer recorded system-call ordinals on a different scale from transaction ordinals and set every root call's `begin_ordinal` to 0 ([geth Firehose tracer](https://github.com/streamingfast/go-ethereum/blob/70f5118d6443624792f49501627a1cd80f51e8e9/eth/tracers/firehose.go), [firehose-ethereum CHANGELOG v2.10.0](https://github.com/streamingfast/firehose-ethereum/blob/9485efe2e6290e525fd4978b50462516ec752672/CHANGELOG.md)). Global ordinal reduction across scopes is not trustworthy on version 3. The current map accepts this version but retains ordinal and continuity checks; those checks do not establish complete detection of ordering defects. This producer records the fee pool's 1/16 system-reward debit as `n -> n`: native v0.2.2 refused the three captured blocks on it, found by a full-history noop on 2026-10-13 that failed in every range below block 38.1M, and v0.7.0 restores the debit (above). |
 | Ethereum (1) | none | Genesis, uncle/block rewards, DAO redistribution, execution-layer withdrawals, blob fee debits, pre/post-[EIP-6780](https://eips.ethereum.org/EIPS/eip-6780) SELFDESTRUCT and the consensus-layer boundary need fixtures under #8. |
 | Base (8453) | none | The [OP deposit specification](https://specs.optimism.io/protocol/deposits.html#execution) persists the mint of a failed deposit. The BSC gas-only failed-root policy would drop it; the reason guard fails such blocks until producer fixtures show where the record appears and how rollback is represented. L1/operator fee vault effects unreviewed. |
 | HyperEVM (999) | none | HYPE account changes and the EVM side of HyperCore↔HyperEVM transfers need fixtures; HyperCore spot/perp/staked balances are a separate domain not derivable from EVM state. |
@@ -158,15 +169,21 @@ then initializes 14,172 tracked accounts at block 123548069 and applies
 [123548070, 123548370), with 56,688 matching comparisons across four
 checkpoints. Accounts outside that tracked set remain unknown.
 
-- Sink publication is the `evm-balances` path: its completeness checks and
-  `--final-blocks-only` rule are in the
+- Sink publication is this package's own `db_out` into
+  `<chain>:evm-balances-native@<version>`
+  ([ClickHouse](../../../docs/clickhouse.md)); until v0.6.1 it was the
+  combined `evm-balances` package. Its completeness checks are in the
   [cutover contract](../../../docs/initialization-and-completeness.md) (#7),
   and run live during
   [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)
-  B2. Final blocks only means no live reorg handling is needed or qualified.
-- Qualify the unobserved genesis, reward, DAO, withdrawal, lifecycle and
-  chain-specific fee/mint/burn cases in the matrices above: on BSC in the
-  #124 A3b reason census, elsewhere per network under
+  B2. The sink runs with an undo buffer (BSC: 5 blocks), not final blocks
+  only (owner, 2026-10-13): a fork deeper than the buffer stops it and leaves
+  the rows of the orphaned blocks, an accepted risk, and no live reorg
+  handling is qualified.
+- Qualify the unobserved reward, DAO, withdrawal, lifecycle and
+  chain-specific fee/mint/burn cases in the matrices above, and genesis
+  outside BSC: on BSC in the #124 A3b reason census, elsewhere per network
+  under
   [#125](https://github.com/pinax-network/substreams-evm-balances/issues/125)
   and [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
 - Add per-network producer/fork fixtures, package controls and asset identity

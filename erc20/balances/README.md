@@ -1,20 +1,29 @@
-# erc20/balances
+# erc20/balances: evm-balances-erc20
 
-A single RPC-free `map_events(block)` reads Firehose Extended blocks and emits
-**`evm.balances.v1.Events`**, using the exact shared protobuf and Rust types from
+An RPC-free `map_events(block)` reads Firehose Extended blocks and emits
+**`evm.balances.v1.Events`**, and `db_out` writes them into the substreams-evm
+ClickHouse tables (`erc20_balances`, `blocks` and the ERC-20 history), whose
+schema the spkg embeds. The package is `evm_balances_erc20`: release tag and
+spkg `evm-balances-erc20-v<version>`, BSC database
+`bsc:evm-balances-erc20@<version>` ([ClickHouse](../../docs/clickhouse.md)).
+Native balances are the separate [`native/balances`](../../native/balances/README.md)
+package with their own database.
+
+`map_events` uses the exact shared protobuf and Rust types from
 [`erc20/balances` in the original repository](https://github.com/pinax-network/substreams-evm/tree/9f723e4b28a3abad755384ff1329950ea1287938/erc20/balances)
 and [`proto/v1/balances.proto`](../../proto/v1/balances.proto).
 It takes no params, uses no stores and adds no protobufs; its only cache is
-the `map_events` output. Balances are inferred per block for every contract
-from its `Transfer` flows and persisted storage. There are no layouts, token
-lists or RPC calls.
+the `map_events` output, and `db_out` takes no params either. Balances are
+inferred per block for every contract from its `Transfer` flows and persisted
+storage. There are no layouts, token lists or RPC calls.
 
 This module requires Firehose Extended blocks. It lives in
 `substreams-evm-balances` (formerly `substreams-evm-extended`) so Extended-only
-processing stays separate from the original repository.
-[`evm-balances`](../../evm-balances/README.md) imports this
-manifest and writes its rows into the substreams-evm `erc20_balances` table and
-views; this package has no `db_out`. The earlier CLI native-sink path and its
+processing stays separate from the original repository. Until v0.6.1 the
+combined `evm-balances` package imported this manifest and wrote its rows; since
+v0.7.0 this package's own `db_out` writes them into its own database, so an
+ERC-20 change never resyncs native balances
+([why](../../docs/clickhouse.md)). The earlier CLI native-sink path and its
 smoke evidence are at
 [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse).
 [Migration provenance](../../docs/migration.md) distinguishes
@@ -182,11 +191,16 @@ and holders.
 
 ```sh
 cargo test --locked -p erc20-balances
-make -C erc20/balances pack
+make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 ```
 
-Output: `spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions
-skip v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf
+Committed spkgs come from CI's "Package hashes" artifact, not from a local
+`make pack` (a macOS build has other module hashes than CI's Linux build).
+Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
+`db_out`: `spkg/evm-balances-erc20-v0.7.0.spkg`, not live-qualified. Until
+then it was `erc20_balances`: `spkg/erc20-balances-v0.4.0.spkg` (package
+version v0.4.0; versions skip v0.3.x, so no build can overwrite the v0.3.4 RPC
+reference). No Buf
 generation is needed here; the public schema is already maintained by the
 shared `proto` crate. The committed `spkg/erc20-balances-v0.1.0.spkg`
 (`532b571f…`, 2026-09-23) is the earlier layout package, which takes layouts as
@@ -207,7 +221,8 @@ The committed v0.4.0 is CI's canonical Linux build: WASM `17a847aa…`, module
 Thin Rust tests call the package functions directly. They cover the rules on
 synthetic blocks, the embedded persistence rules, which blocks fail, the
 manifest shape, and captured block 122260950 against its saved same-block RPC
-values. On that block, all 18 recorded `balanceOf` checks match, and so do the
+values; `tests/db_out.rs` covers the ClickHouse rows, the manifest wiring and
+the embedded schema. On that block, all 18 recorded `balanceOf` checks match, and so do the
 101 rows inferred for USDT, WBNB, USDC and BTCB. Without the 383 preimages a
 5.5.0 producer would not record
 ([`bsc-122260950-5.5.0-dropped-preimages.json`](tests/fixtures/bsc-122260950-5.5.0-dropped-preimages.json)),

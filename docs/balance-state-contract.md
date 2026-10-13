@@ -13,7 +13,9 @@ formulas recorded in [extraction coverage](extraction-coverage.md).
 ## Package boundary
 
 - `erc20/balances` and `native/balances` keep their single `map_events` and
-  their `evm.balances.v1.Events` output. They gain nothing.
+  their `evm.balances.v1` output (`Events`; for native since v0.7.0
+  `NativeEvents`, `Events` without the contract), next to their own `db_out`.
+  They gain nothing from this contract.
 - Each protocol family gets a small companion package with exactly one
   RPC-free `map_events` whose output type is `evm.balance_state.v1.Events`:
   `aave/balance-state` ([#13](https://github.com/pinax-network/substreams-evm-balances/issues/13)),
@@ -30,13 +32,17 @@ formulas recorded in [extraction coverage](extraction-coverage.md).
   (`lazy_views=true`, `unknown_fields=false`), the generator and options of
   substreams 0.8.0. Until 2026-10-05 it was prost code from
   `buf.build/community/neoeinstein-prost:v0.4.0`; the encodings are identical
-  (the committed encoding fixtures still pass).
+  (the committed encoding fixtures still pass). Since 2026-10-13 these types
+  sit behind the `proto` crate's default `balance-state` feature, which the
+  two balance packages turn off from v0.7.0, so an edit to them cannot change
+  those packages' module hashes.
 
 ## Tables
 
 Every top-level repeated field of `Events` becomes one table in a native
-Substreams ClickHouse sink. That sink is external: `evm-balances`, this
-repository's only `db_out`, does not import the protocol packages. Rows are flat: no nested messages, repeated
+Substreams ClickHouse sink. That sink is external: this repository's only
+`db_out` modules, one in each balance package ([ClickHouse](clickhouse.md)),
+write only the balance tables and do not import the protocol packages. Rows are flat: no nested messages, repeated
 fields, `oneof` or `optional` inside a row.
 
 | Table | Rows per block | Natural key in the block | Purpose |
@@ -269,7 +275,9 @@ the stable contract.
 - Cross-output identities: `HolderBasis.market` joins `evm.balances.v1`
   `Balance.contract` for the same token; `AssetAlias.asset` joins the ERC-20
   side and `alias_of` (empty) the `native/balances` rows. Keep packages in
-  separate databases or tables; the absent-native `contract` is `''` in SQL.
+  separate databases or tables. Native rows carry no `contract`
+  (`NativeEvents` since v0.7.0); before, the absent native `contract` was
+  `''` in SQL.
   Summing both sides of an alias double counts one balance.
 
 ## Versioning

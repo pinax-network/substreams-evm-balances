@@ -5,7 +5,6 @@ members = [
   "common/epochs",
   "erc20/balances",
   "native/balances",
-  "evm-balances",
   "aave/balance-state",
   "compound-v2/balance-state",
   "compound-v3/balance-state",

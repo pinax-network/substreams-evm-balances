@@ -1,11 +1,14 @@
 //! One RPC-free `map_events`: the final persisted native account balance of
-//! every account changed in an Extended block.
+//! every account changed in an Extended block. `db_out` writes them into the
+//! substreams-evm ClickHouse tables (`db_out` module).
 //!
-//! Output reuses the shared `evm.balances.v1.Events` protobuf. `Balance.contract`
-//! is absent (`None`) for native amounts and `Balance.amount` is the account's
-//! balance after the last persisted change in the block, as an exact decimal
-//! `uint256` string. Accounts without a persisted change in the block are not
-//! emitted; absence is no observation, never zero.
+//! Output is `evm.balances.v1.NativeEvents`: `Events` without the contract,
+//! which native amounts never have, with the same field numbers, so the bytes
+//! also decode as `Events` with no contract. `NativeBalance.amount` is the
+//! account's balance after the last persisted change in the block, as an exact
+//! decimal `uint256` string. Accounts without a persisted change in the block
+//! are not emitted; absence is no observation, never zero. Block 0 emits the
+//! genesis allocations ([`validate_block`]).
 //!
 //! Balances are account state, reduced from the producer's persisted
 //! `BalanceChange` records in execution order. They are not a sum of inferred
@@ -15,6 +18,8 @@
 //! [`evm_persist`] rules (failed-transaction gas effects, reverted frames,
 //! system calls, block-level records).
 use evm_persist as persist;
+pub mod db_out;
+
 use proto::pb::evm::balances::v1 as balances_pb;
 use std::collections::{BTreeMap, HashSet};
 use substreams::{errors::Error, scalar::BigInt};
@@ -99,13 +104,36 @@ pub fn validate_block(block: &eth::Block) -> Result<(), Error> {
         "invalid block identity",
     )?;
     require(header.number == block.number, "header number mismatch")?;
-    // Genesis allocations are not a persisted execution record in a traced
-    // block; supporting them needs a documented producer fixture first.
-    require(block.number > 0, "genesis block not qualified for native balances")?;
+    if block.number == 0 {
+        validate_genesis(block)?;
+    }
     for tx in &block.transaction_traces {
         require(
             (1..=3).contains(&tx.status.to_i32()) && !tx.calls.is_empty(),
             "incomplete transaction persistence data",
+        )?;
+    }
+    Ok(())
+}
+
+/// Block 0 carries the chain's genesis allocations. The BSC producer records
+/// them as one synthetic succeeded transaction (zero hash, from and to the
+/// zero address) whose call holds a `GENESIS_BALANCE` record from zero per
+/// funded account, next to the system contracts' code: TokenHub `0x…1004` and
+/// two accounts on BSC. Every balance record of block 0 must be such an
+/// allocation; the shared persistence rules then emit one row per funded
+/// account, like any other block.
+fn validate_genesis(block: &eth::Block) -> Result<(), Error> {
+    let changes = block
+        .balance_changes
+        .iter()
+        .chain(block.system_calls.iter().flat_map(|c| &c.balance_changes))
+        .chain(block.transaction_traces.iter().flat_map(|t| &t.calls).flat_map(|c| &c.balance_changes));
+    for c in changes {
+        let from_zero = matches!(value(c.old_value.as_option().map(|v| v.bytes.as_slice())), Ok(w) if w == [0; 32]);
+        require(
+            c.reason.as_known() == Some(eth::balance_change::Reason::GenesisBalance) && from_zero,
+            "genesis block carries a balance change that is not a genesis allocation",
         )?;
     }
     Ok(())
@@ -206,17 +234,88 @@ fn self_transfer_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
     pairs
 }
 
+/// BSC's fee pool, `consensus.SystemAddress`: transaction fees collect there
+/// until the consensus engine pays them out at the end of the block.
+const BSC_FEE_POOL: [u8; 20] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+];
+
+/// BSC pays 1/16 of the fee pool (`pool >> 4`, `systemRewardPercent`) to its
+/// system reward contract before paying the rest to the validator. Each payout
+/// moves the amount from the pool to the block's coinbase, which then sends it
+/// on in a system transaction. The BSC producer of `Block.ver` 3 records the
+/// first move's pool debit with its old value equal to its new one: the client
+/// lowered the pool's balance in place before setting it, so the tracer read
+/// the lowered balance as the old value (blocks 363, 12,700,000 and
+/// 25,401,003). The block-level `REWARD_TRANSACTION_FEE` record of the pool
+/// reads `n -> n`, and the next ordinal credits the coinbase with `r`, where
+/// `r = (n + r) >> 4`. The shared rules drop the `n -> n` record as a no-op,
+/// and the pool's next record starts from `n`, so continuity breaks although
+/// the balance moved exactly as recorded for the coinbase.
+///
+/// Returns the records these stand for: the pool from `n + r` to `n` at the
+/// `n -> n` record's ordinal. The continuity check then verifies `n + r`
+/// against the pool's previous balance. Only this exact shape is recognized.
+fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
+    let fee = |c: &eth::BalanceChange| c.reason.as_known() == Some(eth::balance_change::Reason::RewardTransactionFee);
+    let Some(header) = block.header.as_option() else {
+        return Vec::new();
+    };
+    let mut payouts = Vec::new();
+    for pool in block.balance_changes.iter().filter(|c| c.address == BSC_FEE_POOL && fee(c) && c.ordinal > 0) {
+        let Some(credit) = block.balance_changes.iter().find(|c| c.ordinal == pool.ordinal + 1) else {
+            continue;
+        };
+        if credit.address != header.coinbase || !fee(credit) {
+            continue;
+        }
+        let words = (
+            value(pool.old_value.as_option().map(|v| v.bytes.as_slice())),
+            value(pool.new_value.as_option().map(|v| v.bytes.as_slice())),
+            value(credit.old_value.as_option().map(|v| v.bytes.as_slice())),
+            value(credit.new_value.as_option().map(|v| v.bytes.as_slice())),
+        );
+        let (Ok(pool_old), Ok(pool_new), Ok(credit_old), Ok(credit_new)) = words else {
+            continue;
+        };
+        let [n, credit_old, credit_new] = [pool_new, credit_old, credit_new].map(|w| BigInt::from_unsigned_bytes_be(&w));
+        if pool_old != pool_new || credit_new <= credit_old {
+            continue;
+        }
+        let reward = credit_new - credit_old;
+        let before = n + reward.clone();
+        let Ok(before_word) = word(&before.to_bytes_be().1) else {
+            continue;
+        };
+        if before >> 4u32 != reward {
+            continue;
+        }
+        payouts.push(Record {
+            address: pool.address.clone(),
+            old_value: Some(before_word.to_vec()),
+            new_value: Some(pool_new.to_vec()),
+            ordinal: pool.ordinal,
+            reason: pool.reason.to_i32(),
+            scope: persist::Scope::Block,
+        });
+    }
+    payouts
+}
+
 /// Reduce persisted records by execution ordinal into one row per account.
 /// Every record needs a canonical 20-byte account, a positive ordinal, values
 /// that fit `uint256`, a strictly increasing ordinal per account and old/new
-/// continuity. Ambiguous or discontinuous producer data fails the block. The
-/// one exception is the producer's self-transfer pair (`self_transfer_pairs`):
-/// both of its records are dropped, so the account's other records must chain
-/// across it.
+/// continuity. Ambiguous or discontinuous producer data fails the block. Two
+/// producer shapes are exceptions. The self-transfer pair
+/// (`self_transfer_pairs`) is dropped, so the account's other records must
+/// chain across it. The fee pool's system-reward payout (`fee_pool_payouts`)
+/// is restored from the `n -> n` record the shared rules drop, so the pool
+/// must chain through it.
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
     let pairs = self_transfer_pairs(block);
     records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
+    records.extend(fee_pool_payouts(block));
     // Array order is not execution order: block-level records follow the
     // transactions in the message but can precede or follow them by ordinal.
     records.sort_by_key(|r| r.ordinal);
@@ -256,15 +355,14 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     Ok(rows.into_values().map(|(row, _)| row).collect())
 }
 
-/// Final balances of every changed account, sorted by account, with an absent
-/// contract. Includes the zero address, precompiles, system and burn-looking
-/// addresses whenever the producer persisted a change for them.
-pub fn project(block: &eth::Block) -> Result<balances_pb::Events, Error> {
-    Ok(balances_pb::Events {
+/// Final balances of every changed account, sorted by account. Includes the
+/// zero address, precompiles, system and burn-looking addresses whenever the
+/// producer persisted a change for them.
+pub fn project(block: &eth::Block) -> Result<balances_pb::NativeEvents, Error> {
+    Ok(balances_pb::NativeEvents {
         balances: changes(block)?
             .into_iter()
-            .map(|c| balances_pb::Balance {
-                contract: None,
+            .map(|c| balances_pb::NativeBalance {
                 address: c.address,
                 amount: c.amount,
             })
@@ -281,8 +379,16 @@ pub fn project(block: &eth::Block) -> Result<balances_pb::Events, Error> {
 mod handler {
     use super::*;
     #[substreams::handlers::map]
-    fn map_events(block: eth::Block) -> Result<balances_pb::Events, Error> {
+    fn map_events(block: eth::Block) -> Result<balances_pb::NativeEvents, Error> {
         project(&block)
+    }
+
+    #[substreams::handlers::map]
+    fn db_out(
+        clock: substreams::pb::substreams::Clock,
+        events: balances_pb::NativeEvents,
+    ) -> Result<substreams_database_change::pb::sf::substreams::sink::database::v1::DatabaseChanges, Error> {
+        db_out::database_changes(&clock, &events)
     }
 }
 
