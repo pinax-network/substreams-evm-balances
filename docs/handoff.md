@@ -141,12 +141,14 @@ Done on 2026-10-06: the Rust 1.99.0 hash batch (#118), the "Package hashes"
 CI job (#119), the sink pin
 [substreams-sink-sql v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0),
 commit `933a187` (#120, [README](../evm-balances/README.md#build-and-deploy)),
-and the release flow (#122):
-[`native-balances-v0.2.1`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/native-balances-v0.2.1),
-[`erc20-balances-v0.4.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/erc20-balances-v0.4.0)
-and
+and the release flow (#122). On 2026-10-13 the owner made
 [`evm-balances-v0.6.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/evm-balances-v0.6.0)
-are released. Releases are not live qualification.
+the only release: it now carries `native-balances-v0.2.1.spkg` and
+`erc20-balances-v0.4.0.spkg` (the CI builds of tags `native-balances-v0.2.1`
+and `erc20-balances-v0.4.0`, commit `313f8d1`, with the module hashes above)
+and notes on what is included and how to deploy it, without `HASHES.txt`. The
+separate native and erc20 releases were deleted; their tags remain. Releases
+are not live qualification.
 
 Upstream, open: deterministic spkg packing,
 [streamingfast/substreams#978](https://github.com/streamingfast/substreams/pull/978);
