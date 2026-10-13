@@ -1,8 +1,8 @@
 # Extended extraction coverage: chains, assets, actions
 
 This document records the first supported extraction surface for the
-[roadmap](https://github.com/pinax-network/substreams-evm-extended/issues/21)
-(issue [#11](https://github.com/pinax-network/substreams-evm-extended/issues/11)).
+[roadmap](https://github.com/pinax-network/substreams-evm-balances/issues/21)
+(issue [#11](https://github.com/pinax-network/substreams-evm-balances/issues/11)).
 It fixes requirements and evidence for the focused Extended-block packages; it
 does not implement a wallet service, prices, portfolio calculations, an RPC
 fallback or a universal labeling claim. The consumer owns its database,
@@ -12,7 +12,7 @@ Every address, chain id and formula below was read from the cited official
 source on 2026-09-18 at the stated pin. Addresses are deployment identities,
 not runtime qualification: binding a runtime code hash, storage layout and
 activation block is part of each implementation issue and of network
-qualification under [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8),
+qualification under [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8),
 and requires live RPC or Firehose steps, each of which needs the owner's OK
 ([live use](../AGENTS.md#evidence)). Facts that could not be confirmed from an
 official source are listed as open questions rather than filled in.
@@ -33,7 +33,7 @@ These were the five networks requested on 2026-09-18; BSC is the network
 with saved evidence. The owner's current target list (2026-10-06), which
 adds Optimism, Unichain, Polygon, Arbitrum One, Robinhood Chain and optional
 OP Stack chains and Linea, is in
-[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8), with
+[#8](https://github.com/pinax-network/substreams-evm-balances/issues/8), with
 one issue per network.
 
 ### Historical depth
@@ -41,7 +41,7 @@ one issue per network.
 Historical depth is a per-endpoint property, not a chain property. The
 registry states `firstStreamableBlock` 0 for HyperEVM and Arc; the BSC,
 Ethereum and Base Extended depth available from the documented endpoints is
-recorded as an open question for [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
+recorded as an open question for [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
 Two saved BSC facts bound what offline work can claim: the earliest saved
 Extended block is 51,995,162 (producer version 4) and the densest saved window
 is [122288006, 122289030) (version 5).
@@ -83,7 +83,7 @@ is [122288006, 122289030) (version 5).
   burning are rejected at runtime, the base fee is paid to the beneficiary
   rather than burned, and EIP-4895 withdrawals are always empty. Extraction
   must preserve both raw observations with an explicit alias identity, not two
-  assets ([#12](https://github.com/pinax-network/substreams-evm-extended/issues/12)).
+  assets ([#12](https://github.com/pinax-network/substreams-evm-balances/issues/12)).
 
 ### Required Extended producer fields
 
@@ -119,7 +119,7 @@ From `sf.ethereum.type.v2` at `streamingfast/firehose-ethereum@9485efe2e6290e525
   `native/balances` has no version gate (owner, 2026-10-06). `Block.ver`
   alone does not identify producer semantics: firehose-tracer 5.5.0 keeps
   version 5 while filtering Keccak preimages and truncating call data
-  ([#116](https://github.com/pinax-network/substreams-evm-extended/issues/116)).
+  ([#116](https://github.com/pinax-network/substreams-evm-balances/issues/116)).
   The block carries no chain id, so the manifest, and for the balance
   packages the operator's endpoint, binds the network.
 - Reason enum through value 20: `REWARD_BLOB_FEE` 17 (BNB), `INCREASE_MINT`
@@ -146,14 +146,14 @@ Extended EVM extraction).
 
 | Family | Status | Owner | Boundary |
 | --- | --- | --- | --- |
-| Native account balances | Required | [#17](https://github.com/pinax-network/substreams-evm-extended/issues/17) (`native/balances`) | Final persisted balance per changed account; absence is not zero; chain semantics under #8 |
-| ERC-20 `balanceOf` from storage | Required | `erc20/balances`, [#4](https://github.com/pinax-network/substreams-evm-extended/issues/4)–[#7](https://github.com/pinax-network/substreams-evm-extended/issues/7) | Since 2026-10-05: inferred per block from `Transfer` flows and persisted storage; measured, not qualified ([measured intervals](../erc20/balances/README.md#measured)). The former explicitly qualified layouts and the reflection/calculated work under [#5](https://github.com/pinax-network/substreams-evm-extended/issues/5) are at [`9b41c7f`](https://github.com/pinax-network/substreams-evm-extended/tree/9b41c7f/erc20/balances) |
-| Wrapped native and nonstandard ERC-20 mutations (WETH/WBNB, USDC, USDT, WBTC, SAI) | Required (regression corpus) | [#22](https://github.com/pinax-network/substreams-evm-extended/issues/22) | Holder units stay ERC-20 balances; wrapper backing is the wrapper's native balance, not a second wallet asset. Since 2026-10-05 the layout-path regressions are at `9b41c7f`; inference leaves balances moved only by non-Transfer events unknown |
-| Aave V3 aToken scaled balance + reserve index/rate/timestamp | Required | [#13](https://github.com/pinax-network/substreams-evm-extended/issues/13) | Selected epochs only (§3); variable-debt tokens need their own semantics |
-| Compound v2 cToken shares + exchange-rate inputs | Required | [#14](https://github.com/pinax-network/substreams-evm-extended/issues/14) | Ethereum only; cash dependency is cross-contract (§3) |
-| Compound III signed principal + market indices | Required | [#15](https://github.com/pinax-network/substreams-evm-extended/issues/15) | Ethereum and Base; not on BSC; supplied balance only, collateral positions separate |
-| stETH shares + global rebase state | Required | [#23](https://github.com/pinax-network/substreams-evm-extended/issues/23) | Ethereum; one Lido contract-version epoch at a time (§3) |
-| ERC-4626 shares + source-bound conversion | Required (selected vault) | [#24](https://github.com/pinax-network/substreams-evm-extended/issues/24) | Per-implementation conversion; interface conformance is not a formula (§3) |
+| Native account balances | Required | [#17](https://github.com/pinax-network/substreams-evm-balances/issues/17) (`native/balances`) | Final persisted balance per changed account; absence is not zero; chain semantics under #8 |
+| ERC-20 `balanceOf` from storage | Required | `erc20/balances`, [#4](https://github.com/pinax-network/substreams-evm-balances/issues/4)–[#7](https://github.com/pinax-network/substreams-evm-balances/issues/7) | Since 2026-10-05: inferred per block from `Transfer` flows and persisted storage; measured, not qualified ([measured intervals](../erc20/balances/README.md#measured)). The former explicitly qualified layouts and the reflection/calculated work under [#5](https://github.com/pinax-network/substreams-evm-balances/issues/5) are at [`9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/tree/9b41c7f/erc20/balances) |
+| Wrapped native and nonstandard ERC-20 mutations (WETH/WBNB, USDC, USDT, WBTC, SAI) | Required (regression corpus) | [#22](https://github.com/pinax-network/substreams-evm-balances/issues/22) | Holder units stay ERC-20 balances; wrapper backing is the wrapper's native balance, not a second wallet asset. Since 2026-10-05 the layout-path regressions are at `9b41c7f`; inference leaves balances moved only by non-Transfer events unknown |
+| Aave V3 aToken scaled balance + reserve index/rate/timestamp | Required | [#13](https://github.com/pinax-network/substreams-evm-balances/issues/13) | Selected epochs only (§3); variable-debt tokens need their own semantics |
+| Compound v2 cToken shares + exchange-rate inputs | Required | [#14](https://github.com/pinax-network/substreams-evm-balances/issues/14) | Ethereum only; cash dependency is cross-contract (§3) |
+| Compound III signed principal + market indices | Required | [#15](https://github.com/pinax-network/substreams-evm-balances/issues/15) | Ethereum and Base; not on BSC; supplied balance only, collateral positions separate |
+| stETH shares + global rebase state | Required | [#23](https://github.com/pinax-network/substreams-evm-balances/issues/23) | Ethereum; one Lido contract-version epoch at a time (§3) |
+| ERC-4626 shares + source-bound conversion | Required (selected vault) | [#24](https://github.com/pinax-network/substreams-evm-balances/issues/24) | Per-implementation conversion; interface conformance is not a formula (§3) |
 | ERC-721 ownership and holder counts | Deferred | none yet | Transfer history is not a verified ownership snapshot; constructor and consecutive mints bypass events. Open an ownership issue only after confirmation |
 | ERC-1155 quantities | Deferred | none yet | Key `(contract, id, holder)`; batch events, self-transfers and zero values; event deltas do not initialize balances |
 | Debt balances (Aave variable debt, Comet negative principal, Compound v2 borrow snapshots) | Deferred | #13/#14/#15 boundaries | Signed or scaled debt is never an unsigned ERC-20 amount; needs explicit request and its own rounding rules |
@@ -265,9 +265,9 @@ Ethereum mainnet, `docs.lido.fi/deployed-contracts` (protocol version v4.0.1) an
   `totalPooledEther = internalEther + floor(((externalShares × internalEther) mod 2^256) / internalShares)`
   is a separate getter value: substituting its already-truncated ratio
   `totalPooledEther / totalShares` can change the observable holder balance
-  ([exact reference model](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/lido.rs)). The final total addition
+  ([exact reference model](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/src/lido.rs)). The final total addition
   is checked; spec revision 4 omits only the derived total on overflow and
-  retains all six observed inputs. The [compiled source controls](https://github.com/pinax-network/substreams-evm-extended/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/fixtures/lido-oracle/README.md)
+  retains all six observed inputs. The [compiled source controls](https://github.com/pinax-network/substreams-evm-balances/blob/6dade8957887c0c278cfa8da6bef61b9cc22f534/conformance/fixtures/lido-oracle/README.md)
   exercise accepted packed inputs, without claiming deployed reachability.
   CL balances reach
   the execution layer through accounting reports; unchanged holders are
@@ -332,10 +332,10 @@ this document.
 
 ## 5. Output identity, ordering and consumption
 
-- **Identity**: balance rows are end-of-block state keyed by `(block clock, contract-or-absent, address)`; fact rows (#18, #19, #20) carry `(block hash, transaction index and hash, call index, log index or ordinal)` and, for block and system scopes, an explicit scope without a transaction hash. The [balance-state contract](https://github.com/pinax-network/substreams-evm-extended/issues/12) encodes these identities for the protocol packages.
+- **Identity**: balance rows are end-of-block state keyed by `(block clock, contract-or-absent, address)`; fact rows (#18, #19, #20) carry `(block hash, transaction index and hash, call index, log index or ordinal)` and, for block and system scopes, an explicit scope without a transaction hash. The [balance-state contract](https://github.com/pinax-network/substreams-evm-balances/issues/12) encodes these identities for the protocol packages.
 - **Ordering**: within a block by execution ordinal (versions 4/5 only); across blocks by the stream clock. Rows inside `Events` are sorted deterministically.
 - **Clock advancement**: every delivered block advances the clock, including blocks with empty output. Consumers must not infer completeness from nonempty rows or sink markers.
-- **Unknown states**: *missing/uninitialized* (no observation since the consumer's checkpoint), *known zero* (an observed zero value), *unsupported model* (layout or version not qualified; the map fails closed), *invalidated dependency* (a pinned implementation, slot or rate model changed; retained state must be rebuilt) and *reverted* (attempted, never persisted) are distinct and are never collapsed into zero. Initialization and checkpoints are shared under [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7).
+- **Unknown states**: *missing/uninitialized* (no observation since the consumer's checkpoint), *known zero* (an observed zero value), *unsupported model* (layout or version not qualified; the map fails closed), *invalidated dependency* (a pinned implementation, slot or rate model changed; retained state must be rebuilt) and *reverted* (attempted, never persisted) are distinct and are never collapsed into zero. Initialization and checkpoints are shared under [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7).
 - **Balances in ClickHouse**: [`evm-balances`](../evm-balances/README.md) is the one `db_out`. It writes the two balance maps into the substreams-evm tables (`erc20_balances`, `native_balances`, `blocks` and the history views) through substreams-sink-sql; what a row and its absence mean, replays and completeness are in the [cutover contract](initialization-and-completeness.md). No custom sink.
 - **Other packages in a native sink**: their map outputs stay the contract for external native Substreams sinks. The CLI's ClickHouse sink derives one table per repeated message, keyed `(_block_number_, _row_id_)` in a `ReplacingMergeTree`; `_blocks_` lists nonempty-output blocks only, and writes are not multi-table transactions, so audits bind the sink's rows to independently captured clocks.
 

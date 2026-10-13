@@ -21,7 +21,7 @@ removed on 2026-10-03, and `evm-balances` (2026-10-05) is its one `db_out`.
 The canonical RPC reference is retained as an immutable standalone SPKG; its
 dependencies are embedded. Its source modules do not need to be copied here.
 The native ClickHouse sink consumed the unchanged Events protobuf directly
-([setup and validation at `cb62110`](https://github.com/pinax-network/substreams-evm-extended/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse/README.md));
+([setup and validation at `cb62110`](https://github.com/pinax-network/substreams-evm-balances/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/erc20/balances/clickhouse/README.md));
 since 2026-10-05 balances reach ClickHouse through
 [`evm-balances`](../evm-balances/README.md).
 
@@ -53,7 +53,7 @@ The table and the paragraph above describe the migration revision. On
 `proto/src/pb/evm.balances.v1.rs` with buffa code generated from the unchanged
 `balances.proto` (`proto/src/pb/balances.rs` and its view files); the prost
 file is preserved at
-[`cb62110`](https://github.com/pinax-network/substreams-evm-extended/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/proto/src/pb/evm.balances.v1.rs).
+[`cb62110`](https://github.com/pinax-network/substreams-evm-balances/blob/cb6211007f1f9d0cb5852a6b666da475a8fa6542/proto/src/pb/evm.balances.v1.rs).
 The statements below about unchanged generated Rust types likewise describe
 the code before that date.
 
@@ -62,7 +62,7 @@ Its digest is recorded separately in [migration evidence](evidence/migration.jso
 Historical reports keep the digest of the package they actually tested; those
 reports are not rewritten to imply that their RPC calls used a later package.
 
-Subsequent [typed mapping-path source changes](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/typed-mapping-paths.md)
+Subsequent [typed mapping-path source changes](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/typed-mapping-paths.md)
 are validated separately using offline Rust checks and captured data. They are
 not embedded in these preserved SPKGs and do not inherit live qualification from
 the migration baseline. Each live step needs the owner's OK
@@ -83,14 +83,14 @@ check; those source additions were not repackaged or given fresh live
 qualification. The package is now inference only; its status is in
 [`handoff.md`](handoff.md).
 
-The opt-in [enumerable role-set rule](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/enumerable-role-sets.md)
+The opt-in [enumerable role-set rule](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/enumerable-role-sets.md)
 has independent offline operation regressions. It does not change historical
 profiles or establish new producer, token or package qualification.
 
-The final pre-migration [combined capture](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/evidence/refined450-combined.json)
+The final pre-migration [combined capture](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/evidence/refined450-combined.json)
 checks 431 profiles across 1,024 consecutive BSC blocks, including all streamed
 block identities and 110,139 previously RPC-verified balance rows. MUSD/OLY
-revalidation is counted separately. The [coverage report](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/refined450-coverage.md)
+revalidation is counted separately. The [coverage report](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/refined450-coverage.md)
 retains cold unknowns, observed-holder limits and remaining candidates.
 
 Captured fixtures and compact evidence are versioned; since 2026-10-05 the
@@ -116,7 +116,7 @@ Layout-package builds targeted `spkg/erc20-balances-v0.1.0.spkg`. Its first buil
 (`532b571f03f66931b4f1dd222ec8ff4da64d0054c81f1b4ce7213a41abc9f0cd`, WASM
 `005a2d3d22d10c5c61fa36b00adea1c0b5e9c55536a553c14b9f423d09546099`) is
 committed and was checked on live BSC under #6; see
-[v0.1.0 layout package on live BSC](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md).
+[v0.1.0 layout package on live BSC](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md).
 Existing storage-named SPKGs and the canonical
 RPC reference `spkg/erc20-balances-v0.3.4.spkg` remain unchanged. Earlier
 byte-identical WASM and package qualification claims apply only to their

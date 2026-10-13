@@ -108,7 +108,7 @@ without checking `Block.ver`. ERC-20 inference retains its existing version
 3–5 compatibility check, which therefore also applies to the combined output.
 Removing native's gate does not qualify more networks: the network-specific
 failed-root persistence work in
-[#125](https://github.com/pinax-network/substreams-evm-extended/issues/125)
+[#125](https://github.com/pinax-network/substreams-evm-balances/issues/125)
 remains open.
 
 The new native handler changes its WASM and module hash, and consequently the
@@ -141,7 +141,7 @@ make -C evm-balances dev START_BLOCK=<S>
 - **Supported sink.** [pinax-network/substreams-sink-sql
   v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0),
   commit `933a187`
-  ([#120](https://github.com/pinax-network/substreams-evm-extended/issues/120)).
+  ([#120](https://github.com/pinax-network/substreams-evm-balances/issues/120)).
   `install-sink` builds it from a clone of the tag, because the fork's
   `go.mod` keeps the upstream module path and `go install <path>@<tag>`
   cannot fetch it. Upstream StreamingFast has its own `v4.13.0` (`5a43292`)
@@ -295,7 +295,7 @@ with the RPC-era database, and which initialization paths exist.
 
 A producer change that loses ERC-20 evidence fails no block: inference only
 emits fewer rows
-([#116](https://github.com/pinax-network/substreams-evm-extended/issues/116)).
+([#116](https://github.com/pinax-network/substreams-evm-balances/issues/116)).
 ERC-20 rows per block is the signal. `erc20_balances` keeps one row per pair
 after merges, so count the rows inserted into the OHLC state, per hour, over the
 blocks with output:

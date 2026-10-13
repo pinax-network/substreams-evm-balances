@@ -1,7 +1,14 @@
-# substreams-evm-extended
+# substreams-evm-balances
 
-EVM Substreams that require Firehose Extended blocks, maintained separately
-from the modules in [substreams-evm](https://github.com/pinax-network/substreams-evm).
+EVM balance Substreams from Firehose Extended blocks: native and ERC-20
+balances, the protocol balance-state packages, and the `evm-balances` `db_out`
+into the Token API's ClickHouse tables. Formerly `substreams-evm-extended`
+(renamed 2026-10-13). Its siblings are
+[substreams-evm-dex](https://github.com/pinax-network/substreams-evm-dex) (swaps
+and pool state) and
+[substreams-evm-transfers](https://github.com/pinax-network/substreams-evm-transfers)
+(transfer events); the RPC-based modules stay in
+[substreams-evm](https://github.com/pinax-network/substreams-evm).
 
 The first module is [ERC-20 balances](erc20/balances/README.md). One RPC-free
 `map_events(block)` infers each block's ERC-20 balances from `Transfer` flows
@@ -21,7 +28,7 @@ substreams-evm ClickHouse tables (`blocks`, `erc20_balances`,
 upstream's SQL byte for byte embedded in its spkg. It is the workspace's only
 `db_out` and database-change dependency. The earlier per-package CLI
 native-sink paths are at
-[`cb62110`](https://github.com/pinax-network/substreams-evm-extended/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542).
+[`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542).
 
 The committed packages are CI's canonical Linux builds (Rust 1.99.0,
 substreams CLI v1.22.0; identify a build by these hashes, never by spkg
@@ -48,18 +55,17 @@ shares one protobuf contract without copying generated types:
 - `proto/v1/balances.proto`: canonical balance schema.
 - `proto/v1/balance_state.proto`: versioned holder/global balance-state
   companion schema for protocol packages ([contract](docs/balance-state-contract.md)).
-- `proto/v1/executions.proto`: execution-fact schema (`evm/executions`).
-- `proto/v1/erc20_events.proto`: ERC-20 event evidence schema (`erc20/events`).
-- `proto/v1/aave_actions.proto`: Aave lending-action evidence schema (`aave/actions`).
-- `proto/v1/dex-pool-state.proto` and `proto/v1/dex/`: wire-compatible V2/V3 closing-state messages (`dex/pool-state`), without unrelated ABI event projections.
 - `proto/src/pb/`: shared generated Rust types (buffa, from `buf generate` in `proto/`).
+- `proto/v1/executions.proto`, `erc20_events.proto`, `aave_actions.proto`,
+  `dex-pool-state.proto` and `dex/`: types of packages that left on
+  2026-10-13, kept only so `evm-balances`' `db_out` keeps v0.6.1's hash (see
+  [AGENTS.md](AGENTS.md)); removed with the next hash-changing release.
 
 Shared crates and packages:
 
 - `common/persist/`: shared persisted-effect rules for Extended blocks.
 - `common/epochs/`: epoch-schedule helper for the protocol balance-state packages.
 - `erc20/balances/`: Extended-block ERC-20 balance module.
-- `erc20/events/`: standard ERC-20 Transfer and Approval log evidence.
 - `native/balances/`: Extended-block native balance module.
 - [`evm-balances/`](evm-balances/README.md): one `db_out` from `native/balances` and `erc20/balances` into the substreams-evm ClickHouse schema, which its spkg embeds.
 - `aave/balance-state/`: Aave V3 aToken holder basis and reserve state module.
@@ -67,26 +73,17 @@ Shared crates and packages:
 - `erc4626/balance-state/`: ERC-4626 vault shares, total supply and source-bound conversion inputs (Aave static aToken, Savings DAI, OpenZeppelin).
 - `lido/balance-state/`: Lido stETH holder shares, packed global words, derived pooled ether and report evidence module.
 - `compound-v3/balance-state/`: Compound III (Comet) signed principal and market index module.
-- `aave/actions/`: Aave V3 Pool lending-action evidence.
-- `evm/executions/`: call trees, logs, code changes and SetCode authorizations.
-- [`dex/pool-state/`](dex/pool-state/README.md): one RPC-free `map_events` for complete Extended-block V2 reserves and ordered V3 changes; no price or pool-admission policy.
 
 Each map's handler wraps a plain Rust function (for example
-`native_balances::project`, `erc20_balances::run`,
-`erc20_events::project`, `dex_pool_state::project`), so host programs can
-run the same projection on decoded Extended blocks without the Substreams
-runtime.
+`native_balances::project` and `erc20_balances::run`), so host programs such
+as firehose-parquet can run the same projection on decoded Extended blocks
+without the Substreams runtime.
 
-Generic pool-state extraction is maintained in `dex/pool-state`; contract ABI
-sources and generated event structs remain in `substreams-abis`. With the
-substreams 0.8.0 bump the owner moved that pin from tag `v1.5.0` to tag
-`v2.0.0`, the release of its port to substreams 0.8.0
-(pinax-network/substreams-abis#55); the package's outputs on the captured
-blocks are unchanged. Its new Extended-only package is checked offline;
-historical live evidence does not qualify the new input boundary or artifact
-digest. The owner's hold on
-IVSpikes-associated source and RPC checks remains active until explicit
-reauthorization.
+`dex/pool-state` and `erc20/events` moved with their history to
+[substreams-evm-dex](https://github.com/pinax-network/substreams-evm-dex) and
+[substreams-evm-transfers](https://github.com/pinax-network/substreams-evm-transfers);
+`evm/executions` and `aave/actions` were removed. All four remain here at
+[`ca00aba`](https://github.com/pinax-network/substreams-evm-balances/tree/ca00aba).
 
 ## Build and test
 
@@ -109,7 +106,7 @@ package crates. The host tools that produced the qualification evidence
 (packaged-output comparison with hash-pinned RPC results, initialized-holder
 checks, offline replays, reference models) were removed on 2026-10-03. The
 dated evidence documents refer to them as they were at
-[`6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534).
+[`6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534).
 RPC is used for qualification, not inside the maps.
 
 ## Releases
@@ -151,23 +148,23 @@ interval, its scored holder set and the limits. Matching intervals do not
 establish universal ERC-20 support or global holder enumeration. The former
 layout path covered 431 explicitly qualified profiles among the first 450 BSC
 candidates ranked by activity; its code, coverage reports and evidence remain at
-[`9b41c7f`](https://github.com/pinax-network/substreams-evm-extended/tree/9b41c7f/erc20/balances).
+[`9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/tree/9b41c7f/erc20/balances).
 
 Computed balances (reward, reflection, rebasing, scaled) remain open. Networks
 other than BSC need their own qualification after the BSC work; the target
 networks are tracked in
-[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8). The
+[#8](https://github.com/pinax-network/substreams-evm-balances/issues/8). The
 repository name is not a claim of verified coverage on every EVM network.
 
 The inference package is packed and committed (`spkg/erc20-balances-v0.4.0.spkg`,
 above) but has only been checked offline against saved data: it has not run in
 a Substreams engine. Its BSC qualification is
-[#124](https://github.com/pinax-network/substreams-evm-extended/issues/124), and
+[#124](https://github.com/pinax-network/substreams-evm-balances/issues/124), and
 each live step needs the owner's OK ([live use](AGENTS.md#evidence)).
 
 Outstanding implementation, holder coverage, packaging and network work is
-tracked in [GitHub issues](https://github.com/pinax-network/substreams-evm-extended/issues),
-under the roadmap [#21](https://github.com/pinax-network/substreams-evm-extended/issues/21).
+tracked in [GitHub issues](https://github.com/pinax-network/substreams-evm-balances/issues),
+under the roadmap [#21](https://github.com/pinax-network/substreams-evm-balances/issues/21).
 The requested chains, asset scopes, protocol deployments and action-evidence
 mapping for the extraction roadmap are recorded in
 [extraction coverage](docs/extraction-coverage.md).

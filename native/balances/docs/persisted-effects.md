@@ -1,7 +1,7 @@
 # Persisted native balance effects
 
 This page is the chain / producer / fork / reason matrix required by
-[#17](https://github.com/pinax-network/substreams-evm-extended/issues/17). It
+[#17](https://github.com/pinax-network/substreams-evm-balances/issues/17). It
 records what the saved data and recorded BSC runs establish, what the code
 handles by pinned rule without a fixture, and what stays unqualified. The
 2026-09-23 live reports retain their bounded scope; this document does not
@@ -131,21 +131,21 @@ accounts without a change are unknown.
   extracted from the retained 64-block run output whose SHA-256 is recorded in
   the fixture.
 - 192 blocks, 37,086 native before/after RPC checks with zero mismatches for
-  the prototype package: [legacy qualification](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/legacy-qualification.md),
-  [64-block](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/evidence/rpc-exhaustive-64.json) and
-  [128-block](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/evidence/rpc-exhaustive-128.json)
+  the prototype package: [legacy qualification](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/legacy-qualification.md),
+  [64-block](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/evidence/rpc-exhaustive-64.json) and
+  [128-block](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/evidence/rpc-exhaustive-128.json)
   summaries. The Extended blocks of those windows are not retained locally,
   so they cannot be replayed offline; the checks qualify the removed prototype
   artifact, not this package.
 - The failed v0.3.3 reference comparison that overwrote the fee reset
-  ([64-audited](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/evidence/64-audited.json)). This
+  ([64-audited](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/evidence/64-audited.json)). This
   is a finding about that artifact's ordering, not about the current
   `substreams-evm` native module.
 
 ## Remaining gates
 
 The BSC version-5 package `fbb46fc7…` completed packaged/same-block-hash
-qualification in [#55](https://github.com/pinax-network/substreams-evm-extended/pull/55):
+qualification in [#55](https://github.com/pinax-network/substreams-evm-balances/pull/55):
 [saved controls](evidence/live-parity-bsc-2026-09-23-saved-controls.json)
 cover [122288006, 122289030), and the
 [live report](evidence/live-parity-bsc-2026-09-23-live.json) covers emitted
@@ -162,13 +162,13 @@ checkpoints. Accounts outside that tracked set remain unknown.
   `--final-blocks-only` rule are in the
   [cutover contract](../../../docs/initialization-and-completeness.md) (#7),
   and run live during
-  [#124](https://github.com/pinax-network/substreams-evm-extended/issues/124)
+  [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)
   B2. Final blocks only means no live reorg handling is needed or qualified.
 - Qualify the unobserved genesis, reward, DAO, withdrawal, lifecycle and
   chain-specific fee/mint/burn cases in the matrices above: on BSC in the
   #124 A3b reason census, elsewhere per network under
-  [#125](https://github.com/pinax-network/substreams-evm-extended/issues/125)
-  and [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
+  [#125](https://github.com/pinax-network/substreams-evm-balances/issues/125)
+  and [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
 - Add per-network producer/fork fixtures, package controls and asset identity
-  under [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
+  under [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
   The recorded BSC results do not qualify other networks or package digests.

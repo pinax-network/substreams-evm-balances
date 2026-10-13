@@ -1,6 +1,6 @@
 # evm-balances cutover contract: initialization and completeness
 
-Issue [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7).
+Issue [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7).
 What an `evm-balances` database contains after the cutover from the RPC-era
 sink, which values can be stale, what a replayed flush does, and when a
 database is complete, with the checks and the repair that enforce it. The
@@ -11,11 +11,11 @@ host-ledger specification this page replaces is kept in
 `b3313b50…`, native `378d27a6…`, erc20 `d8a9db86…`, schema `ed1c3bff…`, the
 upstream v0.3.4 tables), written by pinax-network/substreams-sink-sql v4.13.0,
 commit `933a187`. None of these is live-qualified
-([#124](https://github.com/pinax-network/substreams-evm-extended/issues/124)).
+([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 Unless marked live, every number below was measured offline on captured BSC
 Extended blocks: window a is 122,288,006–122,289,029 and window b is
 123,561,000–123,562,023 (1,024 blocks each). The methods and full results are
-in [PR #144](https://github.com/pinax-network/substreams-evm-extended/pull/144).
+in [PR #144](https://github.com/pinax-network/substreams-evm-balances/pull/144).
 They were measured with v0.6.0, which differs from v0.6.1 only in native's
 self-transfer pair (#149): v0.6.0 refuses any block that has one, and it
 processed both windows, so their output is the same under v0.6.1.
@@ -26,7 +26,7 @@ processed both windows, so their output is the same under v0.6.1.
   no `initialBlock`, so its module hash, which keys the sink cursor, is the
   same on every network. Write each network to its own database, named
   `<network>:evm-balances@<version>` as
-  [#117](https://github.com/pinax-network/substreams-evm-extended/issues/117)
+  [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117)
   proposed (owner, 2026-10-13; the
   [README](../evm-balances/README.md#token-api-live-sink-bsc) has the BSC
   sink). Only the version tells it apart from the RPC-era
@@ -83,7 +83,7 @@ processed both windows, so their output is the same under v0.6.1.
   `eth_getBalance` at 123,548,069 and the package output of
   123,548,070–123,548,369 applied gave 56,688/56,688 values equal to
   `eth_getBalance` at four block hashes
-  ([#58](https://github.com/pinax-network/substreams-evm-extended/pull/58),
+  ([#58](https://github.com/pinax-network/substreams-evm-balances/pull/58),
   [report](../native/balances/docs/evidence/live-retention-checkpoint-bsc-2026-09-23.json)).
 - A block that native refuses stops the stream: there is one `db_out`, so no
   ERC-20 row of that block or later is written either.
@@ -108,7 +108,7 @@ processed both windows, so their output is the same under v0.6.1.
 - **Row counts.** The RPC era re-emitted unchanged candidates, so expect fewer
   rows and lower `transactions` after the cutover.
 - **Policy** (detection, deny list, Token API presentation) belongs to
-  [#123](https://github.com/pinax-network/substreams-evm-extended/issues/123).
+  [#123](https://github.com/pinax-network/substreams-evm-balances/issues/123).
 
 ## 5. Replays
 
@@ -209,7 +209,7 @@ v0.3.4 schema; step 0 must pass on the real database.
 
 **Networks without an RPC-era database** (Arc, Robinhood, Ink, Soneium, Zora
 and Linea;
-[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8)).
+[#8](https://github.com/pinax-network/substreams-evm-balances/issues/8)).
 Starting at S leaves every holder unchanged since S unknown, and native refuses
 block 0, whose genesis allocations are not traced balance changes. The cold
 start is an **open owner decision**, recorded per network in #8:

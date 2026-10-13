@@ -105,7 +105,7 @@ Acceptance is not qualification for another network or producer release.
 Version-3 system-call ordinals can use a different scale from transaction
 ordinals, and network-specific failed-transaction credits remain unqualified
 (see the [persisted-effect matrix](docs/persisted-effects.md) and
-[#125](https://github.com/pinax-network/substreams-evm-extended/issues/125)).
+[#125](https://github.com/pinax-network/substreams-evm-balances/issues/125)).
 The existing data checks reject detectable ambiguity; they do not establish
 that every chain's persistent effects are represented correctly. The dated
 BSC evidence below still refers to its original packages and parameters.
@@ -140,7 +140,7 @@ The packed map (`spkg` sha256 `fbb46fc7…`, wasm `48d89d28…`, default
 parameters `{"producer_versions":[5]}`) was streamed with
 `--final-blocks-only` from `bsc.substreams.pinax.network` and checked with
 the host tool `native-balances-tools live-parity`
-([source at `6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools); removed since). It binds
+([source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools); removed since). It binds
 each block number to its canonical hash and batches
 `eth_getBalance(address, {blockHash})`:
 
@@ -180,7 +180,7 @@ change is not emitted and not checked, and an RPC candidate list (such as the
 current RPC module's) would also contain unchanged accounts, which are not
 state-derived updates. Other networks, producer versions and the Ethereum,
 OP and Arc rows of the matrix stay under
-[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
+[#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
 
 ## Offline evidence
 
@@ -194,7 +194,7 @@ reverted frames, failed transactions, reverted system calls, the failed-
 transaction reason guard, parameter-free acceptance across block versions,
 version-independent ambiguity rejection, and the absent-contract wire encoding.
 
-The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);
+The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);
 removed since) reduced directories of captured
 `<height>.pb` blocks, linked consecutive block hashes, checked that each
 account's `old_amount` equals its previously emitted amount whenever every
@@ -206,7 +206,7 @@ reports over the locally retained BSC captures are in
 plus the 82-row same-block RPC oracle. Those captures are the
 ERC-20 campaign's block cache, not a native-specific RPC audit: only block
 122260950 has a same-block native RPC oracle. The historical 192-block,
-37,086-check native audit ([legacy qualification](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/legacy-qualification.md))
+37,086-check native audit ([legacy qualification](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/legacy-qualification.md))
 applies to the removed prototype package, not to this one.
 
 ## ClickHouse
@@ -215,7 +215,7 @@ applies to the removed prototype package, not to this one.
 `blocks` and the historical views of the substreams-evm schema through one
 `db_out`. The earlier CLI native-sink path (bridge view, `Balance` TTL, checks
 of 2026-10-03) is at
-[`cb62110`](https://github.com/pinax-network/substreams-evm-extended/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/native/balances/clickhouse).
+[`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/native/balances/clickhouse).
 Sinking `map_events` directly with the CLI's native sink stores optional
 `contract` as `String`, so native and ERC-20 rows would need separate
 databases or tables.
@@ -227,7 +227,7 @@ interpretation, no wallet labels, no `db_out` in this package
 ([`evm-balances`](../../evm-balances/README.md) has it), no custom sink, no global holder
 enumeration. Initialization of untouched accounts, exact checkpoints, reorg
 completeness and the complete-block clock contract are shared under
-[#7](https://github.com/pinax-network/substreams-evm-extended/issues/7).
+[#7](https://github.com/pinax-network/substreams-evm-balances/issues/7).
 Other networks' semantics are separate qualification work under
-[#8](https://github.com/pinax-network/substreams-evm-extended/issues/8).
+[#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
 This package does not change `erc20/balances`.

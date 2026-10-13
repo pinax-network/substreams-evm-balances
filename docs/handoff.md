@@ -10,9 +10,9 @@ are in [`skills/`](../skills/README.md).
 ## Live use
 
 Each live Substreams, Firehose, RPC or sink step needs the owner's explicit OK
-for that step. The rule, with the credential handling and the separate
-`dex/pool-state` hold, is in [`AGENTS.md` (Evidence)](../AGENTS.md#evidence);
-nothing on this page authorizes a live step.
+for that step. The rule, with the credential handling, is in
+[`AGENTS.md` (Evidence)](../AGENTS.md#evidence); nothing on this page
+authorizes a live step.
 
 ## Balance packages
 
@@ -40,7 +40,7 @@ live-qualified.
   ([measured](../erc20/balances/README.md#measured) gives each interval and
   its scored holders). The earlier layout package v0.1.0, another source, was
   checked on live BSC on 2026-09-23
-  ([report at `9b41c7f`](https://github.com/pinax-network/substreams-evm-extended/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md)).
+  ([report at `9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md)).
 - **`evm-balances`** imports both maps with the module hashes above and
   embeds the schema `ed1c3bff…`. Not qualified; it has not run in a
   Substreams engine or a sink.
@@ -61,14 +61,16 @@ each README states what its evidence covers.
 | Package | Version | Default network | Evidence |
 | --- | --- | --- | --- |
 | `aave/balance-state` | v0.2.0 | `bsc` | [live, 2026-09-22](../aave/balance-state/README.md#live-qualification-bsc-2026-09-22) |
-| `aave/actions` | v0.1.0 | `bsc` | [live, 2026-09-23](../aave/actions/README.md#evidence) |
 | `erc4626/balance-state` | v0.2.0 | `bsc` | [live static aToken, 2026-09-23](../erc4626/balance-state/README.md#live-qualification-bsc-static-atoken-2026-09-23) |
-| `evm/executions` | v0.1.0 | `bsc` | [saved and live blocks, 2026-09-23](../evm/executions/README.md#producer-capabilities-saved-bsc-data) |
-| `erc20/events` | v0.1.0 | `bsc` | [captured block, offline](../erc20/events/README.md#evidence) |
 | `compound-v2/balance-state` | v0.2.0 | `mainnet` | synthetic tests and compiled layouts ([README](../compound-v2/balance-state/README.md)) |
 | `compound-v3/balance-state` | v0.2.0 | `mainnet` | synthetic tests and compiled layouts ([README](../compound-v3/balance-state/README.md)) |
 | `lido/balance-state` | v0.2.0 | `mainnet` | synthetic tests and compiled layouts ([README](../lido/balance-state/README.md)) |
-| `dex/pool-state` | v0.2.0 | `mainnet` | offline only, under the owner's live hold ([README](../dex/pool-state/README.md#offline-validation-and-packaging)) |
+
+`dex/pool-state` and `erc20/events` moved with their history to
+[substreams-evm-dex](https://github.com/pinax-network/substreams-evm-dex) and
+[substreams-evm-transfers](https://github.com/pinax-network/substreams-evm-transfers)
+on 2026-10-13, and `evm/executions` and `aave/actions` were removed; their
+last state here, with their evidence, is at `ca00aba`.
 
 ## Validation
 
@@ -94,47 +96,47 @@ committed spkg with other module hashes, so restore it with
 - [`history/review-findings-2026-09-21.md`](history/review-findings-2026-09-21.md)
   and [`history/audit-remediation-2026-09-21.md`](history/audit-remediation-2026-09-21.md):
   the 2026-09-21 hardening review and the offline issue-audit remediation.
-- [`6dade89`](https://github.com/pinax-network/substreams-evm-extended/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534):
+- [`6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534):
   the host tools, reference models and harnesses removed on 2026-10-03; the
   dated evidence refers to them.
-- [`9b41c7f`](https://github.com/pinax-network/substreams-evm-extended/tree/9b41c7f/erc20/balances):
+- [`9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/tree/9b41c7f/erc20/balances):
   the `erc20/balances` layout path with its tests, fixtures and qualification
   evidence, removed on 2026-10-05.
-- [`cb62110`](https://github.com/pinax-network/substreams-evm-extended/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542):
+- [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542):
   the per-package CLI native-sink ClickHouse paths, replaced by `evm-balances`
   on 2026-10-05.
 
 ## Open work
 
 Open work is tracked in
-[GitHub issues](https://github.com/pinax-network/substreams-evm-extended/issues),
+[GitHub issues](https://github.com/pinax-network/substreams-evm-balances/issues),
 under the roadmap
-[#21](https://github.com/pinax-network/substreams-evm-extended/issues/21). On
+[#21](https://github.com/pinax-network/substreams-evm-balances/issues/21). On
 the path to production:
 
-- [#124](https://github.com/pinax-network/substreams-evm-extended/issues/124):
+- [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124):
   qualify the balance packages above on BSC, then cut Token API over to
   `evm-balances`. Every live step needs the owner's OK. The offline
   preconditions are met apart from the BSC reader release (#116).
-- [#116](https://github.com/pinax-network/substreams-evm-extended/issues/116):
+- [#116](https://github.com/pinax-network/substreams-evm-balances/issues/116):
   BSC producer drift under firehose-tracer 5.5.0. The erc20 read policy (P2)
   and truncation guard landed in PR #137. Open: the reader release and height
-  from infra, truncation in `evm/executions` (owner decision), `Call` fields
+  from infra, `Call` fields
   35/36 once a substreams-ethereum release has them (0.12.0 does not), and
   the rows-per-block alert in ops (the query is in the
   [`evm-balances` README](../evm-balances/README.md)).
-- [#117](https://github.com/pinax-network/substreams-evm-extended/issues/117):
+- [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117):
   per-network start heights, a producer and tracer record per network, and
   the endpoint identity check in the `evm-balances` README. BSC keeps no
   `networks:` entry and starts at 0 (owner, 2026-10-06).
-- [#7](https://github.com/pinax-network/substreams-evm-extended/issues/7):
+- [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7):
   the [cutover contract](initialization-and-completeness.md) and its offline
   checks are done (PR #144); the cold start per network (#8) and the live
   checks during #124 B2 remain.
-- [#123](https://github.com/pinax-network/substreams-evm-extended/issues/123):
+- [#123](https://github.com/pinax-network/substreams-evm-balances/issues/123):
   how Token API treats wrong computed balances and stale RPC-era pairs,
   decided before #124 B3.
-- [#8](https://github.com/pinax-network/substreams-evm-extended/issues/8):
+- [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8):
   the networks epic, with one issue per network.
 
 Done on 2026-10-06: the Rust 1.99.0 hash batch (#118), the "Package hashes"
@@ -142,7 +144,7 @@ CI job (#119), the sink pin
 [substreams-sink-sql v4.13.0](https://github.com/pinax-network/substreams-sink-sql/releases/tag/v4.13.0),
 commit `933a187` (#120, [README](../evm-balances/README.md#build-and-deploy)),
 and the release flow (#122). On 2026-10-13 the owner made
-[`evm-balances-v0.6.0`](https://github.com/pinax-network/substreams-evm-extended/releases/tag/evm-balances-v0.6.0)
+[`evm-balances-v0.6.0`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-v0.6.0)
 the only release: it now carries `native-balances-v0.2.1.spkg` and
 `erc20-balances-v0.4.0.spkg` (the CI builds of tags `native-balances-v0.2.1`
 and `erc20-balances-v0.4.0`, commit `313f8d1`, with the module hashes above)
