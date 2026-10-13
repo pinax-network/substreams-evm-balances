@@ -114,12 +114,11 @@ RPC is used for qualification, not inside the maps.
 
 ## Releases
 
-Only `evm-balances` is released, by tag `evm-extended-balances-v<version>`,
-`<version>` equal to the manifest's, as the
-[Token API live sink](evm-balances/README.md#token-api-live-sink-bsc) names
-packages: its `db_out` spkg is published as
-`evm-extended-clickhouse-balances-v<version>.spkg`, next to the
-`native/balances` and `erc20/balances` spkgs it imports. One version names one module hash: a change
+Only `evm-balances` is released, by tag `v<version>` equal to its manifest's
+version. The release publishes `evm-balances-v<version>.spkg` next to the
+`native/balances` and `erc20/balances` spkgs it imports; the
+[Token API live sink](evm-balances/README.md#token-api-live-sink-bsc) takes
+its URL as `SPKG_URL`. One version names one module hash: a change
 to a package's WASM bumps its version and commits the spkg that CI's "Package
 hashes" job built, and a change to an imported map also changes the `db_out`
 hash, so it bumps `evm-balances` too. The tag then runs
@@ -131,8 +130,7 @@ hash, so it bumps `evm-balances` too. The tag then runs
   `evm-balances`, and the embedded schema of `make schema`;
 - records the module hashes, WASM sha256 and schema sha256 in the run's
   summary;
-- publishes a GitHub release with the three spkgs, the `db_out` one under
-  its Token API name, and the notes of
+- publishes a GitHub release with the three spkgs and the notes of
   [`.github/release-notes.md`](.github/release-notes.md): what is included and
   how to deploy it.
 

@@ -192,22 +192,20 @@ make -C evm-balances dev START_BLOCK=<S>
 
 ## Token API live sink (BSC)
 
-The Token API live sinks build the package URL from three variables, so the
-release follows their naming: tag `evm-extended-balances-v<version>`, asset
-`evm-extended-clickhouse-balances-v<version>.spkg` (owner, 2026-10-13).
+Releases are tagged `v<version>` and publish `evm-balances-v<version>.spkg`
+(owner, 2026-10-13). The Token API live sink takes that package as
+`SPKG_URL`, with the variables that name the database:
 
 | Variable | Value |
 | --- | --- |
-| `ASSET` | `evm-extended` |
+| `ASSET` | `evm` |
 | `TYPE` | `balances` |
 | `VERSION` | `v0.6.1` |
+| `SPKG_URL` | `https://github.com/pinax-network/substreams-evm-balances/releases/download/v0.6.1/evm-balances-v0.6.1.spkg` |
 
-```
-https://github.com/pinax-network/substreams-evm-extended/releases/download/evm-extended-balances-v0.6.1/evm-extended-clickhouse-balances-v0.6.1.spkg
-```
-
-The database is `bsc:evm-extended-balances@v0.6.1`, apart from the RPC-era
-`bsc:evm-balances@v0.3.x`. On BSC, run the sink with the flags of the Token
+The database is `bsc:evm-balances@v0.6.1`, next to the RPC-era
+`bsc:evm-balances@v0.3.x`: only the version tells them apart, and Token API
+switches by version at cutover. On BSC, run the sink with the flags of the Token
 API's BSC balances live sink (2026-10-13); other chains use other values, and
 only BSC is documented here:
 
