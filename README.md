@@ -78,5 +78,19 @@ make -C erc20/balances build schema
 ```
 
 Committed spkgs come from CI's Linux build, not from a local `make pack`.
+
+To compare a package with the chain, stream recent blocks and check every
+emitted balance against `balanceOf` (ERC-20) or `eth_getBalance` (native) at
+the same block. It needs [Bun](https://bun.sh), the `substreams` CLI and
+`SUBSTREAMS_API_KEY`; the RPC defaults to Pinax's for the chain:
+
+```sh
+bun scripts/check-live-balances.ts --chain eth --package erc20/balances/substreams.yaml --blocks 100
+bun scripts/check-live-balances.ts --chain bsc --package spkg/evm-balances-native-v0.7.5.spkg --blocks 300 --out report.json
+```
+
+It prints the contracts whose balances differ, with an example each, and
+exits 1 if any does.
+
 [AGENTS.md](AGENTS.md) has the repository rules, and
 [docs/migration.md](docs/migration.md) the provenance of the packages.
