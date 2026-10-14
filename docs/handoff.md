@@ -53,9 +53,10 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   Cancun, on which v0.7.3 refused Ethereum block 19,481,732, and v0.7.6
   carries a self-destruct credit from an account created in the transaction
   into the beneficiary's later records in it, on which v0.7.5 refused
-  Ethereum block 25,741,008, and v0.7.7 also when the self-destructing call is
-  a creation transaction's root call, on which v0.7.6 refused Ethereum block
-  25,747,303. Not qualified. The
+  Ethereum block 25,741,008, and v0.7.7 adds the sum of such credits to the
+  beneficiary's records after the execution only, on which v0.7.6 refused
+  Ethereum block 25,747,303 and its pre-release noop blocks 25,750,184,
+  25,869,452 and 25,920,498. Not qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
   it emitted in the stated windows
@@ -130,8 +131,11 @@ refused Ethereum block 25,741,008, where an account created in the
 transaction self-destructs to the sender and the sender's gas refund starts
 from the balance before the credit; v0.7.6 adds the credit to it. Native
 v0.7.6 refused Ethereum block 25,747,303, the same producer shape in a
-contract-creation transaction's root call, which also holds the gas and fee
-records; v0.7.7 matches it there.
+contract-creation transaction's root call. A pre-release noop of v0.7.7
+(owner, 2026-10-14: a noop-mode run of the CI-built package before the
+release) found blocks 25,750,184, 25,869,452 and 25,920,498: several credits
+chain during the execution, and only the records after it leave out their
+sum; v0.7.7 shifts only those.
 
 ## Next steps (owner)
 
@@ -148,8 +152,8 @@ package's noop over that range passes (owner, 2026-10-13).
    which v0.7.4 refuses, or, when it is the account's first record in the
    block, keeps as a wrong zero; native v0.7.6 shifts only records that
    v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts;
-   native v0.7.7 widens that shape and gives the same rows on every block
-   v0.7.6 accepts). BSC continues native v0.7.5, which has refused no BSC
+   native v0.7.7 shifts only records after the execution, by the sum of the
+   transaction's credits, and so also changes only blocks v0.7.5 refuses). BSC continues native v0.7.5, which has refused no BSC
    block; Ethereum native moves to v0.7.7. Ethereum runs the same noops from genesis since
    2026-10-14 (owner), a faster full-history test of about 26M blocks, into
    `mainnet:evm-balances-native@<version>` and

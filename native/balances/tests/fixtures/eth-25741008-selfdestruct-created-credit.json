@@ -4,7 +4,7 @@
  "hash": "1b6a29481b8d799d750dc107e791fcf17d7576b0343de3cd651b94dc5e9751e9",
  "ver": 5,
  "coinbase": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
- "contents": "transaction 465 whole: every call with its balance records and self-destruct flag; no block-level record",
+ "contents": "transaction 465 whole: every call with its balance records, self-destruct flag and ordinals; no block-level record",
  "block_balance_changes": [],
  "transactions": [
   {
@@ -27,6 +27,8 @@
      "value": "",
      "state_reverted": false,
      "suicide": false,
+     "begin_ordinal": 9567,
+     "end_ordinal": 9579,
      "balance_changes": [
       {
        "address": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
@@ -61,6 +63,8 @@
      "value": "",
      "state_reverted": false,
      "suicide": true,
+     "begin_ordinal": 9568,
+     "end_ordinal": 9577,
      "balance_changes": [
       {
        "address": "1af6cfe55b7b83445077477fa3487709dbc1b0c8",
@@ -88,6 +92,8 @@
      "value": "",
      "state_reverted": false,
      "suicide": false,
+     "begin_ordinal": 9571,
+     "end_ordinal": 9572,
      "balance_changes": []
     },
     {
@@ -100,6 +106,8 @@
      "value": "",
      "state_reverted": false,
      "suicide": false,
+     "begin_ordinal": 9573,
+     "end_ordinal": 9574,
      "balance_changes": []
     }
    ]
