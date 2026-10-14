@@ -101,6 +101,15 @@ chooses the base, vouches for a holder or supplies a value. A truncated-shape
 qualification records the reader release (client and tracer version), not just
 `Block.ver`.
 
+Since v0.7.2 (owner, 2026-10-14), a chosen word at or above 2^128 drops its
+contract's rows for the block. Such a word holds another field next to the
+balance that did not move in the block, such as a packed timestamp or
+FiatToken v2.2's blacklist flag in bit 255, so the transfer deltas still match
+but the word is not the balance. A live check against `balanceOf`
+(`scripts/check-live-balances.ts`, 2026-10-14) found such words in 3 of 768
+contracts over 100 Ethereum blocks and 1 of 830 over 300 Base blocks. A token
+whose real supply reaches 2^128 base units also loses its rows.
+
 ## Measured
 
 Offline replays of captured Extended BSC blocks. Each interval is scored against
@@ -197,10 +206,12 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`: `spkg/evm-balances-erc20-v0.7.1.spkg`, not live-qualified. v0.7.1
+`db_out`: `spkg/evm-balances-erc20-v0.7.2.spkg`, not live-qualified. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
-same rows on every block v0.7.0 decodes. Until
+same rows on every block v0.7.0 decodes. v0.7.2 drops a contract's rows for
+the block when a chosen word reaches 2^128, and otherwise gives v0.7.1's rows.
+Until
 then it was `erc20_balances`: `spkg/erc20-balances-v0.4.0.spkg` (package
 version v0.4.0; versions skip v0.3.x, so no build can overwrite the v0.3.4 RPC
 reference). No Buf

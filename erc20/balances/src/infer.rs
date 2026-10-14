@@ -766,6 +766,13 @@ pub(crate) fn rows(block: &eth::Block) -> BTreeMap<(Addr, Addr), Word> {
         let token_reads = reads.get(token).map(Vec::as_slice).unwrap_or_default();
         let named = named.get(token).unwrap_or(&nobody);
         if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], named) {
+            // A balance word at or above 2^128 holds another field next to the
+            // balance (a packed timestamp, FiatToken v2.2's blacklist flag in
+            // bit 255) that did not move in the block, so the slot is not a
+            // plain balance: drop the token's rows for the block.
+            if values.values().any(|value| value[..16] != [0; 16]) {
+                continue;
+            }
             out.extend(values.into_iter().map(|(holder, value)| ((*token, holder), value)));
         }
     }
