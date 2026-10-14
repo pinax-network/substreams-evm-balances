@@ -131,10 +131,11 @@ function call(row: Row): { method: string; params: unknown[] } {
     return { method: 'eth_call', params: [{ to: row.contract, data }, block] };
 }
 
-async function check(rows: Row[]): Promise<Checked[]> {
+/** Queries the chain's value of each row, `size` calls per batch, `workers` batches in flight. */
+async function query(rows: Row[], size: number, workers: number): Promise<Checked[]> {
     const checked: Checked[] = [];
     const batches: Row[][] = [];
-    for (let i = 0; i < rows.length; i += batchSize) batches.push(rows.slice(i, i + batchSize));
+    for (let i = 0; i < rows.length; i += size) batches.push(rows.slice(i, i + size));
     let next = 0;
     async function worker() {
         while (next < batches.length) {
@@ -154,7 +155,20 @@ async function check(rows: Row[]): Promise<Checked[]> {
             });
         }
     }
-    await Promise.all(Array.from({ length: parallel }, worker));
+    await Promise.all(Array.from({ length: workers }, worker));
+    return checked;
+}
+
+/** Rate-limit errors (HTTP 429, "request limit") are retried in up to three slower passes. */
+const limited = (row: Checked) => row.error !== undefined && /429|limit/i.test(row.error);
+
+async function check(rows: Row[]): Promise<Checked[]> {
+    let checked = await query(rows, batchSize, parallel);
+    for (let pass = 1; pass <= 3 && checked.some(limited); pass++) {
+        await Bun.sleep(2000 * pass);
+        const retried = await query(checked.filter(limited), 10, 1);
+        checked = checked.filter((row) => !limited(row)).concat(retried);
+    }
     return checked;
 }
 
@@ -210,7 +224,7 @@ if (out) {
                     checked: e.checked,
                     matched: e.matched,
                     differ: e.differ.map((r) => ({ address: r.address, block: r.block, package: String(r.amount), chain: String(r.chain) })),
-                    errors: e.errors.map((r) => ({ address: r.address, block: r.block, error: r.error })),
+                    errors: e.errors.map((r) => ({ address: r.address, block: r.block, package: String(r.amount), error: r.error })),
                 },
             ]),
         ),
