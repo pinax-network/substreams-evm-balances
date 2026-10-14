@@ -259,7 +259,8 @@ database is cut over on its own.
 - **ERC-20 rows.** Inferred: coverage and precision are
   [measured](../erc20/balances/README.md#measured), not qualified.
   `(contract, holder)` pairs the inference does not emit keep their RPC-era
-  value.
+  value after a partition copy from the RPC-era database; in a database
+  synced from genesis they have no row (#123).
 - **`blocks`.** Rows only for blocks with output of that package.
 - **Failure scope.** A native refusal (incomplete or ambiguous persisted data)
   stops only the native sink; the ERC-20 sink goes on.

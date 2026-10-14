@@ -183,10 +183,9 @@ checkpoints. Accounts outside that tracked set remain unknown.
   handling is qualified.
 - Qualify the unobserved reward, DAO, withdrawal, lifecycle and
   chain-specific fee/mint/burn cases in the matrices above, and genesis
-  outside BSC: on BSC in the #124 A3b reason census, elsewhere per network
-  under
-  [#125](https://github.com/pinax-network/substreams-evm-balances/issues/125)
-  and [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
+  outside BSC: on BSC through the full-history noops of
+  [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124), elsewhere per network
+  under [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8), which also holds the failed-root rules.
 - Add per-network producer/fork fixtures, package controls and asset identity
   under [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8).
   The recorded BSC results do not qualify other networks or package digests.

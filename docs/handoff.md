@@ -193,27 +193,26 @@ the path to production:
   qualify the balance packages above on BSC, then cut Token API over to their
   two databases. Every live step needs the owner's OK. The offline
   preconditions are met apart from the BSC reader release (#116).
-- [#116](https://github.com/pinax-network/substreams-evm-balances/issues/116):
-  BSC producer drift under firehose-tracer 5.5.0. The erc20 read policy (P2)
-  and truncation guard landed in PR #137. Open: the reader release and height
-  from infra, `Call` fields
-  35/36 once a substreams-ethereum release has them (0.12.0 does not), and
-  the rows-per-block alert in ops (the query is in
+- [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124):
+  BSC, per package: the full-history noop, the sync from genesis and the
+  live sink, the shadow comparison, the Token API `native-balances` setting,
+  then the cutover. It also holds the BSC reader release and freeze from
+  infra, and the rows-per-block alert in ops (the query is in
   [ClickHouse](clickhouse.md#monitoring)).
-- [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117):
-  per-network start heights, a producer and tracer record per network, and
-  the endpoint identity check in [ClickHouse](clickhouse.md#build-and-deploy).
-  BSC keeps no `networks:` entry and starts at 0 (owner, 2026-10-06), which
-  native accepts since v0.7.0.
-- [#7](https://github.com/pinax-network/substreams-evm-balances/issues/7):
-  the [cutover contract](initialization-and-completeness.md) and its offline
-  checks are done (PR #144), per package since v0.7.0; the cold start per
-  network (#8) and the live checks during #124 B2 remain.
 - [#123](https://github.com/pinax-network/substreams-evm-balances/issues/123):
-  how Token API treats wrong computed balances and stale RPC-era pairs,
-  decided before #124 B3.
+  how Token API treats wrong, stale and missing inferred ERC-20 balances,
+  decided before the ERC-20 cutover.
+- [#116](https://github.com/pinax-network/substreams-evm-balances/issues/116):
+  read `Call` fields 35/36 once a substreams-ethereum release has them
+  (0.12.0 does not); the erc20 read policy (P2) and truncation guard landed
+  in PR #137.
 - [#8](https://github.com/pinax-network/substreams-evm-balances/issues/8):
-  the networks epic, with one issue per network.
+  the networks epic: per-network start heights, the producer record, the
+  endpoint identity check, the cold start and the failed-root rules, with
+  one issue per network family. BSC keeps no `networks:` entry and starts at
+  0 (owner, 2026-10-06), which native accepts since v0.7.0.
+- The [cutover contract](initialization-and-completeness.md) and its offline
+  checks are done (#7, PR #144), per package since v0.7.0.
 
 Done on 2026-10-06: the Rust 1.99.0 hash batch (#118), the "Package hashes"
 CI job (#119), the sink pin
