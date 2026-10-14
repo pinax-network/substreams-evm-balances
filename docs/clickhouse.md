@@ -191,9 +191,20 @@ variables that name the database:
 The databases are `bsc:evm-balances-native@<version>` and
 `bsc:evm-balances-erc20@<version>`, next to the RPC-era
 `bsc:evm-balances@v0.3.x`. The Token API reads one balances database per
-network today; at cutover its native routes (`/balances/native`,
-`/holders/native`, `/tokens/native`, `/balances/historical/native`) read the
-native database and the others the ERC-20 database. On BSC, run each sink with
+network today. With [pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601),
+a network's `dbs-config.yaml` entry can name both databases next to
+`balances`:
+
+```yaml
+bsc:
+  balances-native: bsc:evm-balances-native@<version>
+  balances-erc20: bsc:evm-balances-erc20@<version>
+```
+
+Its native routes (`/balances/native`, `/holders/native`, `/tokens/native`,
+`/balances/historical/native`) then read the native database and the others
+the ERC-20 database; a side without its key keeps reading `balances`, so each
+database can cut over on its own. On BSC, run each sink with
 the flags of the Token API's BSC balances live sink (2026-10-13); other chains
 use other values, and only BSC is documented here:
 

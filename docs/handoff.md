@@ -115,15 +115,20 @@ package's noop over that range passes (owner, 2026-10-13).
 1. Finish the full-history noops: ERC-20 v0.7.0, and native v0.7.2 from
    block 0 (v0.7.2 accepts every block v0.7.0 and v0.7.1 accept, with the
    same rows, plus the payout shape of blocks 958 and 4104 and failed blob
-   transactions).
+   transactions). Ethereum runs the same noops from genesis since 2026-10-14
+   (owner), a faster full-history test of about 26M blocks; its databases
+   would be `mainnet:evm-balances-native@<version>` and
+   `mainnet:evm-balances-erc20@<version>`.
 2. Per package, run the backfill (the sink over past blocks) and the live
    sink into its own database, `bsc:evm-balances-native@<version>` or
    `bsc:evm-balances-erc20@<version>`
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). They
    replace the v0.6.1 shadow.
-3. Token API (pinax-api): add the per-network database setting
-   `native-balances` next to `balances`, so that its native routes read the
-   native database and its other routes the ERC-20 database.
+3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
+   network's `dbs-config.yaml` entry
+   ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
+   so that its native routes read the native database and its other routes
+   the ERC-20 database; a side without its key keeps reading `balances`.
 4. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
@@ -201,7 +206,8 @@ the path to production:
   preconditions are met apart from the BSC reader release (#116).
 - [#124](https://github.com/pinax-network/substreams-evm-balances/issues/124):
   BSC, per package: the full-history noop, the sync from genesis and the
-  live sink, the shadow comparison, the Token API `native-balances` setting,
+  live sink, the shadow comparison, the Token API `balances-native` and
+  `balances-erc20` settings,
   then the cutover. It also holds the BSC reader release and freeze from
   infra, and the rows-per-block alert in ops (the query is in
   [ClickHouse](clickhouse.md#monitoring)).

@@ -323,8 +323,10 @@ scope, and never summed into one coverage figure:
   completeness over a sampled interval; the daily FINAL comparison; and an
   estimate of stale ERC-20 pairs from a stated sample of pairs whose last row
   predates S, compared with `balanceOf` at a recent block hash.
-- **Token API:** before the cutover, a `native-balances` database setting per
-  network next to `balances`, so that the native routes read the native
+- **Token API:** at the cutover, the `balances-native` and `balances-erc20`
+  database settings per network
+  ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)), so
+  that the native routes read the native database and the others the ERC-20
   database ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
 - **#8:** the endpoint identity check, to add to
   [ClickHouse](clickhouse.md#build-and-deploy).
