@@ -74,6 +74,24 @@ pub fn run(block: &eth::Block) -> Result<balances_pb::Events, Error> {
         .collect();
     Ok(balances_pb::Events { balances })
 }
+/// The element memory one block decode may materialize: 1 GiB.
+///
+/// buffa bounds what the elements of repeated fields materialize, 32 MiB by
+/// default, so that a small untrusted payload cannot force a large
+/// allocation. A Firehose block is trusted input, and BSC block 43,772,003
+/// (29.9 MB encoded) failed to decode under the defaults that the SDK's
+/// handler macro applies. The wasm32 heap bounds the decode anyway; this
+/// budget only keeps its failure an explicit decode error.
+pub const BLOCK_ELEMENT_MEMORY_LIMIT: usize = 1 << 30;
+
+/// Decodes the `map_events` input block with [`BLOCK_ELEMENT_MEMORY_LIMIT`];
+/// buffa's other decode limits keep their defaults.
+pub fn decode_block(bytes: &[u8]) -> Result<eth::Block, buffa::DecodeError> {
+    buffa::DecodeOptions::new()
+        .with_element_memory_limit(BLOCK_ELEMENT_MEMORY_LIMIT)
+        .decode_from_slice(bytes)
+}
+
 // The SDK macro generates raw-pointer parameter decoding and discards function
 // attributes. Keep its ABI-specific lint exception scoped to this wrapper. The
 // export exists only in the WASM build, as in the other packages.
@@ -81,9 +99,22 @@ pub fn run(block: &eth::Block) -> Result<balances_pb::Events, Error> {
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 mod handler {
     use super::*;
-    #[substreams::handlers::map]
-    fn map_events(block: eth::Block) -> Result<balances_pb::Events, Error> {
-        run(&block)
+
+    // Written out because the macro decodes with buffa's default limits (see
+    // `decode_block`). Otherwise it is the macro's map export: panic hook,
+    // empty-output skip, and a panic with the error's debug text.
+    #[no_mangle]
+    pub extern "C" fn map_events(block_ptr: *mut u8, block_len: usize) {
+        substreams::register_panic_hook();
+        // SAFETY: the runtime passes the block's bytes, valid for this call.
+        let bytes = unsafe { std::slice::from_raw_parts(block_ptr, block_len) };
+        let block =
+            decode_block(bytes).unwrap_or_else(|error| panic!("Unable to decode Protobuf data ({block_len} bytes) to 'eth::Block' message's struct: {error}"));
+        substreams::skip_empty_output();
+        match run(&block) {
+            Ok(events) => substreams::output(events),
+            Err(error) => panic!("{error:?}"),
+        }
     }
 
     #[substreams::handlers::map]

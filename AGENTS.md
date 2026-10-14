@@ -175,4 +175,7 @@ in every WASM build. Handlers
 decode their input with buffa's default limits
 (32 MiB of repeated elements per block); the measured headroom is in the
 dated [substreams 0.8.0 section](docs/history/handoff-2026-09-21-to-2026-10-06.md#substreams-080-2026-10-05)
-of the 2026-09-21 to 2026-10-06 handoff.
+of the 2026-09-21 to 2026-10-06 handoff. The exception is `map_events` in
+`native/balances` (since v0.7.4) and `erc20/balances` (since v0.7.1): it
+decodes its block itself with a 1 GiB element budget (`decode_block`),
+because BSC block 43,772,003 (29.9 MB encoded) failed the default decode.

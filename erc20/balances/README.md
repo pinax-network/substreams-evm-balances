@@ -197,7 +197,10 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`: `spkg/evm-balances-erc20-v0.7.0.spkg`, not live-qualified. Until
+`db_out`: `spkg/evm-balances-erc20-v0.7.1.spkg`, not live-qualified. v0.7.1
+decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
+default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
+same rows on every block v0.7.0 decodes. Until
 then it was `erc20_balances`: `spkg/erc20-balances-v0.4.0.spkg` (package
 version v0.4.0; versions skip v0.3.x, so no build can overwrite the v0.3.4 RPC
 reference). No Buf

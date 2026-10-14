@@ -43,14 +43,18 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   persists a failed blob transaction's blob fee, on which v0.7.0 refused
   block 42,357,369, and v0.7.3 restores the Ethereum EIP-6780 self-destruct
   debit, on which v0.7.2 refused Ethereum block 20,249,174
-  ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)). Not
+  ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)).
+  v0.7.4 decodes the block with a 1 GiB element budget instead of buffa's
+  32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed. Not
   qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
   it emitted in the stated windows
   ([evidence](../native/balances/README.md#live-qualification-bsc-2026-09-23)).
   No build since then is qualified.
-- **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's. Not
+- **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's.
+  v0.7.1 decodes the block with the same 1 GiB element budget as native
+  v0.7.4; the ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. Not
   qualified. Offline, on five captured BSC intervals scored against every row
   the RPC reference package emitted for them, it reproduces 58.5–62.8% of
   those rows with 99.92–100% value precision
@@ -106,17 +110,24 @@ v0.7.0 accepts it. The v0.7.0 noops (2026-10-13) passed those blocks, but
 native refused blocks 958 and 4104, where the producer skipped an ordinal
 between the payout records; v0.7.1 accepts them. On 2026-10-14 native v0.7.0
 refused block 42,357,369, whose failed blob transaction pays its blob fee to
-the fee pool; v0.7.2 keeps that record.
+the fee pool; v0.7.2 keeps that record. Native v0.7.2 refused Ethereum block
+20,249,174, an EIP-6780 self-destruct that v0.7.3 debits, and the ERC-20
+v0.7.0 noop failed to decode BSC block 43,772,003 (29.9 MB encoded) under the
+default buffa limits of the SDK's handler macro, which native v0.7.3 shares;
+native v0.7.4 and ERC-20 v0.7.1 decode it with a 1 GiB element budget.
 
 ## Next steps (owner)
 
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Finish the full-history noops: ERC-20 v0.7.0, and native from block 0
-   (each native version accepts every block the earlier ones accept, with
-   the same rows: v0.7.1 adds the payout shape of blocks 958 and 4104, v0.7.2
-   failed blob transactions, v0.7.3 the EIP-6780 self-destruct debit). Ethereum runs the same noops from genesis since 2026-10-14
+1. Finish the full-history noops: ERC-20 v0.7.1, and native v0.7.4 from
+   block 0 (the native versions up to v0.7.2 each accept every block the
+   earlier ones accept, with the same rows: v0.7.1 adds the payout shape of
+   blocks 958 and 4104, v0.7.2 failed blob transactions; v0.7.3 adds the
+   EIP-6780 self-destruct debit; native v0.7.4 and ERC-20 v0.7.1 change only
+   the decode budget, so they give the same rows on every block the previous
+   version decodes). Ethereum runs the same noops from genesis since 2026-10-14
    (owner), a faster full-history test of about 26M blocks; its databases
    would be `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.

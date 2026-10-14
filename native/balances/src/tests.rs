@@ -1050,3 +1050,20 @@ fn the_selfdestruct_debit_shape_is_exact() {
     let row = row_of(&rows, &hex::decode(DESTROYED).unwrap());
     assert_eq!((row.amount.as_str(), row.records), ("200000000000000000", 11));
 }
+
+#[test]
+fn a_block_over_the_default_element_budget_decodes() {
+    // An empty transaction trace is 2 bytes on the wire and its full size in
+    // the decoded block, so this small block exceeds buffa's default budget.
+    let count = buffa::DEFAULT_ELEMENT_MEMORY_LIMIT / std::mem::size_of::<eth::TransactionTrace>() + 1;
+    let block = eth::Block {
+        transaction_traces: vec![eth::TransactionTrace::default(); count],
+        ..Default::default()
+    };
+    let bytes = block.encode_to_vec();
+    assert!(matches!(
+        eth::Block::decode_from_slice(&bytes),
+        Err(buffa::DecodeError::ElementMemoryLimitExceeded)
+    ));
+    assert_eq!(decode_block(&bytes).unwrap().transaction_traces.len(), count);
+}
