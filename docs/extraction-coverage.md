@@ -379,9 +379,9 @@ that will close it.
    0.4.24 AST-derived layout; this does not bind the deployed runtime.
 10. Permit2 and WETH addresses on BSC, Base, HyperEVM and Arc; whether
     `SignatureTransfer` emits any Permit2-level log (#19).
-11. Whether `REASON_REWARD_BLOB_FEE` can appear inside a failed BSC blob
-    transaction's root call; the native reducer currently fails such blocks
-    (#17).
+11. Answered 2026-10-14: `REASON_REWARD_BLOB_FEE` appears in a failed BSC
+    blob transaction's root call and persists (block 42,357,369, transaction
+    `0xbe965c35…`); native v0.7.2 keeps it (#17).
 12. EIP-7702 `SetCodeAuthorization.address` backfill status on the endpoints
     used (#18).
 13. Per-chain reorg policy (final-blocks-only versus cursor plus undo) and

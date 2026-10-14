@@ -86,7 +86,9 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   Keep its complete Extended-block, failed-transaction reason and persisted
   balance continuity checks. Its only continuity exceptions are recognized
   producer shapes with a captured fixture: the self-transfer pair (v0.2.2) and
-  the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1). Since v0.7.0 block 0
+  the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1). v0.7.2 also persists
+  a failed blob transaction's blob fee, which the shared rules drop (BNB
+  Chain pays it whatever the outcome; captured fixture). Since v0.7.0 block 0
   emits the genesis allocations when every balance record in it is a
   `GENESIS_BALANCE` from zero. Accepting a block is not network qualification; network-specific
   persistence work remains separate. Both packages default to `network: bsc`
