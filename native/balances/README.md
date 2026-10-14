@@ -221,7 +221,9 @@ package imported it and wrote its rows. v0.7.0 (package `evm_balances_native`)
 adds `db_out`, `NativeEvents`, the fee pool payout and genesis; v0.7.1 accepts
 the payout credit after a skipped ordinal; v0.7.2 persists a failed blob
 transaction's blob fee; v0.7.3 restores the Ethereum EIP-6780 self-destruct
-debit. None is live-qualified.
+debit; v0.7.4 decodes the block with a 1 GiB element budget instead of
+buffa's 32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed.
+None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 

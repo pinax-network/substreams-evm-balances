@@ -2,7 +2,7 @@
 name = "erc20-balances"
 description = "Experimental RPC-free ERC-20 balances inferred from Extended block storage, with a db_out for the substreams-evm ClickHouse tables"
 edition = { workspace = true }
-version = "0.7.0"
+version = "0.7.1"
 license = { workspace = true }
 
 [lib]
@@ -11,6 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 substreams = { workspace = true }
 substreams-ethereum = { workspace = true }
+buffa = { workspace = true }
 proto = { path = "../../proto", default-features = false }
 hex = "0.4"
 tiny-keccak = { version = "2.0", features = ["keccak"] }
@@ -19,7 +20,6 @@ tiny-keccak = { version = "2.0", features = ["keccak"] }
 substreams-database-change = "=5.0.0"
 
 [dev-dependencies]
-buffa = { workspace = true }
 buffa-types = { workspace = true }
 serde_json = "1"
 sha2 = "0.11"
