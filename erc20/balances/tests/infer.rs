@@ -521,6 +521,35 @@ fn packed_words_whose_other_field_moves_are_not_chosen() {
     assert!(rows(&block(txs)).is_empty());
 }
 
+/// A word at or above 2^128 is not a plain balance: another field shares the
+/// slot and did not move in the block (a packed timestamp, FiatToken v2.2's
+/// blacklist flag in bit 255). The token's rows for the block are dropped.
+#[test]
+fn words_at_or_above_2_pow_128_drop_the_token() {
+    let with = |byte: usize, set: u8, value: u64| {
+        let mut out = w(value);
+        out[byte] = set;
+        out
+    };
+    let transfer_of = |a: (Vec<u8>, Vec<u8>), b: (Vec<u8>, Vec<u8>)| {
+        let mut c = root();
+        c.logs = vec![transfer(A, B, 30)];
+        store_word(&mut c, A, BASE, a.0, a.1, 10);
+        store_word(&mut c, B, BASE, b.0, b.1, 11);
+        block(vec![vec![c]])
+    };
+    // Every holder's word carries the other field.
+    let b = transfer_of((with(0, 1, 100), with(0, 1, 70)), (with(0, 1, 5), with(0, 1, 35)));
+    assert!(rows(&b).is_empty());
+    // One holder's flag drops the token's other rows in the block too.
+    let b = transfer_of((with(0, 0x80, 100), with(0, 0x80, 70)), (w(5), w(35)));
+    assert!(rows(&b).is_empty());
+    // A word just below 2^128 is kept.
+    let b = transfer_of((with(16, 1, 100), with(16, 1, 70)), (with(16, 1, 5), with(16, 1, 35)));
+    let high = 1u128 << 120;
+    assert_eq!(rows(&b), vec![(A[0], (high + 70).to_string()), (B[0], (high + 35).to_string())]);
+}
+
 /// A third party's word that changes with no balance event naming it in that
 /// frame (FiatToken v2.2 sets a blacklist flag in bit 255) needs the holder's
 /// own `balanceOf`; the contract's own silent fee writes do not.
