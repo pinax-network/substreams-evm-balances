@@ -12,6 +12,7 @@ const FEE_POOL_PAYOUTS: &str = include_str!("../tests/fixtures/bsc-fee-pool-payo
 const GENESIS: &str = include_str!("../tests/fixtures/bsc-0-genesis.json");
 const FAILED_BLOB_FEE: &str = include_str!("../tests/fixtures/bsc-42357369-failed-blob-fee.json");
 const SELFDESTRUCT_6780: &str = include_str!("../tests/fixtures/eth-20249174-selfdestruct-6780.json");
+const SELFDESTRUCT_TO_SELF: &str = include_str!("../tests/fixtures/eth-19481732-selfdestruct-to-self.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -1049,6 +1050,83 @@ fn the_selfdestruct_debit_shape_is_exact() {
     let rows = changes(&b).unwrap();
     let row = row_of(&rows, &hex::decode(DESTROYED).unwrap());
     assert_eq!((row.amount.as_str(), row.records), ("200000000000000000", 11));
+}
+
+/// Ethereum block 19,481,732 as captured from Firehose: transaction 131
+/// (`0x833a78e6…`) whole. It sends 1 wei to `0x6550f9a4…`, whose call 2, a
+/// CALL to itself, self-destructs to itself after Cancun (EIP-6780).
+fn captured_selfdestruct_to_self() -> eth::Block {
+    captured_block(&serde_json::from_str(SELFDESTRUCT_TO_SELF).unwrap())
+}
+const TO_SELF: &str = "6550f9a4bd878a384625f62ad5aab1fe7c3412de";
+
+#[test]
+fn captured_eip6780_selfdestruct_to_self_keeps_the_balance() {
+    let b = captured_selfdestruct_to_self();
+    let account = hex::decode(TO_SELF).unwrap();
+    // The producer records a refund from zero and a withdraw to zero.
+    let reasons: Vec<_> = records(&b)
+        .unwrap()
+        .iter()
+        .filter(|r| r.address == account)
+        .map(|r| (r.ordinal, r.reason))
+        .collect();
+    use eth::balance_change::Reason;
+    assert_eq!(
+        reasons,
+        [
+            (5151, Reason::Transfer as i32),
+            (5155, Reason::SuicideRefund as i32),
+            (5156, Reason::SuicideWithdraw as i32)
+        ]
+    );
+    // The account keeps the 1 wei it received (an explorer reads 1 wei after
+    // this block).
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &account);
+    assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records), ("0", "1", 5151, 1));
+}
+
+#[test]
+fn the_selfdestruct_to_self_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    fn suicide(b: &mut eth::Block) -> &mut eth::Call {
+        b.transaction_traces[0].calls.iter_mut().find(|c| c.index == 2).unwrap()
+    }
+    // Only a self-destructing call.
+    let mut b = captured_selfdestruct_to_self();
+    suicide(&mut b).suicide = false;
+    assert!(fails(&b));
+    // Not for an account created in the transaction, which is destroyed.
+    let mut b = captured_selfdestruct_to_self();
+    b.transaction_traces[0].calls[0].call_type = eth::CallType::CREATE.into();
+    assert!(fails(&b));
+    // Only the refund and the withdraw, at consecutive ordinals.
+    let mut b = captured_selfdestruct_to_self();
+    suicide(&mut b).balance_changes[1].reason = eth::balance_change::Reason::Transfer.into();
+    assert!(fails(&b));
+    let mut b = captured_selfdestruct_to_self();
+    suicide(&mut b).balance_changes[1].ordinal = 5157;
+    assert!(fails(&b));
+    // The destroyed account is the call's address, not a DELEGATECALL's caller
+    // here: as a DELEGATECALL, the records are not the destroyed account's.
+    let mut b = captured_selfdestruct_to_self();
+    let call = suicide(&mut b);
+    call.call_type = eth::CallType::DELEGATE.into();
+    call.caller = hex::decode(BENEFICIARY).unwrap();
+    assert!(fails(&b));
+    // A refund from the prior balance is the legacy self-destruct, which burns:
+    // its records chain and are kept.
+    let mut b = captured_selfdestruct_to_self();
+    let call = suicide(&mut b);
+    call.balance_changes[0].old_value = big(1).into();
+    call.balance_changes[0].new_value = big(2).into();
+    call.balance_changes[1].old_value = big(2).into();
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &hex::decode(TO_SELF).unwrap());
+    assert_eq!((row.amount.as_str(), row.records), ("0", 3));
 }
 
 #[test]
