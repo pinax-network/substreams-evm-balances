@@ -1,7 +1,7 @@
 specVersion: v0.1.0
 package:
   name: evm_balances_native
-  version: v0.7.6
+  version: v0.7.7
   url: https://github.com/pinax-network/substreams-evm-balances
   image: ../../assets/pinax-icon-gradient-512px.png
   description: RPC-free native balances from Firehose Extended blocks, with a db_out for the substreams-evm ClickHouse tables.

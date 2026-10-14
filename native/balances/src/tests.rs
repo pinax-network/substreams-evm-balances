@@ -14,6 +14,7 @@ const FAILED_BLOB_FEE: &str = include_str!("../tests/fixtures/bsc-42357369-faile
 const SELFDESTRUCT_6780: &str = include_str!("../tests/fixtures/eth-20249174-selfdestruct-6780.json");
 const SELFDESTRUCT_TO_SELF: &str = include_str!("../tests/fixtures/eth-19481732-selfdestruct-to-self.json");
 const SELFDESTRUCT_CREATED_CREDIT: &str = include_str!("../tests/fixtures/eth-25741008-selfdestruct-created-credit.json");
+const SELFDESTRUCT_CREATION_TX: &str = include_str!("../tests/fixtures/eth-25747303-selfdestruct-creation-tx.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -1367,6 +1368,67 @@ fn the_selfdestruct_credit_shape_is_exact() {
     // that includes neither, is not this shape.
     let mut b = captured_selfdestruct_created();
     b.transaction_traces[0].calls.push(second(79_029_982_257_484_949_925));
+    assert!(fails(&b));
+}
+
+/// Ethereum block 25,747,303 as captured from Firehose: transaction 298
+/// (`0x97a06638…`) whole, a contract-creation transaction. Its root call, the
+/// CREATE of `0x5c2ff263…`, receives 0.000433 ETH from WETH (call 129) and
+/// self-destructs to the sender `0x3128a77f…`; the root call also holds the
+/// transaction's gas and fee records.
+fn captured_selfdestruct_creation_tx() -> eth::Block {
+    captured_block(&serde_json::from_str(SELFDESTRUCT_CREATION_TX).unwrap())
+}
+const CREATION_SENDER: &str = "3128a77f4a845b7db9f70c579a070175485b0baa";
+const CREATION_CREATED: &str = "5c2ff26379ea2e53d958c1279e78e920e12b541d";
+
+#[test]
+fn captured_selfdestruct_credit_in_a_creation_transaction_s_root_call_carries_over() {
+    let b = captured_selfdestruct_creation_tx();
+    let root = &b.transaction_traces[0].calls[0];
+    assert!(root.suicide && root.call_type.as_known() == Some(eth::CallType::CREATE));
+    assert_eq!(root.balance_changes.len(), 5);
+    // The sender keeps the credit (an explorer reads 0.018709964767809995 ETH
+    // after this block), and the created account ends empty.
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &hex::decode(CREATION_SENDER).unwrap());
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+        ("18390237746296718", "18709964767809995", 11342, 3)
+    );
+    let row = row_of(&rows, &hex::decode(CREATION_CREATED).unwrap());
+    assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.records), ("0", "0", 2));
+}
+
+#[test]
+fn the_selfdestruct_credit_in_a_root_call_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    // Only an account created in the transaction.
+    let mut b = captured_selfdestruct_creation_tx();
+    root(&mut b).call_type = eth::CallType::CALL.into();
+    assert!(fails(&b));
+    // Exactly one withdraw in the call.
+    let mut b = captured_selfdestruct_creation_tx();
+    root(&mut b).balance_changes.push(eth::BalanceChange {
+        address: vec![0x22; 20],
+        old_value: wei(5).into(),
+        new_value: None.into(),
+        ordinal: 11337,
+        reason: eth::balance_change::Reason::SuicideWithdraw.into(),
+    });
+    assert!(fails(&b));
+    // The withdraw is the destroyed account's.
+    let mut b = captured_selfdestruct_creation_tx();
+    root(&mut b).balance_changes[1].address = vec![0x22; 20];
+    assert!(fails(&b));
+    // The refund follows the withdraw at the next ordinal.
+    let mut b = captured_selfdestruct_creation_tx();
+    root(&mut b).balance_changes[2].ordinal = 11341;
     assert!(fails(&b));
 }
 

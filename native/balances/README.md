@@ -152,14 +152,16 @@ a CALL to itself; a block explorer reads 1 wei after the block). The
 transaction is the fixture
 [`tests/fixtures/eth-19481732-selfdestruct-to-self.json`](tests/fixtures/eth-19481732-selfdestruct-to-self.json).
 
-**Self-destruct of an account created in the transaction (v0.7.6).** Since
+**Self-destruct of an account created in the transaction (v0.7.6, v0.7.7).** Since
 Cancun, a self-destruct destroys an account created in the same transaction,
 and its balance `d` moves to the beneficiary. The Ethereum producer of
 `Block.ver` 5 records the account's `SUICIDE_WITHDRAW` from `d` to zero and,
 at the next ordinal, the beneficiary's `SUICIDE_REFUND` from `b` to `b + d`,
 but the beneficiary's later records in that transaction start from `b`, as if
 the credit had not happened. When a persisted call self-destructs an account
-created by a CREATE in the transaction, holds exactly those two records, `d`
+created by a CREATE in the transaction, holds exactly one `SUICIDE_WITHDRAW`,
+of that account, and exactly one `SUICIDE_REFUND`, of another account, at the
+next ordinal (any other records of the call aside, since v0.7.7), `d`
 positive, the refund persisted as recorded, and the beneficiary's first later
 record in the transaction starts from `b`, native adds `d` to the old and new
 values of every later record of the beneficiary in the transaction, and the
@@ -176,6 +178,14 @@ constructor to the sender `0xc6acbee4…`, whose gas refund starts from the
 balance before the credit; a block explorer reads the credit in the sender's
 balance after the block). The transaction is the fixture
 [`tests/fixtures/eth-25741008-selfdestruct-created-credit.json`](tests/fixtures/eth-25741008-selfdestruct-created-credit.json).
+Native v0.7.6 then refused Ethereum block 25,747,303, where the
+self-destructing call is the root call of a contract-creation transaction
+and so also holds the transaction's gas and fee records (transaction
+`0x97a06638…`: the constructor of `0x5c2ff263…` receives 0.000433 ETH from
+WETH and self-destructs to the sender `0x3128a77f…`; a block explorer reads
+the credit in the sender's balance after the block). v0.7.7 finds the pair
+among the call's other records. The transaction is the fixture
+[`tests/fixtures/eth-25747303-selfdestruct-creation-tx.json`](tests/fixtures/eth-25747303-selfdestruct-creation-tx.json).
 
 ### Genesis (v0.7.0)
 
@@ -270,7 +280,8 @@ debit; v0.7.4 decodes the block with a 1 GiB element budget instead of
 buffa's 32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed.
 v0.7.5 keeps the balance of an account that self-destructs to itself.
 v0.7.6 carries a self-destruct credit from an account created in the
-transaction into the beneficiary's later records in it. None is
+transaction into the beneficiary's later records in it, and v0.7.7 also when
+the self-destructing call is a creation transaction's root call. None is
 live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)

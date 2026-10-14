@@ -471,6 +471,15 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
     pairs
 }
 
+/// The reasons of records that move a balance by an amount, which
+/// `selfdestruct_credit_shifts` may shift.
+const SHIFTABLE: [eth::balance_change::Reason; 4] = [
+    eth::balance_change::Reason::Transfer,
+    eth::balance_change::Reason::GasRefund,
+    eth::balance_change::Reason::RewardTransactionFee,
+    eth::balance_change::Reason::SuicideRefund,
+];
+
 /// Since Cancun (EIP-6780) a self-destruct destroys an account created in the
 /// same transaction, and its balance `d` moves to the beneficiary. The
 /// Ethereum producer of `Block.ver` 5 records the account's `SUICIDE_WITHDRAW`
@@ -481,7 +490,11 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// CREATE at an address holding 0.159 ETH self-destructs in its constructor
 /// to the sender `0xc6acbee4…`, whose gas refund starts from the balance
 /// before the credit; an explorer reads the credit in the sender's balance
-/// after the block). Returns the shift `d` of each such later record, by
+/// after the block). The self-destructing call can be the root call of a
+/// contract-creation transaction, which also holds the transaction's gas and
+/// fee records (block 25,747,303, transaction `0x97a06638…`: the constructor
+/// receives 0.000433 ETH from WETH and self-destructs to the sender
+/// `0x3128a77f…`). Returns the shift `d` of each such later record, by
 /// `(account, ordinal)`: every persisted record of the beneficiary after the
 /// credit and before the transaction ends, when the first of them starts from
 /// `b` and each of them moves the balance by an amount ([`SHIFTABLE`]). A
@@ -492,19 +505,12 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// credit, so blocks that native v0.7.5 accepts are unchanged. Only this exact
 /// shape is recognized: a persisted call (non-reverted, in a succeeded
 /// transaction) that self-destructs an account created by a CREATE in the
-/// same transaction and holds exactly those two records, `d` positive, the
-/// refund persisted as recorded. The destroyed account is resolved as in
+/// same transaction and holds exactly one `SUICIDE_WITHDRAW`, of that account,
+/// and exactly one `SUICIDE_REFUND`, of another account, at the next ordinal,
+/// `d` positive, the refund persisted as recorded. The call's other records
+/// are not part of the shape. The destroyed account is resolved as in
 /// `selfdestruct_debits`. Several such credits to one beneficiary in a
 /// transaction add up.
-/// The reasons of records that move a balance by an amount, which
-/// `selfdestruct_credit_shifts` may shift.
-const SHIFTABLE: [eth::balance_change::Reason; 4] = [
-    eth::balance_change::Reason::Transfer,
-    eth::balance_change::Reason::GasRefund,
-    eth::balance_change::Reason::RewardTransactionFee,
-    eth::balance_change::Reason::SuicideRefund,
-];
-
 fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap<(Vec<u8>, u64), BigInt> {
     let mut shifts: HashMap<(Vec<u8>, u64), BigInt> = HashMap::new();
     for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
@@ -513,7 +519,10 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
                 Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
                 _ => &call.address,
             };
-            let [withdraw, refund] = call.balance_changes.as_slice() else {
+            let of = |reason| call.balance_changes.iter().filter(move |c| c.reason.as_known() == Some(reason));
+            let withdraws: Vec<_> = of(eth::balance_change::Reason::SuicideWithdraw).collect();
+            let refunds: Vec<_> = of(eth::balance_change::Reason::SuicideRefund).collect();
+            let ([withdraw], [refund]) = (withdraws.as_slice(), refunds.as_slice()) else {
                 continue;
             };
             let created = trx
