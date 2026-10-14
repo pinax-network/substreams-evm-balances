@@ -19,8 +19,11 @@ authorizes a live step.
 Since v0.7.0 (owner, 2026-10-13) each balance package ships its `map_events`
 and its own `db_out` in one spkg, is released by its own tag and writes its
 own ClickHouse database; [ClickHouse](clickhouse.md) has the tables, the
-deployment and the reasons. Full-history BSC noops of both packages are
-running; no sink runs them yet.
+deployment and the reasons. Full-history noops of both packages run on BSC
+and Ethereum. Since 2026-10-14 (owner) backfills write the ranges whose noops
+passed, from genesis: `bsc:evm-balances-native@v0.7.5`,
+`bsc:evm-balances-erc20@v0.7.1` and `mainnet:evm-balances-erc20@v0.7.0`. No
+live sink runs yet.
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -141,15 +144,19 @@ package's noop over that range passes (owner, 2026-10-13).
    block, keeps as a wrong zero; native v0.7.6 shifts only records that
    v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts).
    BSC continues native v0.7.5, which has refused no BSC block; Ethereum
-   native moves to v0.7.6. Ethereum runs the same noops from genesis since 2026-10-14
-   (owner), a faster full-history test of about 26M blocks; its databases
-   would be `mainnet:evm-balances-native@<version>` and
+   native moves to v0.7.6. Ethereum runs the same noops from genesis since
+   2026-10-14 (owner), a faster full-history test of about 26M blocks, into
+   `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.
-2. Per package, run the backfill (the sink over past blocks) and the live
-   sink into its own database, `bsc:evm-balances-native@<version>` or
-   `bsc:evm-balances-erc20@<version>`
-   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). They
-   replace the v0.6.1 shadow.
+2. Per package, finish the backfill (the sink over past blocks, started
+   2026-10-14 on the ranges whose noops passed) and run the live sink into its
+   own database, `<chain>:evm-balances-native@<version>` or
+   `<chain>:evm-balances-erc20@<version>`
+   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
+   they replace the v0.6.1 shadow. The Ethereum native backfill into
+   `mainnet:evm-balances-native@v0.7.5` stopped when native v0.7.5 refused
+   block 25,741,008; its partial rows are superseded by v0.7.6 and the
+   database is to be dropped (owner).
 3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),

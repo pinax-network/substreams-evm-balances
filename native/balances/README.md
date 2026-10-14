@@ -72,7 +72,7 @@ incomplete instead of guessing:
 | Persisted record with ordinal 0 | `persisted native balance change has no execution ordinal` |
 | Value longer than 32 bytes | `native balance exceeds uint256` |
 | Two records of one account with the same ordinal | `ambiguous native balance execution order` |
-| A record's old value differs from the account's previous new value, apart from the self-transfer pair and the fee pool payout below | `discontinuous native balance changes within block` |
+| A record's old value differs from the account's previous new value, apart from the five producer shapes below (the self-transfer pair, the fee pool payout, the self-destruct debit, the self-destruct to itself and the self-destruct of an account created in the transaction) | `discontinuous native balance changes within block` |
 
 **Self-transfer pair (v0.2.2).** A value transfer from an account to itself,
 a CALLCODE with value or a CALL whose caller is its address, does not move the
@@ -117,9 +117,12 @@ fee on).
 **Self-destruct debit (v0.7.3).** A self-destruct moves the destroyed
 account's whole balance to its beneficiary. Since Cancun (EIP-6780) the
 account is deleted only when it was created in the same transaction, and for
-the others the Ethereum producer records only the beneficiary's
-`SUICIDE_REFUND` credit `d`: the account's debit to zero is missing, and its
-next record starts from zero. When a persisted call (non-reverted, in a
+the others the Ethereum producer of `Block.ver` 3 records only the
+beneficiary's `SUICIDE_REFUND` credit `d`: the account's debit to zero is
+missing, and its next record starts from zero. (The producer of `Block.ver` 5
+records the debit as a `SUICIDE_WITHDRAW` before the credit, as in block
+25,741,008, transaction `0xeb4fc94a…`; this shape does not match it.) When a
+persisted call (non-reverted, in a
 succeeded transaction) self-destructs, holds exactly one balance record, a
 positive `SUICIDE_REFUND` credit of another account, and no record of the
 destroyed account, native restores that account's debit `d -> 0` at the
@@ -134,8 +137,9 @@ DELEGATECALL self-destruct of `0x0000000000bb3d7b…` that sends 0.81 ETH to
 
 **Self-destruct to itself (v0.7.5).** Since Cancun, an account not created
 in the same transaction that self-destructs to itself keeps its balance:
-geth debits it and credits it back. The Ethereum producer records the credit
-as a `SUICIDE_REFUND` from zero to `d`, without the debit, and then a
+geth debits it and credits it back. The Ethereum producer of `Block.ver` 3
+records the credit as a `SUICIDE_REFUND` from zero to `d`, without the debit,
+and then a
 `SUICIDE_WITHDRAW` from `d` to zero at the next ordinal, although the account
 keeps `d`. When a persisted call self-destructs and holds exactly those two
 records of the destroyed account (resolved as above), `d` positive, and the
@@ -156,10 +160,16 @@ at the next ordinal, the beneficiary's `SUICIDE_REFUND` from `b` to `b + d`,
 but the beneficiary's later records in that transaction start from `b`, as if
 the credit had not happened. When a persisted call self-destructs an account
 created by a CREATE in the transaction, holds exactly those two records, `d`
-positive, and the beneficiary's first later record in the transaction starts
-from `b`, native adds `d` to the old and new values of every later record of
-the beneficiary in the transaction, and the continuity check verifies them.
-Records after the transaction are not shifted. Native v0.7.5 refused Ethereum
+positive, the refund persisted as recorded, and the beneficiary's first later
+record in the transaction starts from `b`, native adds `d` to the old and new
+values of every later record of the beneficiary in the transaction, and the
+continuity check verifies them. Each of those records must move the balance
+by an amount (`TRANSFER`, `GAS_REFUND`, `REWARD_TRANSACTION_FEE` or
+`SUICIDE_REFUND`): a record that sets it, such as the beneficiary's own
+self-destruct withdraw to zero, would keep `d` once shifted, so the block
+fails instead. Several such credits to one beneficiary in a transaction add
+up (not captured). Records after the transaction are not shifted. Native
+v0.7.5 refused Ethereum
 block 25,741,008 on it (transaction `0xd6299894…`: a CREATE at
 `0x1af6cfe5…`, which already holds 0.159 ETH, self-destructs in its
 constructor to the sender `0xc6acbee4…`, whose gas refund starts from the

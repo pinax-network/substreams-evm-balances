@@ -356,11 +356,14 @@ fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
 }
 
 /// A self-destruct moves the destroyed account's whole balance to its
-/// beneficiary. Since Cancun (EIP-6780) the Ethereum producer records only the
-/// beneficiary's `SUICIDE_REFUND` credit `d` when the account was not created
-/// in the same transaction: the account's debit to zero is missing, and its
-/// next record starts from zero (block 20,249,174, transaction `0x16bb56d4…`,
-/// a DELEGATECALL self-destruct of `0x0000000000bb3d7b…`). Returns the debits
+/// beneficiary. Since Cancun (EIP-6780) the Ethereum producer of `Block.ver` 3
+/// records only the beneficiary's `SUICIDE_REFUND` credit `d` when the account
+/// was not created in the same transaction: the account's debit to zero is
+/// missing, and its next record starts from zero (block 20,249,174,
+/// transaction `0x16bb56d4…`, a DELEGATECALL self-destruct of
+/// `0x0000000000bb3d7b…`). The producer of `Block.ver` 5 records that debit as
+/// a `SUICIDE_WITHDRAW` before the credit (block 25,741,008, transaction
+/// `0xeb4fc94a…`), which this shape does not match. Returns the debits
 /// these stand for: the destroyed account from `d` to zero at the credit's
 /// ordinal. The continuity check then verifies `d` against the account's
 /// previous balance. Only this exact shape is recognized: a persisted call
@@ -412,12 +415,13 @@ fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
 
 /// Since Cancun (EIP-6780) a self-destruct to itself of an account not created
 /// in the same transaction moves nothing: geth debits the balance `d` and
-/// credits it back, and the account survives. The Ethereum producer records
-/// the credit as a `SUICIDE_REFUND` from zero to `d`, without the debit, and
-/// then a `SUICIDE_WITHDRAW` from `d` to zero at the next ordinal, although
-/// the account keeps `d` (block 19,481,732, transaction `0x833a78e6…`:
-/// `0x6550f9a4…` keeps 1 wei). The refund's zero old value breaks continuity,
-/// and the withdraw would zero the account. Returns that pair, as
+/// credits it back, and the account survives. The Ethereum producer of
+/// `Block.ver` 3 records the credit as a `SUICIDE_REFUND` from zero to `d`,
+/// without the debit, and then a `SUICIDE_WITHDRAW` from `d` to zero at the
+/// next ordinal, although the account keeps `d` (block 19,481,732,
+/// transaction `0x833a78e6…`: `0x6550f9a4…` keeps 1 wei). The refund's zero
+/// old value breaks continuity, and the withdraw would zero the account.
+/// Returns that pair, as
 /// `(account, ordinal)`. Only this exact shape is recognized: a persisted call
 /// (non-reverted, in a succeeded transaction) that self-destructs and holds
 /// exactly those two records of the destroyed account, `d` positive, in a
@@ -480,13 +484,27 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// after the block). Returns the shift `d` of each such later record, by
 /// `(account, ordinal)`: every persisted record of the beneficiary after the
 /// credit and before the transaction ends, when the first of them starts from
-/// `b`. The continuity check then verifies the shifted records. Without the
-/// shift that first record breaks continuity with the persisted credit, so
-/// blocks that native v0.7.5 accepts are unchanged. Only this exact shape is
-/// recognized: a persisted call (non-reverted, in a succeeded transaction)
-/// that self-destructs an account created by a CREATE in the same transaction
-/// and holds exactly those two records, `d` positive. The destroyed account is
-/// resolved as in `selfdestruct_debits`.
+/// `b` and each of them moves the balance by an amount ([`SHIFTABLE`]). A
+/// later record that sets the balance, such as the beneficiary's own
+/// self-destruct withdraw to zero, would keep `d` once shifted, so the block
+/// fails instead. The continuity check then verifies the shifted records.
+/// Without the shift that first record breaks continuity with the persisted
+/// credit, so blocks that native v0.7.5 accepts are unchanged. Only this exact
+/// shape is recognized: a persisted call (non-reverted, in a succeeded
+/// transaction) that self-destructs an account created by a CREATE in the
+/// same transaction and holds exactly those two records, `d` positive, the
+/// refund persisted as recorded. The destroyed account is resolved as in
+/// `selfdestruct_debits`. Several such credits to one beneficiary in a
+/// transaction add up.
+/// The reasons of records that move a balance by an amount, which
+/// `selfdestruct_credit_shifts` may shift.
+const SHIFTABLE: [eth::balance_change::Reason; 4] = [
+    eth::balance_change::Reason::Transfer,
+    eth::balance_change::Reason::GasRefund,
+    eth::balance_change::Reason::RewardTransactionFee,
+    eth::balance_change::Reason::SuicideRefund,
+];
+
 fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap<(Vec<u8>, u64), BigInt> {
     let mut shifts: HashMap<(Vec<u8>, u64), BigInt> = HashMap::new();
     for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
@@ -525,7 +543,10 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
             if d == [0; 32] || withdraw_new != [0; 32] || credited != before + moved.clone() {
                 continue;
             }
-            if !records.iter().any(|r| r.address == refund.address && r.ordinal == refund.ordinal) {
+            let persisted = records
+                .iter()
+                .any(|r| r.address == refund.address && r.ordinal == refund.ordinal && value(r.new_value.as_deref()).is_ok_and(|new| new == refund_new));
+            if !persisted {
                 continue;
             }
             // The beneficiary's later persisted records in the transaction.
@@ -535,7 +556,8 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
                 .collect();
             later.sort_by_key(|r| r.ordinal);
             let starts_without_credit = later.first().is_some_and(|r| value(r.old_value.as_deref()).is_ok_and(|old| old == b));
-            if !starts_without_credit {
+            let shiftable = later.iter().all(|r| SHIFTABLE.iter().any(|reason| *reason as i32 == r.reason));
+            if !starts_without_credit || !shiftable {
                 continue;
             }
             for r in later {

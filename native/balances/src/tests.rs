@@ -1253,6 +1253,121 @@ fn the_selfdestruct_credit_shape_is_exact() {
     };
     b.transaction_traces.push(next);
     assert!(fails(&b));
+    let other = hex::decode("00000000000000000000000000000000000000aa").unwrap();
+    // The withdraw must be the destroyed account's, and end at zero.
+    let mut b = captured_selfdestruct_created();
+    suicide(&mut b).balance_changes[0].address = other.clone();
+    assert!(fails(&b));
+    let mut b = captured_selfdestruct_created();
+    suicide(&mut b).balance_changes[0].new_value = wei(1).into();
+    assert!(fails(&b));
+    // The credit must be a SUICIDE_REFUND.
+    let mut b = captured_selfdestruct_created();
+    suicide(&mut b).balance_changes[1].reason = eth::balance_change::Reason::Transfer.into();
+    assert!(fails(&b));
+    // A credit back to the destroyed account is not this shape.
+    let mut b = captured_selfdestruct_created();
+    let d = suicide(&mut b).balance_changes[0].old_value.clone();
+    suicide(&mut b).balance_changes[1].address = hex::decode(CREATED).unwrap();
+    suicide(&mut b).balance_changes[1].old_value = wei(0).into();
+    suicide(&mut b).balance_changes[1].new_value = d;
+    b.transaction_traces[0].calls[0].balance_changes.push(eth::BalanceChange {
+        address: hex::decode(CREATED).unwrap(),
+        old_value: wei(0).into(),
+        new_value: wei(5).into(),
+        ordinal: 9578,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    });
+    assert!(fails(&b));
+    // A DELEGATECALL self-destruct destroys its caller, here the created
+    // account.
+    let mut b = captured_selfdestruct_created();
+    let moved = std::mem::take(&mut suicide(&mut b).balance_changes);
+    suicide(&mut b).suicide = false;
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 5,
+        parent_index: 2,
+        depth: 2,
+        call_type: eth::CallType::DELEGATE.into(),
+        caller: hex::decode(CREATED).unwrap(),
+        address: other.clone(),
+        suicide: true,
+        balance_changes: moved,
+        ..Default::default()
+    });
+    assert_eq!(sender_amount(&b), "79030030017051665919");
+    // A later record that sets the balance is not shifted: shifted, the
+    // beneficiary's own withdraw to zero would keep the credit. The block
+    // fails, whether the producer recorded the withdraw...
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls[0].balance_changes.push(eth::BalanceChange {
+        address: hex::decode(SENDER).unwrap(),
+        old_value: wei(78_870_637_669_729_415_183).into(),
+        new_value: None.into(),
+        ordinal: 9578,
+        reason: eth::balance_change::Reason::SuicideWithdraw.into(),
+    });
+    gas_refund(&mut b).old_value = None.into();
+    gas_refund(&mut b).new_value = wei(47_759_566_715_994).into();
+    assert!(fails(&b));
+    // ...or `selfdestruct_debits` restores it from a credit to another account.
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 5,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CALL.into(),
+        caller: hex::decode(SENDER).unwrap(),
+        address: hex::decode(SENDER).unwrap(),
+        suicide: true,
+        balance_changes: vec![eth::BalanceChange {
+            address: other.clone(),
+            old_value: None.into(),
+            new_value: wei(78_870_637_669_729_415_183).into(),
+            ordinal: 9578,
+            reason: eth::balance_change::Reason::SuicideRefund.into(),
+        }],
+        ..Default::default()
+    });
+    gas_refund(&mut b).old_value = None.into();
+    gas_refund(&mut b).new_value = wei(47_759_566_715_994).into();
+    assert!(fails(&b));
+    // Two such credits to one beneficiary add up, the second refund shifted by
+    // the first.
+    let second = |refund_old: u128| eth::Call {
+        index: 5,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        caller: hex::decode(SENDER).unwrap(),
+        address: vec![0x22; 20],
+        suicide: true,
+        balance_changes: vec![
+            eth::BalanceChange {
+                address: vec![0x22; 20],
+                old_value: wei(5).into(),
+                new_value: None.into(),
+                ordinal: 9577,
+                reason: eth::balance_change::Reason::SuicideWithdraw.into(),
+            },
+            eth::BalanceChange {
+                address: hex::decode(SENDER).unwrap(),
+                old_value: wei(refund_old).into(),
+                new_value: wei(refund_old + 5).into(),
+                ordinal: 9578,
+                reason: eth::balance_change::Reason::SuicideRefund.into(),
+            },
+        ],
+        ..Default::default()
+    };
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls.push(second(78_870_637_669_729_415_183));
+    assert_eq!(sender_amount(&b), "79030030017051665924");
+    // A second refund that includes the first credit, followed by a gas refund
+    // that includes neither, is not this shape.
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls.push(second(79_029_982_257_484_949_925));
+    assert!(fails(&b));
 }
 
 #[test]
