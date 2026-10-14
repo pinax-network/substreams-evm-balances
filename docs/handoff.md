@@ -39,8 +39,11 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   payout, on which native v0.2.2 refused blocks 363, 12,700,000 and
   25,401,003 (v0.7.1 also accepts the payout credit after a skipped ordinal,
   as in blocks 958 and 4104), and accepts block 0, where it emits the genesis
-  allocations
-  ([README](../native/balances/README.md#genesis-v070)). Not qualified. The
+  allocations ([README](../native/balances/README.md#genesis-v070)). v0.7.2
+  persists a failed blob transaction's blob fee, on which v0.7.0 refused
+  block 42,357,369
+  ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)). Not
+  qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
   it emitted in the stated windows
@@ -100,16 +103,19 @@ production-mode stream from block 1 also runs block 0, because Substreams
 processes whole 1,000-block segments; native v0.2.2 refused block 0, and
 v0.7.0 accepts it. The v0.7.0 noops (2026-10-13) passed those blocks, but
 native refused blocks 958 and 4104, where the producer skipped an ordinal
-between the payout records; v0.7.1 accepts them.
+between the payout records; v0.7.1 accepts them. On 2026-10-14 native v0.7.0
+refused block 42,357,369, whose failed blob transaction pays its blob fee to
+the fee pool; v0.7.2 keeps that record.
 
 ## Next steps (owner)
 
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Finish the full-history noops: ERC-20 v0.7.0, and native v0.7.1 from
-   block 0 (native v0.7.0 passed every other block it ran; v0.7.1 accepts
-   the same blocks and the payout shape of blocks 958 and 4104).
+1. Finish the full-history noops: ERC-20 v0.7.0, and native v0.7.2 from
+   block 0 (v0.7.2 accepts every block v0.7.0 and v0.7.1 accept, with the
+   same rows, plus the payout shape of blocks 958 and 4104 and failed blob
+   transactions).
 2. Per package, run the backfill (the sink over past blocks) and the live
    sink into its own database, `bsc:evm-balances-native@<version>` or
    `bsc:evm-balances-erc20@<version>`

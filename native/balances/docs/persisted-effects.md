@@ -13,7 +13,7 @@ authorize new Substreams, Firehose, RPC or sink runs.
 | --- | --- | --- | --- |
 | Succeeded transaction | `transaction_traces[].calls[].balance_changes` with `state_reverted == false` | every non-no-op record persists | block 122260950 oracle; saved replay |
 | Reverted child frame | same, `state_reverted == true` | dropped | synthetic tests; saved replay continuity |
-| Failed / reverted transaction | root call only | `GAS_BUY`, `GAS_REFUND`, `REWARD_TRANSACTION_FEE` persist; reasons known to revert are dropped; any other reason fails the block | 6,655 failed-root gas records in the saved replay; two captured failed SetCode transactions |
+| Failed / reverted transaction | root call only | `GAS_BUY`, `GAS_REFUND`, `REWARD_TRANSACTION_FEE` persist, and so does a blob transaction's `REWARD_BLOB_FEE` (v0.7.2); reasons known to revert are dropped; any other reason fails the block | 6,655 failed-root gas records in the saved replay; two captured failed SetCode transactions; captured failed blob transaction `bsc-42357369` |
 | Failed SetCode (EIP-7702) | authorization nonce/code records before root `begin_ordinal` | handled by `evm-persist`; no native balance effect beyond gas | captured `bsc-121114122` / `bsc-121114153` |
 | System call | `system_calls[].balance_changes` with `state_reverted == false` | persists | rule only; the saved BSC captures carry no system-call balance record |
 | Block level | `Block.balance_changes` | always persists | 2,878 fee-reward records including the fee reset at 122260950 |
@@ -53,7 +53,7 @@ saved-data replay of 1,439 BSC producer-version-5 blocks.
 | `GAS_BUY` | 7 | persists | persists | 95,532 (Tx), 3,344 (failed) |
 | `REWARD_TRANSACTION_FEE` | 8 | persists | persists | 95,532 (Tx), 3,344 (failed), 2,878 (block) |
 | `GAS_REFUND` | 9 | persists | persists | 85,350 (Tx), 3,311 (failed) |
-| `REWARD_BLOB_FEE` | 17 | persists (BNB chain blob processing reward, credited to the system fee account in successful blob transactions) | **fails the block** – no fixture | 218 (Tx); live 2026-09-23: 37 (Tx) in 250 parity-checked blocks |
+| `REWARD_BLOB_FEE` | 17 | persists (BNB Chain blob fee, credited to the system fee account after execution) | persists in a blob transaction (v0.7.2, [block 42,357,369](../tests/fixtures/bsc-42357369-failed-blob-fee.json)); fails the block in any other transaction | 218 (Tx); live 2026-09-23: 37 (Tx) in 250 parity-checked blocks; failed: 1 (block 42,357,369) |
 | `TOUCH_ACCOUNT` | 10 | persists (no-op records are dropped) | reverts | none observed |
 | `SUICIDE_REFUND`, `SUICIDE_WITHDRAW` | 11, 13 | persist | revert | none observed |
 | `CALL_BALANCE_OVERRIDE` | 12 | persists | reverts | none observed |

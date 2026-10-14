@@ -10,6 +10,7 @@ const SYSTEM_FEE_ADDRESS: &str = "fffffffffffffffffffffffffffffffffffffffe";
 const SELF_TRANSFER: &str = include_str!("../tests/fixtures/bsc-127411449-callcode-self-transfer.json");
 const FEE_POOL_PAYOUTS: &str = include_str!("../tests/fixtures/bsc-fee-pool-payout-ver3.json");
 const GENESIS: &str = include_str!("../tests/fixtures/bsc-0-genesis.json");
+const FAILED_BLOB_FEE: &str = include_str!("../tests/fixtures/bsc-42357369-failed-blob-fee.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -456,9 +457,10 @@ fn failed_transactions_with_unpinned_reasons_fail_closed() {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].amount, "90");
     }
-    // BNB blob-fee rewards (17), OP-stack mints (18), reverts (19), unknown
-    // future reasons and block-level reasons inside a failed root call have no
-    // fixture: the block is rejected rather than reduced without the record.
+    // A blob fee (17) outside a blob transaction, OP-stack mints (18), reverts
+    // (19), unknown future reasons and block-level reasons inside a failed root
+    // call have no fixture: the block is rejected rather than reduced without
+    // the record.
     for reason in [
         17,
         18,
@@ -471,6 +473,16 @@ fn failed_transactions_with_unpinned_reasons_fail_closed() {
         b.transaction_traces = vec![failed(reason)];
         assert!(changes(&b).unwrap_err().to_string().contains("pinned persistence"), "reason {reason}");
     }
+    // A failed blob transaction pays its blob fee: the record persists with gas.
+    let mut blob = failed(17);
+    blob.r#type = eth::transaction_trace::Type::TrxTypeBlob.into();
+    b.transaction_traces = vec![blob.clone()];
+    let rows = changes(&b).unwrap();
+    assert_eq!((row(&rows, 8).amount.as_str(), row(&rows, 9).amount.as_str()), ("90", "50"));
+    // Other unpinned reasons still fail a blob transaction.
+    blob.calls[0].balance_changes[1].reason = 18.into();
+    b.transaction_traces = vec![blob];
+    assert!(changes(&b).unwrap_err().to_string().contains("pinned persistence"));
     // The same reasons in a successful transaction are ordinary persisted state.
     let mut ok = failed(17);
     ok.status = eth::TransactionTraceStatus::Succeeded.into();
@@ -673,38 +685,38 @@ fn a_call_to_itself_with_value_is_the_same_self_transfer() {
 /// record of the coinbase.
 fn captured_fee_pool_payouts() -> Vec<eth::Block> {
     let f: Value = serde_json::from_str(FEE_POOL_PAYOUTS).unwrap();
-    f["blocks"]
+    f["blocks"].as_array().unwrap().iter().map(captured_block).collect()
+}
+/// A captured block of a fixture: its number, `Block.ver`, coinbase,
+/// block-level records and transactions; a transaction without a `type` is
+/// legacy.
+fn captured_block(c: &Value) -> eth::Block {
+    let number = c["number"].as_u64().unwrap();
+    let mut b = block();
+    b.ver = c["ver"].as_i64().unwrap() as i32;
+    b.number = number;
+    b.header = buffa::MessageField::some(eth::BlockHeader {
+        number,
+        coinbase: hex::decode(c["coinbase"].as_str().unwrap()).unwrap(),
+        ..b.header.as_option().unwrap().clone()
+    });
+    b.balance_changes = c["block_balance_changes"].as_array().unwrap().iter().map(captured_change).collect();
+    b.transaction_traces = c["transactions"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|c| {
-            let number = c["number"].as_u64().unwrap();
-            let mut b = block();
-            b.ver = c["ver"].as_i64().unwrap() as i32;
-            b.number = number;
-            b.header = buffa::MessageField::some(eth::BlockHeader {
-                number,
-                coinbase: hex::decode(c["coinbase"].as_str().unwrap()).unwrap(),
-                ..b.header.as_option().unwrap().clone()
-            });
-            b.balance_changes = c["block_balance_changes"].as_array().unwrap().iter().map(captured_change).collect();
-            b.transaction_traces = c["transactions"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|t| eth::TransactionTrace {
-                    index: t["index"].as_u64().unwrap() as u32,
-                    hash: hex::decode(t["hash"].as_str().unwrap()).unwrap(),
-                    begin_ordinal: t["begin_ordinal"].as_u64().unwrap(),
-                    end_ordinal: t["end_ordinal"].as_u64().unwrap(),
-                    status: (t["status"].as_i64().unwrap() as i32).into(),
-                    calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
-                    ..Default::default()
-                })
-                .collect();
-            b
+        .map(|t| eth::TransactionTrace {
+            index: t["index"].as_u64().unwrap() as u32,
+            hash: hex::decode(t["hash"].as_str().unwrap()).unwrap(),
+            r#type: (t["type"].as_i64().unwrap_or(0) as i32).into(),
+            begin_ordinal: t["begin_ordinal"].as_u64().unwrap(),
+            end_ordinal: t["end_ordinal"].as_u64().unwrap(),
+            status: (t["status"].as_i64().unwrap() as i32).into(),
+            calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
+            ..Default::default()
         })
-        .collect()
+        .collect();
+    b
 }
 fn coinbase(b: &eth::Block) -> Vec<u8> {
     b.header.as_option().unwrap().coinbase.clone()
@@ -909,4 +921,53 @@ fn the_genesis_block_holds_only_allocations_from_zero() {
     let mut b = captured_genesis();
     b.balance_changes = vec![change(4, 30, Some(0), Some(1))];
     assert!(refused(&b));
+}
+
+/// Block 42,357,369 as captured from BSC Firehose: the failed blob transaction
+/// `0xbe965c35…` and every later transaction whole, and every block-level
+/// record.
+fn captured_failed_blob_fee() -> eth::Block {
+    captured_block(&serde_json::from_str(FAILED_BLOB_FEE).unwrap())
+}
+
+#[test]
+fn captured_failed_blob_transaction_pays_its_blob_fee_to_the_fee_pool() {
+    let b = captured_failed_blob_fee();
+    let pool = hex::decode(SYSTEM_FEE_ADDRESS).unwrap();
+    let blob_fee = eth::balance_change::Reason::RewardBlobFee as i32;
+    // The blob fee persists like the failed transaction's gas.
+    let records = records(&b).unwrap();
+    let fee = records.iter().find(|r| r.reason == blob_fee).unwrap();
+    assert_eq!(
+        (fee.address.as_slice(), fee.ordinal, fee.scope),
+        (pool.as_slice(), 7575, persist::Scope::TxFailedPersistent)
+    );
+    let rows = changes(&b).unwrap();
+    // The pool: the transaction fee, the blob fee of 131,072 wei, then the
+    // block-level payout of the whole pool to the coinbase.
+    let row = row_of(&rows, &pool);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+        ("22684120973748330", "0", 7574, 7583, 3)
+    );
+    // The coinbase receives the pool, blob fee included, and sends it on.
+    let validator = row_of(&rows, &coinbase(&b));
+    assert_eq!(
+        (validator.old_amount.as_str(), validator.amount.as_str(), validator.records),
+        ("10000000000000000", "10000000000000000", 2)
+    );
+    // The sender keeps only its gas effects.
+    let sender = row_of(&rows, &hex::decode("b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef").unwrap());
+    assert_eq!(
+        (sender.old_amount.as_str(), sender.amount.as_str(), sender.records),
+        ("35498221136158448", "35477008136027376", 2)
+    );
+    // Without the blob fee the pool's payout does not chain.
+    let mut without = b.clone();
+    without.transaction_traces[0].calls[0].balance_changes.retain(|c| c.reason.to_i32() != blob_fee);
+    assert!(changes(&without).unwrap_err().to_string().contains("discontinuous"));
+    // Only a blob transaction pays a blob fee.
+    let mut not_blob = b.clone();
+    not_blob.transaction_traces[0].r#type = eth::transaction_trace::Type::TrxTypeDynamicFee.into();
+    assert!(changes(&not_blob).unwrap_err().to_string().contains("pinned persistence"));
 }

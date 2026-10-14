@@ -16,7 +16,8 @@
 //! value is read only to recognize the producer's self-transfer pair (see
 //! [`changes`]). Which records persist is decided by the shared
 //! [`evm_persist`] rules (failed-transaction gas effects, reverted frames,
-//! system calls, block-level records).
+//! system calls, block-level records), plus the blob fee of a failed blob
+//! transaction ([`records`]).
 use evm_persist as persist;
 pub mod db_out;
 
@@ -140,10 +141,11 @@ fn validate_genesis(block: &eth::Block) -> Result<(), Error> {
 }
 
 /// Balance-change reasons whose behavior inside a failed or reverted
-/// transaction is pinned by the shared persistence rules: the three gas
-/// reasons persist, the others revert with the execution frame. Any other
-/// reason in a failed transaction's root call (for example BNB blob-fee
-/// rewards, OP-stack deposit mints, or a reason this crate cannot name) has no
+/// transaction is pinned: the three gas reasons persist (shared rules), as
+/// does a blob transaction's blob fee ([`failed_blob_fees`]), and the
+/// reasons listed here revert with the execution frame. Any other reason in a failed
+/// transaction's root call (for example OP-stack deposit mints, a blob fee
+/// outside a blob transaction, or a reason this crate cannot name) has no
 /// fixture, so the block fails instead of silently dropping a possible credit.
 const REVERTIBLE_FAILED_REASONS: [eth::balance_change::Reason; 6] = [
     eth::balance_change::Reason::Transfer,
@@ -157,7 +159,9 @@ fn validate_failed_transaction_reasons(block: &eth::Block) -> Result<(), Error> 
     for tx in block.transaction_traces.iter().filter(|tx| persist::is_failed(tx)) {
         let Some(root) = tx.calls.first() else { continue };
         for change in &root.balance_changes {
-            let pinned = persist::is_gas_reason(change) || change.reason.as_known().is_some_and(|r| REVERTIBLE_FAILED_REASONS.contains(&r));
+            let pinned = persist::is_gas_reason(change)
+                || is_blob_fee_of(tx, change)
+                || change.reason.as_known().is_some_and(|r| REVERTIBLE_FAILED_REASONS.contains(&r));
             require(
                 pinned,
                 "failed transaction carries a balance-change reason without pinned persistence semantics",
@@ -167,14 +171,56 @@ fn validate_failed_transaction_reasons(block: &eth::Block) -> Result<(), Error> 
     Ok(())
 }
 
-/// Every persisted native balance record in the block, in array order, with
-/// its persistence scope, retained for package tests and offline inspection.
+/// Every persisted native balance record in the block, with its persistence
+/// scope, retained for package tests and offline inspection: the shared
+/// rules' records in array order, then the blob fees of failed blob
+/// transactions, which BNB Chain pays whatever the outcome.
 pub fn records(block: &eth::Block) -> Result<Vec<Record>, Error> {
     validate_block(block)?;
     validate_failed_transaction_reasons(block)?;
     let mut collected = Collected::default();
     persist::collect_block(block, &mut collected)?;
+    collected.records.extend(failed_blob_fees(block));
     Ok(collected.records)
+}
+
+/// Whether `change` is the blob fee of blob transaction `tx`.
+fn is_blob_fee_of(tx: &eth::TransactionTrace, change: &eth::BalanceChange) -> bool {
+    tx.r#type == eth::transaction_trace::Type::TrxTypeBlob && change.reason.as_known() == Some(eth::balance_change::Reason::RewardBlobFee)
+}
+
+/// BNB Chain credits a blob transaction's blob fee to the fee pool after
+/// execution, with a `REWARD_BLOB_FEE` record, as it does the transaction fee,
+/// so a failed blob transaction pays it too. In block 42,357,369 the failed
+/// blob transaction `0xbe965c35…` credits the pool 131,072 wei after its
+/// transaction fee, and the pool's next record, the block-level payout to the
+/// coinbase, starts from the credited balance. The shared rules persist only
+/// the three gas reasons of a failed transaction's root call. Returns the
+/// blob-fee records of failed blob transactions' root calls, without no-ops;
+/// like every record, they must chain.
+fn failed_blob_fees(block: &eth::Block) -> Vec<Record> {
+    let mut fees = Vec::new();
+    for tx in block.transaction_traces.iter().filter(|tx| persist::is_failed(tx)) {
+        let Some(root) = tx.calls.first() else { continue };
+        for c in root.balance_changes.iter().filter(|c| is_blob_fee_of(tx, c)) {
+            let (old, new) = (
+                c.old_value.as_option().map(|v| v.bytes.clone()),
+                c.new_value.as_option().map(|v| v.bytes.clone()),
+            );
+            if matches!((value(old.as_deref()), value(new.as_deref())), (Ok(a), Ok(b)) if a == b) {
+                continue;
+            }
+            fees.push(Record {
+                address: c.address.clone(),
+                old_value: old,
+                new_value: new,
+                ordinal: c.ordinal,
+                reason: c.reason.to_i32(),
+                scope: persist::Scope::TxFailedPersistent,
+            });
+        }
+    }
+    fees
 }
 
 /// A value transfer from an account to itself, a CALLCODE with value or a CALL

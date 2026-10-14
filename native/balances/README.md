@@ -130,11 +130,25 @@ can now start at block 0. All three accounts change later (RPC-era database),
 so their current balances do not depend on block 0. BSC block 1 has no
 balance change.
 
-The failed-transaction reason guard exists because BNB blob-fee rewards
-(`REASON_REWARD_BLOB_FEE`, 17), OP-stack deposit mints (`INCREASE_MINT`, 18)
-and reverts (`REVERT`, 19) have no saved fixture inside a failed transaction.
-Silently dropping such a record could omit a persisted credit; failing the
-block surfaces the case for qualification. See the
+**Failed blob transactions (v0.7.2).** BNB Chain credits a blob
+transaction's blob fee (`REASON_REWARD_BLOB_FEE`, 17) to the fee pool after
+execution, as it does the transaction fee, so a failed blob transaction pays
+it too. The shared rules persist only the three gas reasons of a failed
+transaction's root call; native also persists the root call's blob fee when
+the transaction is a blob transaction (type 3), and the record must chain like
+any other. Native v0.7.0 refused BSC block 42,357,369 on it, found by the
+full-history noop on 2026-10-14: failed blob transaction `0xbe965c35…`
+credits the pool 131,072 wei after its transaction fee, and the pool's next
+record, the block-level payout to the coinbase, starts from the credited
+balance. The fixture is
+[`tests/fixtures/bsc-42357369-failed-blob-fee.json`](tests/fixtures/bsc-42357369-failed-blob-fee.json)
+(the failed transaction and every later one, and every block-level record).
+
+The failed-transaction reason guard exists because OP-stack deposit mints
+(`INCREASE_MINT`, 18), reverts (`REVERT`, 19) and a blob fee outside a blob
+transaction have no saved fixture inside a failed transaction. Silently
+dropping such a record could omit a persisted credit; failing the block
+surfaces the case for qualification. See the
 [persisted-effect matrix](docs/persisted-effects.md).
 
 ## Input and networks
@@ -187,7 +201,8 @@ It has no new live qualification. v0.2.1 is the same source built with Rust
 self-transfer pair exception above; until v0.6.1 the combined `evm-balances`
 package imported it and wrote its rows. v0.7.0 (package `evm_balances_native`)
 adds `db_out`, `NativeEvents`, the fee pool payout and genesis; v0.7.1 accepts
-the payout credit after a skipped ordinal. Neither is live-qualified.
+the payout credit after a skipped ordinal; v0.7.2 persists a failed blob
+transaction's blob fee. None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
