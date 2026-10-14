@@ -19,31 +19,27 @@ authorizes a live step.
 Since v0.7.0 (owner, 2026-10-13) each balance package ships its `map_events`
 and its own `db_out` in one spkg, is released by its own tag and writes its
 own ClickHouse database; [ClickHouse](clickhouse.md) has the tables, the
-deployment and the reasons. v0.7.0 is built but not released, and neither
-package has run a noop or a sink at v0.7.0.
+deployment and the reasons. Full-history BSC noops of both packages are
+running; no sink runs them yet.
 
-| Package | Version and spkg | Release tag | BSC database | `map_events` output |
-| --- | --- | --- | --- | --- |
-| [`native/balances`](../native/balances/README.md) | `evm_balances_native` v0.7.0, `spkg/evm-balances-native-v0.7.0.spkg` | `evm-balances-native-v0.7.0` | `bsc:evm-balances-native@v0.7.0` | `evm.balances.v1.NativeEvents` |
-| [`erc20/balances`](../erc20/balances/README.md) | `evm_balances_erc20` v0.7.0, `spkg/evm-balances-erc20-v0.7.0.spkg` | `evm-balances-erc20-v0.7.0` | `bsc:evm-balances-erc20@v0.7.0` | `evm.balances.v1.Events` |
-
-The committed spkgs are CI's canonical Linux builds (Rust 1.99.0, substreams
-CLI v1.22.0), taken from the "Package hashes" job's `packages` artifact.
-Identify a build by its module hash, never by the spkg sha256. None is
-live-qualified. The v0.7.0 module hashes and WASM sha256:
-
-| Package | Module | Module hash | WASM sha256 |
+| Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
-| `spkg/evm-balances-native-v0.7.0.spkg` | `map_events` | `0759418fb023485e9ca06bfe7a0c1c5c0d2c4c63` | `c448342379378455221f116cbf74813a18d47c8a02d258042a677cbd1cb965e0` |
-| | `db_out` | `29f7d1596fc6454ce5df7bcdf53636e11a533cf8` | same WASM |
-| `spkg/evm-balances-erc20-v0.7.0.spkg` | `map_events` | `65629a0baac9167970079510489900648822fce5` | `a2c12a1284ad571308b5afcbed72e847d777680dba2210bdd5e5e5572eeb484d` |
-| | `db_out` | `73627870ed1c72a9b76ad69f46fa94f9979afbb4` | same WASM |
+| [`native/balances`](../native/balances/README.md) | `evm-balances-native-v<version>` | `bsc:evm-balances-native@<version>` | `evm.balances.v1.NativeEvents` |
+| [`erc20/balances`](../erc20/balances/README.md) | `evm-balances-erc20-v<version>` | `bsc:evm-balances-erc20@<version>` | `evm.balances.v1.Events` |
+
+Both are on the [Releases](https://github.com/pinax-network/substreams-evm-balances/releases) page; each release's run summary records
+its module, WASM and schema hashes. The committed spkgs are CI's canonical
+Linux builds (Rust 1.99.0, substreams CLI v1.22.0), taken from the "Package
+hashes" job's `packages` artifact. Identify a build by its module hash
+(`substreams info`), never by the spkg sha256. None is live-qualified.
 
 - **`native/balances`** v0.7.0 adds `db_out` and emits `NativeEvents`,
   `Events` without the contract, which native amounts never have (field 1
   reserved, the same bytes). It restores the BSC `Block.ver` 3 fee pool
   payout, on which native v0.2.2 refused blocks 363, 12,700,000 and
-  25,401,003, and accepts block 0, where it emits the genesis allocations
+  25,401,003 (v0.7.1 also accepts the payout credit after a skipped ordinal,
+  as in blocks 958 and 4104), and accepts block 0, where it emits the genesis
+  allocations
   ([README](../native/balances/README.md#genesis-v070)). Not qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
@@ -102,26 +98,27 @@ run that day. The captured refusals, blocks 363, 12,700,000 and 25,401,003,
 are the `Block.ver` 3 fee pool payout that native v0.7.0 restores. A
 production-mode stream from block 1 also runs block 0, because Substreams
 processes whole 1,000-block segments; native v0.2.2 refused block 0, and
-v0.7.0 accepts it.
+v0.7.0 accepts it. The v0.7.0 noops (2026-10-13) passed those blocks, but
+native refused blocks 958 and 4104, where the producer skipped an ordinal
+between the payout records; v0.7.1 accepts them.
 
 ## Next steps (owner)
 
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Release v0.7.0: tags `evm-balances-native-v0.7.0` and
-   `evm-balances-erc20-v0.7.0`, cut after the CI-built spkgs are committed.
-2. Noop both packages' `db_out` over the full BSC history; native can now
-   start at block 0.
-3. Per package, run the backfill (the sink over past blocks) and the live
-   sink into its own database, `bsc:evm-balances-native@v0.7.0` or
-   `bsc:evm-balances-erc20@v0.7.0`
+1. Finish the full-history noops: ERC-20 v0.7.0, and native v0.7.1 from
+   block 0 (native v0.7.0 passed every other block it ran; v0.7.1 accepts
+   the same blocks and the payout shape of blocks 958 and 4104).
+2. Per package, run the backfill (the sink over past blocks) and the live
+   sink into its own database, `bsc:evm-balances-native@<version>` or
+   `bsc:evm-balances-erc20@<version>`
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). They
    replace the v0.6.1 shadow.
-4. Token API (pinax-api): add the per-network database setting
+3. Token API (pinax-api): add the per-network database setting
    `native-balances` next to `balances`, so that its native routes read the
    native database and its other routes the ERC-20 database.
-5. Cut over each database on its own
+4. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
 
