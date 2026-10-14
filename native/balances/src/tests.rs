@@ -16,7 +16,13 @@ const SELFDESTRUCT_TO_SELF: &str = include_str!("../tests/fixtures/eth-19481732-
 const SELFDESTRUCT_CREATED_CREDIT: &str = include_str!("../tests/fixtures/eth-25741008-selfdestruct-created-credit.json");
 const SELFDESTRUCT_CREATION_TX: &str = include_str!("../tests/fixtures/eth-25747303-selfdestruct-creation-tx.json");
 const SELFDESTRUCT_FOUR_CREDITS: &str = include_str!("../tests/fixtures/eth-25869452-selfdestruct-four-credits.json");
+const POLYGON_FAILED_BASE_FEE: &str = include_str!("../tests/fixtures/polygon-95537024-failed-base-fee.json");
 const SELFDESTRUCT_TRANSFER_DURING_EXECUTION: &str = include_str!("../tests/fixtures/eth-25920498-selfdestruct-transfer-during-execution.json");
+const ARBITRUM_FAILED_FEE: &str = include_str!("../tests/fixtures/arbitrum-150000072-failed-fee-transfers.json");
+const ARBITRUM_FAILED_FEE_TIP: &str = include_str!("../tests/fixtures/arbitrum-514857274-failed-fee-tip.json");
+const POLYGON_SELFDESTRUCT_CREATED: &str = include_str!("../tests/fixtures/polygon-70000124-selfdestruct-created.json");
+const SELFDESTRUCT_CREATED_ROOT: &str = include_str!("../tests/fixtures/eth-19500178-selfdestruct-created-root.json");
+const HYPEREVM_SELF_TRANSFER: &str = include_str!("../tests/fixtures/hyperevm-44000001-self-transfer.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -657,6 +663,55 @@ fn the_self_transfer_shape_is_the_only_continuity_exception() {
     // And be transfers.
     let (mut b, _) = captured_self_transfer();
     b.transaction_traces[0].calls[2].balance_changes[1].reason = eth::balance_change::Reason::GasRefund.into();
+    assert!(fails(&b));
+}
+
+/// HyperEVM block 44,000,001 as captured from Firehose: transaction 9
+/// (`0xbda5325e…`) whole. Its call 5 is a CALL of `0x20f6ee51…` to itself with
+/// 0.00006 HYPE.
+fn captured_hyperevm_self_transfer() -> eth::Block {
+    captured_block(&serde_json::from_str(HYPEREVM_SELF_TRANSFER).unwrap())
+}
+const HYPEREVM_SELF: &str = "20f6ee51340adeed01a59b0e65cb3703f3dc860c";
+fn hyperevm_self_call(b: &mut eth::Block) -> &mut eth::Call {
+    b.transaction_traces[0].calls.iter_mut().find(|c| c.index == 5).unwrap()
+}
+
+#[test]
+fn captured_hyperevm_self_transfer_pair_is_dropped_and_the_account_chains_across_it() {
+    let mut b = captured_hyperevm_self_transfer();
+    let account = hex::decode(HYPEREVM_SELF).unwrap();
+    let call = hyperevm_self_call(&mut b);
+    assert_eq!((call.caller == account, call.address == account, call.balance_changes.len()), (true, true, 4));
+    // The pair ending at the balance (ordinals 454 and 455) is dropped; the
+    // debit and credit after it (456, 457) chain.
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &account);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+        ("1250703678780216487", "1250763678780216487", 450, 468, 4)
+    );
+}
+
+#[test]
+fn the_hyperevm_self_transfer_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Both records end at the same balance.
+    let mut b = captured_hyperevm_self_transfer();
+    hyperevm_self_call(&mut b).balance_changes[1].new_value = wei(1_310_703_678_780_216_488).into();
+    assert!(fails(&b));
+    // From the balance plus and minus the call's value.
+    let mut b = captured_hyperevm_self_transfer();
+    hyperevm_self_call(&mut b).balance_changes[0].old_value = wei(1_310_763_678_780_216_488).into();
+    assert!(fails(&b));
+    let mut b = captured_hyperevm_self_transfer();
+    hyperevm_self_call(&mut b).value = wei(60_000_000_000_001).into();
+    assert!(fails(&b));
+    // At consecutive ordinals.
+    let mut b = captured_hyperevm_self_transfer();
+    hyperevm_self_call(&mut b).balance_changes[0].ordinal = 453;
     assert!(fails(&b));
 }
 
@@ -1658,6 +1713,262 @@ fn captured_records_during_the_execution_keep_the_credit() {
         (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
         ("43714971853610", "47111859977024", 11845, 4)
     );
+}
+
+/// Polygon block 95,537,024 as captured from Firehose: transactions 3, 4 and 5
+/// whole. Each credits its base fee (`gas_used * base_fee`) to `0x3ef57def…`
+/// with a `BURN` record in its root call; transaction 4 (`0xad18a4f2…`)
+/// reverted.
+fn captured_polygon_failed_base_fee() -> eth::Block {
+    captured_block(&serde_json::from_str(POLYGON_FAILED_BASE_FEE).unwrap())
+}
+const POLYGON_BURN: &str = "3ef57def668054dd750bd260526105c4eeef104f";
+
+#[test]
+fn captured_polygon_failed_transaction_pays_its_base_fee() {
+    let b = captured_polygon_failed_base_fee();
+    let burn = hex::decode(POLYGON_BURN).unwrap();
+    assert_eq!(b.transaction_traces[1].status.as_known(), Some(eth::TransactionTraceStatus::Reverted));
+    let failed: Vec<_> = records(&b)
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.scope == persist::Scope::TxFailedPersistent && r.address == burn)
+        .map(|r| r.ordinal)
+        .collect();
+    assert_eq!(failed, [111]);
+    // The account chains through the reverted transaction's credit.
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &burn);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+        ("62430004335053818128433431", "62430004476293688362566195", 124, 3)
+    );
+}
+
+#[test]
+fn the_failed_base_fee_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    fn burn(b: &mut eth::Block) -> &mut eth::BalanceChange {
+        b.transaction_traces[1].calls[0].balance_changes.iter_mut().find(|c| c.ordinal == 111).unwrap()
+    }
+    // Only a credit of exactly gas_used * base_fee.
+    let mut b = captured_polygon_failed_base_fee();
+    let new = BigInt::from_unsigned_bytes_be(&burn(&mut b).new_value.as_option().unwrap().bytes) + BigInt::from(1);
+    burn(&mut b).new_value = Some(eth::BigInt { bytes: new.to_bytes_be().1 }).into();
+    assert!(fails(&b));
+    // Only with a base fee.
+    let mut b = captured_polygon_failed_base_fee();
+    if let Some(header) = b.header.as_option_mut() {
+        header.base_fee_per_gas = None.into();
+    }
+    assert!(fails(&b));
+    // Only a BURN record: another reason of the same amount reverts. (A
+    // TRANSFER of it is a fee transfer, see `failed_fee_transfers`.)
+    let mut b = captured_polygon_failed_base_fee();
+    burn(&mut b).reason = eth::balance_change::Reason::CallBalanceOverride.into();
+    assert!(fails(&b));
+    // Only in the root call.
+    let mut b = captured_polygon_failed_base_fee();
+    let record = b.transaction_traces[1].calls[0].balance_changes.remove(2);
+    b.transaction_traces[1].calls[1].balance_changes.push(record);
+    assert!(fails(&b));
+}
+
+/// Arbitrum One block 150,000,072 as captured from Firehose: transactions 3
+/// to 8 whole. Each pays its fee after the execution with `TRANSFER` credits
+/// to `0xbf5041fc…` and `0xa4b0…00f6`; transactions 4 to 7 reverted.
+fn captured_arbitrum_failed_fee() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_FAILED_FEE).unwrap())
+}
+/// Arbitrum One block 514,857,274 as captured from Firehose: transactions 8,
+/// 9 and 10 whole. Transaction 9 (`0xb972284a…`) reverted, and its tip goes
+/// to `0x32e7af5a…` as a `REWARD_TRANSACTION_FEE`.
+fn captured_arbitrum_failed_fee_tip() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_FAILED_FEE_TIP).unwrap())
+}
+const NETWORK_FEE: &str = "bf5041fc07e1c866d15c749156657b8eed0fb649";
+const L1_PRICER: &str = "a4b00000000000000000000000000000000000f6";
+const INFRA_FEE: &str = "32e7af5a8151934f3787d0cd59eb6edd0a736b1d";
+
+#[test]
+fn captured_arbitrum_failed_transactions_pay_their_fee_transfers() {
+    let b = captured_arbitrum_failed_fee();
+    let (network, pricer) = (hex::decode(NETWORK_FEE).unwrap(), hex::decode(L1_PRICER).unwrap());
+    assert!((1..=4).all(|i| b.transaction_traces[i].status.as_known() == Some(eth::TransactionTraceStatus::Reverted)));
+    let failed: Vec<_> = records(&b)
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.scope == persist::Scope::TxFailedPersistent && r.reason == eth::balance_change::Reason::Transfer as i32)
+        .map(|r| (r.address == network, r.ordinal))
+        .collect();
+    let expected = [
+        (true, 299),
+        (false, 300),
+        (true, 335),
+        (false, 336),
+        (true, 362),
+        (false, 363),
+        (true, 454),
+        (false, 455),
+    ];
+    assert_eq!(failed, expected);
+    // Both accounts chain through the reverted transactions' credits.
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &network);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+        ("2866154671453100000000", "2866154732694200000000", 469, 6)
+    );
+    let row = row_of(&rows, &pricer);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+        ("3761012920399978752", "3761524477299978752", 470, 6)
+    );
+}
+
+#[test]
+fn captured_arbitrum_failed_transaction_pays_its_tip_and_fee_transfers() {
+    let b = captured_arbitrum_failed_fee_tip();
+    assert_eq!(b.transaction_traces[1].status.as_known(), Some(eth::TransactionTraceStatus::Reverted));
+    let rows = changes(&b).unwrap();
+    let expected = [
+        (INFRA_FEE, "2717795606989368354", "2717795707110810994", 2),
+        (NETWORK_FEE, "4338170651860007000", "4338174776900007000", 3),
+        (L1_PRICER, "3514566862128762270", "3514566930530355470", 3),
+    ];
+    for (account, old, new, records) in expected {
+        let row = row_of(&rows, &hex::decode(account).unwrap());
+        assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.records), (old, new, records));
+    }
+    // The tip counts towards the fee: without it the transfers revert.
+    let mut b = captured_arbitrum_failed_fee_tip();
+    let tip = &mut b.transaction_traces[1].calls[0].balance_changes[2];
+    assert_eq!(tip.reason.as_known(), Some(eth::balance_change::Reason::RewardTransactionFee));
+    tip.new_value = wei(2_717_795_707_110_810_995).into();
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+}
+
+#[test]
+fn the_failed_fee_transfer_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Transaction 4: GAS_BUY, GAS_REFUND, then the two fee transfers.
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[1].calls[0]
+    }
+    let payer = hex::decode("9e7a59b3124a482e9f046c00910d22d62c21b272").unwrap();
+    assert_eq!(captured_arbitrum_failed_fee().transaction_traces[1].calls[0].balance_changes[0].address, payer);
+    // Only credits adding up to the gas paid.
+    let mut b = captured_arbitrum_failed_fee();
+    root(&mut b).balance_changes[2].new_value = wei(2_866_154_704_846_300_000_001).into();
+    assert!(fails(&b));
+    // Only after the execution.
+    let mut b = captured_arbitrum_failed_fee();
+    root(&mut b).end_ordinal = 300;
+    assert!(fails(&b));
+    // Only credits of other accounts than the payer.
+    let mut b = captured_arbitrum_failed_fee();
+    root(&mut b).balance_changes[3].address = payer.clone();
+    assert!(fails(&b));
+    // Only TRANSFER and REWARD_TRANSACTION_FEE credits after the execution.
+    let mut b = captured_arbitrum_failed_fee();
+    root(&mut b).balance_changes[3].reason = eth::balance_change::Reason::Burn.into();
+    assert!(fails(&b));
+    // Only one GAS_BUY.
+    let mut b = captured_arbitrum_failed_fee();
+    let buy = eth::BalanceChange {
+        address: payer.clone(),
+        reason: eth::balance_change::Reason::GasBuy.into(),
+        ..change(0, 282, Some(128_197_911_827_510_000), Some(128_197_911_827_510_000))
+    };
+    root(&mut b).balance_changes.insert(1, buy);
+    assert!(fails(&b));
+    // Only the payer's refund.
+    let mut b = captured_arbitrum_failed_fee();
+    root(&mut b).balance_changes[1].address = hex::decode(SENDER).unwrap();
+    assert!(fails(&b));
+}
+
+/// Polygon block 70,000,124 (`Block.ver` 3) as captured from Firehose:
+/// transactions 0 and 1 whole. Each creates an account with value in its
+/// CREATE root call, whose constructor self-destructs it to `0x91cea390…`.
+fn captured_polygon_selfdestruct_created() -> eth::Block {
+    captured_block(&serde_json::from_str(POLYGON_SELFDESTRUCT_CREATED).unwrap())
+}
+const POLYGON_DESTROYED: &str = "3e58cebde7b4ea3e70966846d246984fcb3e56aa";
+
+#[test]
+fn captured_polygon_selfdestruct_of_a_created_account_debits_it() {
+    let b = captured_polygon_selfdestruct_created();
+    // The producer records no SUICIDE_WITHDRAW.
+    let reasons = b.transaction_traces.iter().flat_map(|t| &t.calls).flat_map(|c| &c.balance_changes);
+    assert!(!reasons
+        .into_iter()
+        .any(|c| c.reason.as_known() == Some(eth::balance_change::Reason::SuicideWithdraw)));
+    let rows = changes(&b).unwrap();
+    for (account, ordinal) in [(POLYGON_DESTROYED, 15), ("a136fffaf93f3fbdeab7f856537af8fa08fbb76c", 37)] {
+        let row = row_of(&rows, &hex::decode(account).unwrap());
+        assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records), ("0", "0", ordinal, 2));
+    }
+    let row = row_of(&rows, &hex::decode("91cea3906add2da84b99970a068598d08a7ad81f").unwrap());
+    assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.records), ("0", "252860035266903168", 2));
+}
+
+/// Ethereum block 19,500,178 (`Block.ver` 3) as captured from Firehose:
+/// transaction 2 (`0xa7aa96be…`) whole. Its CREATE root call creates
+/// `0x727f6fc6…` with 0.001 ETH; the account receives value during the
+/// execution and self-destructs to the sender in that root call.
+#[test]
+fn captured_ver3_selfdestruct_in_a_creation_root_call_debits_the_account() {
+    let b = captured_block(&serde_json::from_str(SELFDESTRUCT_CREATED_ROOT).unwrap());
+    let created = hex::decode("727f6fc68ee3f91aa1119ce86ca6662e80230fb4").unwrap();
+    let root = &b.transaction_traces[0].calls[0];
+    assert!(root.suicide && root.call_type.as_known() == Some(eth::CallType::CREATE) && root.address == created);
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &created);
+    assert_eq!((row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records), ("0", "0", 1211, 9));
+}
+
+#[test]
+fn the_selfdestruct_debit_with_other_records_is_exact() {
+    fn destroyed(b: &eth::Block) -> String {
+        row_of(&changes(b).unwrap(), &hex::decode(POLYGON_DESTROYED).unwrap()).amount.clone()
+    }
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn record(address: &str, ordinal: u64, old: u64, new: u64, reason: eth::balance_change::Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    const D: u64 = 106_671_293_064_353_727;
+    // Without the self-destruct, the account keeps the balance it was created with.
+    let mut b = captured_polygon_selfdestruct_created();
+    root(&mut b).suicide = false;
+    assert_eq!(destroyed(&b), D.to_string());
+    // When the producer records the debit, it is used, not doubled.
+    let mut b = captured_polygon_selfdestruct_created();
+    let withdraw = record(POLYGON_DESTROYED, 14, D, 0, eth::balance_change::Reason::SuicideWithdraw);
+    root(&mut b).balance_changes.insert(3, withdraw);
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &hex::decode(POLYGON_DESTROYED).unwrap());
+    assert_eq!((row.amount.as_str(), row.records), ("0", 2));
+    // Not with a later record of the destroyed account in the call.
+    let mut b = captured_polygon_selfdestruct_created();
+    let later = record(POLYGON_DESTROYED, 16, D, D + 1, eth::balance_change::Reason::Transfer);
+    root(&mut b).balance_changes.insert(4, later);
+    assert_eq!(destroyed(&b), (D + 1).to_string());
+    // Not with a second SUICIDE_REFUND in the call.
+    let mut b = captured_polygon_selfdestruct_created();
+    let refund = record(SENDER, 16, 0, 1, eth::balance_change::Reason::SuicideRefund);
+    root(&mut b).balance_changes.insert(4, refund);
+    assert_eq!(destroyed(&b), D.to_string());
 }
 
 #[test]

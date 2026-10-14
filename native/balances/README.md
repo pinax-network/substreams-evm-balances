@@ -74,7 +74,7 @@ incomplete instead of guessing:
 | Two records of one account with the same ordinal | `ambiguous native balance execution order` |
 | A record's old value differs from the account's previous new value, apart from the five producer shapes below (the self-transfer pair, the fee pool payout, the self-destruct debit, the self-destruct to itself and the self-destruct of an account created in the transaction) | `discontinuous native balance changes within block` |
 
-**Self-transfer pair (v0.2.2).** A value transfer from an account to itself,
+**Self-transfer pair (v0.2.2, v0.7.8).** A value transfer from an account to itself,
 a CALLCODE with value or a CALL whose caller is its address, does not move the
 balance, and geth records nothing for it. The BSC producer records it as two
 `TRANSFER` records of that account at consecutive ordinals of the call, both
@@ -87,6 +87,15 @@ type, value or ordinal gap, still fails the block. v0.2.1 refused BSC block
 127,411,449 on it (transaction `0x5c664637…`, account `0x1a84c890…`, a
 CALLCODE of 0.08 BNB); the captured transaction is the regression fixture
 [`tests/fixtures/bsc-127411449-callcode-self-transfer.json`](tests/fixtures/bsc-127411449-callcode-self-transfer.json).
+The HyperEVM producer records a self-transfer as four `TRANSFER` records:
+first two at consecutive ordinals that both end at the balance `b`,
+`b + v -> b` and `b - v -> b`, then the actual debit and credit
+`b -> b - v -> b`. Since v0.7.8 native also drops that first pair (either
+order), and the account's other records must chain across it. Native v0.7.7
+refused HyperEVM block 44,000,001 on it in the 2026-10-14 spot check
+(transaction `0xbda5325e…`, a CALL of `0x20f6ee51…` to itself with 0.00006
+HYPE); the transaction is the fixture
+[`tests/fixtures/hyperevm-44000001-self-transfer.json`](tests/fixtures/hyperevm-44000001-self-transfer.json).
 
 **Fee pool payout (v0.7.0).** BSC collects a block's transaction fees in its
 fee pool, `consensus.SystemAddress` `0xff…fe`, and pays them out at the end of
@@ -134,6 +143,34 @@ by the Ethereum full-history noop on 2026-10-14 (transaction `0x16bb56d4…`, a
 DELEGATECALL self-destruct of `0x0000000000bb3d7b…` that sends 0.81 ETH to
 `0x475f8f47…`). The transaction is the fixture
 [`tests/fixtures/eth-20249174-selfdestruct-6780.json`](tests/fixtures/eth-20249174-selfdestruct-6780.json).
+
+**Self-destruct debit in a call with other records (v0.7.8).** The
+self-destructing call may also hold other records, for example the gas
+records and the value credit of a contract-creation transaction's root call,
+when it holds exactly one `SUICIDE_REFUND`, a positive credit of another
+account, no `SUICIDE_WITHDRAW` and no record of the destroyed account after
+the credit, and the transaction has no `SUICIDE_WITHDRAW` of the destroyed
+account. A producer that records the debit in another shape breaks the
+continuity check instead. Polygon's producer of `Block.ver` 3 (to block
+73,440,255; `Block.ver` 4 from 73,440,256 records the withdraw) records no
+`SUICIDE_WITHDRAW` at all, and the Ethereum producer of `Block.ver` 3 none
+after Cancun for an account created in the transaction either. An account
+created and self-destructed in one transaction then kept, in v0.7.7's
+output, the balance it was created with: a wrong balance, not a refused
+block, since nothing after it breaks continuity, so the full-history noops
+passed. Same-block `eth_getBalance` spot checks found it on 2026-10-14:
+Polygon block 70,000,124 (transactions `0x4b2ad563…` and `0xf83e56fd…`, whose
+CREATE root calls credit `0x3e58cebd…` and `0xa136fffa…` and self-destruct
+them to `0x91cea390…`;
+[fixture](tests/fixtures/polygon-70000124-selfdestruct-created.json)) and
+Ethereum block 19,500,178 (transaction `0xa7aa96be…`, whose CREATE root call
+creates `0x727f6fc6…` with 0.001 ETH, credits it six more times and
+self-destructs it to the sender;
+[fixture](tests/fixtures/eth-19500178-selfdestruct-created-root.json)). A
+scan of sample ranges found 23 such transactions in 2,000 Polygon blocks from
+56,000,000, 12 from 62,000,000 and 1 in 1,000 Ethereum blocks from
+19,500,000. Ethereum before Cancun, Ethereum's `Block.ver` 5 producer and
+BSC's producers record the withdraw.
 
 **Self-destruct to itself (v0.7.5).** Since Cancun, an account not created
 in the same transaction that self-destructs to itself keeps its balance:
@@ -237,6 +274,38 @@ balance. The fixture is
 [`tests/fixtures/bsc-42357369-failed-blob-fee.json`](tests/fixtures/bsc-42357369-failed-blob-fee.json)
 (the failed transaction and every later one, and every block-level record).
 
+**Failed transactions' base fee (v0.7.8).** Polygon's Bor client does not
+burn a transaction's base fee: it credits `gas_used * base_fee` to its burn
+contract `0x3ef57def…` with a `BURN` record in the root call, after the gas
+refund and before the fee credit, and does so for a failed transaction too.
+Native persists such a `BURN` of a failed transaction's root call when it
+moves exactly `gas_used * base_fee` (base fee positive); any other `BURN`
+there still reverts. Native v0.7.7 refused Polygon block 95,537,024 on it
+(reverted transactions `0xad18a4f2…` and `0x20b9dd82…`); the fixture is
+[`tests/fixtures/polygon-95537024-failed-base-fee.json`](tests/fixtures/polygon-95537024-failed-base-fee.json)
+(transactions 3, 4 and 5).
+
+**Failed transactions' fee transfers (v0.7.8).** Arbitrum's ArbOS pays a
+transaction's fee after the execution, in the root call: after the sender's
+`GAS_REFUND`, `TRANSFER` credits to the network fee account `0xbf5041fc…`,
+the L1 pricer pool `0xa4b0…00f6` and, in later blocks, the infrastructure fee
+account `0x32e7af5a…`, which may also take the tip as a
+`REWARD_TRANSACTION_FEE`. These credits add up to the gas the sender paid,
+its `GAS_BUY` debit less its `GAS_REFUND` credit, and ArbOS pays them for a
+failed transaction too. Native persists those `TRANSFER` records of a failed
+transaction's root call after the execution (ordinal past the call's end)
+when the call holds exactly one `GAS_BUY` and at most one `GAS_REFUND` of
+the same payer, and every other record after the execution is a positive
+`TRANSFER` or `REWARD_TRANSACTION_FEE` credit of another account, at least
+one a `TRANSFER`, adding up to the gas paid. Any other shape still reverts.
+Native v0.7.7 refused every Arbitrum One window of the 2026-10-14 spot
+check (blocks 150,000,072, 300,000,000, 450,000,000 and 514,857,274); the
+fixtures are
+[`tests/fixtures/arbitrum-150000072-failed-fee-transfers.json`](tests/fixtures/arbitrum-150000072-failed-fee-transfers.json)
+(transactions 3 to 8, four of them reverted) and
+[`tests/fixtures/arbitrum-514857274-failed-fee-tip.json`](tests/fixtures/arbitrum-514857274-failed-fee-tip.json)
+(transactions 8, 9 and 10, with the tip).
+
 The failed-transaction reason guard exists because OP-stack deposit mints
 (`INCREASE_MINT`, 18), reverts (`REVERT`, 19) and a blob fee outside a blob
 transaction have no saved fixture inside a failed transaction. Silently
@@ -302,7 +371,9 @@ v0.7.5 keeps the balance of an account that self-destructs to itself.
 v0.7.6 carries a self-destruct credit from an account created in the
 transaction into the beneficiary's later records in it, and v0.7.7 adds the
 sum of such credits to the beneficiary's records after the execution only.
-None is live-qualified.
+v0.7.8 restores a self-destruct debit in a call with other records, drops
+HyperEVM's self-transfer pair and persists a failed transaction's base-fee
+`BURN` (Polygon) and fee transfers (Arbitrum). None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
@@ -387,7 +458,9 @@ applies to the removed prototype package, not to this one.
 substreams-evm schema into this package's database; the sink, the Token API
 live sink, the cutover and the examples in
 [`clickhouse/examples/`](clickhouse/examples/) are in
-[`docs/clickhouse.md`](../../docs/clickhouse.md). The earlier CLI native-sink
+[`docs/clickhouse.md`](../../docs/clickhouse.md). Since v0.7.8 the history
+keeps only the 1h, 4h, 1d and 1w bars the Token API serves (owner,
+2026-10-14). The earlier CLI native-sink
 path (bridge view, `Balance` TTL, checks of 2026-10-03) is at
 [`cb62110`](https://github.com/pinax-network/substreams-evm-balances/tree/cb6211007f1f9d0cb5852a6b666da475a8fa6542/native/balances/clickhouse).
 

@@ -1,6 +1,6 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-13, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-14, for whoever picks it up next. Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -23,7 +23,10 @@ deployment and the reasons. Full-history noops of both packages run on BSC
 and Ethereum. Since 2026-10-14 (owner) backfills write the ranges whose noops
 passed, from genesis: `bsc:evm-balances-native@v0.7.5`,
 `bsc:evm-balances-erc20@v0.7.1` and `mainnet:evm-balances-erc20@v0.7.0`. No
-live sink runs yet.
+live sink runs yet. The owner decided on 2026-10-14 to resync BSC and
+Ethereum into new databases with native v0.7.8 and ERC-20 v0.7.2, whose
+historical views keep only the intervals the Token API serves (1h, 4h, 1d,
+1w), after their noops pass.
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -56,7 +59,13 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   Ethereum block 25,741,008, and v0.7.7 adds the sum of such credits to the
   beneficiary's records after the execution only, on which v0.7.6 refused
   Ethereum block 25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused
-  blocks 25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. Not
+  blocks 25,750,184, 25,869,452 and 25,920,498 in its pre-release noop.
+  v0.7.8 restores a self-destruct debit also in a call with other records
+  (Polygon's and Ethereum's `Block.ver` 3 producers omit it for an account
+  created in the transaction: a wrong balance, not a refusal, so the noops
+  passed; v0.7.7 keeps 0.000386 ETH for `0x727f6fc6…` after Ethereum block
+  19,500,178), drops HyperEVM's self-transfer pair, and persists a failed
+  transaction's base-fee `BURN` (Polygon) and fee transfers (Arbitrum). Not
   qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
@@ -65,8 +74,9 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   No build since then is qualified.
 - **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's.
   v0.7.1 decodes the block with the same 1 GiB element budget as native
-  v0.7.4; the ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. Not
-  qualified. Offline, on five captured BSC intervals scored against every row
+  v0.7.4; the ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003.
+  v0.7.2 drops a contract's rows for the block when a word it chose as a
+  balance reaches 2^128 (packed or computed slots). Not qualified. Offline, on five captured BSC intervals scored against every row
   the RPC reference package emitted for them, it reproduces 58.5–62.8% of
   those rows with 99.92–100% value precision
   ([measured](../erc20/balances/README.md#measured) gives each interval and
@@ -140,6 +150,24 @@ credits chain during the execution, and only the records after it leave out
 their sum. The released v0.7.7 shifts only those records, by exactly the
 gas refund or fee amount the transaction implies, and its pre-release noop
 passes.
+
+## Spot checks (2026-10-14)
+
+Before the release, both packages (native v0.7.8, ERC-20 v0.7.2) streamed
+100 to 300 blocks at the head and at two to five historical heights of each
+supported EVM network, and every emitted balance was compared with
+`eth_getBalance` or `balanceOf` at the same block (`scripts/check-live-balances.ts`).
+Native matched every emitted balance on Ethereum, BSC, Base, Polygon,
+Arbitrum One, Unichain, HyperEVM and Optimism, apart from the zero address
+on HyperEVM (an RPC history anomaly around block 30,000,000) and on Optimism
+(block 110,000,181, unexplained;
+[matrix](../native/balances/docs/persisted-effects.md#chain--producer--fork-matrix)).
+Native v0.7.7 had refused every Arbitrum One window and HyperEVM block
+44,000,001 and kept wrong balances on Polygon and Ethereum, which v0.7.8
+fixes. ERC-20 differs on a few computed-balance tokens per window (BSC, Base,
+Ethereum head). Avalanche's endpoint serves no Extended blocks, so neither
+package runs there. The checks cover the emitted rows of those windows only;
+the pull request has the windows and counts.
 
 ## Next steps (owner)
 

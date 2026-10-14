@@ -210,8 +210,9 @@ Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
 same rows on every block v0.7.0 decodes. v0.7.2 drops a contract's rows for
-the block when a chosen word reaches 2^128, and otherwise gives v0.7.1's rows.
-Until
+the block when a chosen word reaches 2^128, and otherwise gives v0.7.1's rows;
+its ClickHouse history keeps only the 1h, 4h, 1d and 1w bars the Token API
+serves (owner, 2026-10-14). Until
 then it was `erc20_balances`: `spkg/erc20-balances-v0.4.0.spkg` (package
 version v0.4.0; versions skip v0.3.x, so no build can overwrite the v0.3.4 RPC
 reference). No Buf

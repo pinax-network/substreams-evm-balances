@@ -197,10 +197,12 @@ fn manifest_wires_db_out_and_the_schema() {
     assert!(MANIFEST.contains("\nnetwork: bsc\n"));
 }
 
-/// The SQL is upstream's: three files byte for byte, and the ERC-20 half of
+/// The SQL is upstream's: two files byte for byte, the ERC-20 half of
 /// `schema.1.table.balances.sql` (its lines 1-27), which the native half in
-/// native/balances follows after one blank line. `make schema` concatenates
-/// them into the embedded schema.
+/// native/balances follows after one blank line, and the historical view with
+/// only the 1h, 4h, 1d and 1w intervals the Token API serves (owner,
+/// 2026-10-14; upstream also writes 1m, 5m, 10m and 30m). `make schema`
+/// concatenates them into the embedded schema.
 #[test]
 fn schema_is_the_erc20_half_of_upstreams_v0_3_4_schema() {
     const FILES: [(&str, &str); 4] = [
@@ -211,7 +213,7 @@ fn schema_is_the_erc20_half_of_upstreams_v0_3_4_schema() {
         ),
         (
             "schema.2.mv.historical-erc20-balances.sql",
-            "c8b27e65dd50fc255fb9fbf9703c7370f23ef4028de6018f59a3258631982b78",
+            "c428e9035c47ee6da8bc7114c9ad1a5532a20e89ce90dbbcc873355f6310bb84",
         ),
         (
             "schema.3.view.historical-erc20-balances.sql",
@@ -236,5 +238,5 @@ fn schema_is_the_erc20_half_of_upstreams_v0_3_4_schema() {
         schema.extend_from_slice(&sql);
         schema.push(b'\n');
     }
-    assert_eq!(hex(&schema), "ad4924062341e06387c0385367fcbba62a98bdfea3c95a1485285ade57a688f1");
+    assert_eq!(hex(&schema), "5ede93d93f52201dd65dc538765b61b69ea278b14b346f311eb26cffdfc80ed6");
 }

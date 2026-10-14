@@ -78,8 +78,11 @@ never prints them.
   every field also carries `update_op = UPDATE_OP_SET`; upstream's 3.0.0 has no
   such field, and the SQL sink reads only a CREATE field's name and value. Each
   package's `clickhouse/schema.*.sql` are upstream's files byte for byte,
-  except its half of `schema.1.table.balances.sql` (the two halves rejoin it);
-  its manifest's `sink:` section embeds their concatenation. Each package keeps
+  except its half of `schema.1.table.balances.sql` (the two halves rejoin it)
+  and its historical view, which keeps only the 1h, 4h, 1d and 1w intervals
+  the Token API serves (owner, 2026-10-14: schema changes that stay backward
+  compatible for the Token API may ship in v0.7.x); its manifest's `sink:`
+  section embeds their concatenation. Each package keeps
   its own copy of the row helpers. A `db_out` adds no store, params or RPC. Do
   not add other `db_out` or database-change modules, or custom sinks. The map
   outputs remain the contract for external native sinks; local sink state
@@ -93,11 +96,17 @@ never prints them.
   balance continuity checks. Its only continuity exceptions are recognized
   producer shapes with a captured fixture: the self-transfer pair (v0.2.2),
   the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1), the Ethereum
-  EIP-6780 self-destruct debit (v0.7.3), self-destruct to itself
-  (v0.7.5) and self-destruct credit of an account created in the
-  transaction (v0.7.6, v0.7.7). v0.7.2 also persists
-  a failed blob transaction's blob fee, which the shared rules drop (BNB
-  Chain pays it whatever the outcome; captured fixture). Since v0.7.0 block 0
+  EIP-6780 self-destruct debit (v0.7.3; since v0.7.8 also in a call with
+  other records, for Polygon's and Ethereum's `Block.ver` 3 producers),
+  self-destruct to itself (v0.7.5) and self-destruct credit of an account
+  created in the transaction (v0.7.6, v0.7.7). Failed transactions also
+  persist, beyond the shared rules' three gas reasons and each with a
+  captured fixture: a blob transaction's blob fee (v0.7.2, BNB Chain), a
+  `BURN` of exactly `gas_used * base_fee` (v0.7.8, Polygon) and the
+  `TRANSFER` fee credits after the execution that add up to the gas paid
+  (v0.7.8, Arbitrum), which those chains pay whatever the outcome. A
+  self-destruct debit that a producer omits does not break continuity, so
+  noops cannot find it: same-block RPC spot checks did. Since v0.7.0 block 0
   emits the genesis allocations when every balance record in it is a
   `GENESIS_BALANCE` from zero. Accepting a block is not network qualification; network-specific
   persistence work remains separate. Both packages default to `network: bsc`

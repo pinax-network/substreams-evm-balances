@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS historical_native_balances_state (
     -- block --
     timestamp            DateTime(0, 'UTC') COMMENT 'the start of the aggregate window',
-    interval_min         UInt16 DEFAULT 1 COMMENT 'bar interval in minutes (1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w)',
+    interval_min         UInt16 DEFAULT 60 COMMENT 'bar interval in minutes (1h, 4h, 1d, 1w)',
     min_block_num        SimpleAggregateFunction(min, UInt32) COMMENT 'the minimum block number in the aggregate window',
     max_block_num        SimpleAggregateFunction(max, UInt32) COMMENT 'the maximum block number in the aggregate window',
 
@@ -24,8 +24,8 @@ TO historical_native_balances_state
 AS
 WITH
     -- predefined intervals --
-    -- in minutes: 1m, 5m, 10m, 30m, 1h, 4h, 1d, 1w
-    [1, 5, 10, 30, 60, 240, 1440, 10080] AS intervals
+    -- in minutes: 1h, 4h, 1d, 1w, the intervals the Token API serves
+    [60, 240, 1440, 10080] AS intervals
 
 SELECT
     arrayJoin(intervals) AS interval_min,

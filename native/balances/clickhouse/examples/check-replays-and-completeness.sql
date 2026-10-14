@@ -19,10 +19,12 @@
 --       native_rows UInt64
 --   ) ENGINE = MergeTree ORDER BY block_num;
 --
--- Only 1-minute windows that the range covers entirely are compared: a window
+-- Only 1-hour windows that the range covers entirely are compared: a window
 -- must start after the first listed block's timestamp and end at or before the
 -- last listed block's timestamp. Blocks share timestamps (several per second on
--- BSC), so this is the strict reading.
+-- BSC), so this is the strict reading. The historical view keeps no window
+-- shorter than an hour, so sample more than two hours of blocks (about 16,000
+-- on BSC) to cover one.
 --
 -- The last statement throws when any step found something, so a scheduled run
 -- exits non-zero. Each finding is listed above it.
@@ -48,7 +50,7 @@ GROUP BY block_num
 HAVING copies > 1
 ORDER BY block_num;
 
--- 2. `transactions` per 1-minute window against the expected rows. Each row
+-- 2. `transactions` per 1-hour window against the expected rows. Each row
 --    inserted into native_balances adds 1 to its window, so for a covered
 --    window the stored sum equals the emitted rows exactly when every row was
 --    stored once. Excess (stored - expected > 0) means replayed rows; a deficit
@@ -72,14 +74,14 @@ FROM
            sum(x_native) AS expected_native, sum(s_native) AS stored_native
     FROM
     (
-        SELECT toDateTime(intDiv(toUInt32(timestamp), 60) * 60, 'UTC') AS window,
+        SELECT toDateTime(intDiv(toUInt32(timestamp), 3600) * 3600, 'UTC') AS window,
                native_rows AS x_native, toUInt64(0) AS s_native
         FROM check.expected_rows
         UNION ALL
         SELECT timestamp, 0, transactions
-        FROM extended.historical_native_balances_state WHERE interval_min = 1
+        FROM extended.historical_native_balances_state WHERE interval_min = 60
     )
-    WHERE window > first_ts AND window + 60 <= last_ts
+    WHERE window > first_ts AND window + 3600 <= last_ts
     GROUP BY window
 );
 
@@ -95,14 +97,14 @@ FROM
            sum(x_native) AS expected_native, sum(s_native) AS stored_native
     FROM
     (
-        SELECT toDateTime(intDiv(toUInt32(timestamp), 60) * 60, 'UTC') AS window,
+        SELECT toDateTime(intDiv(toUInt32(timestamp), 3600) * 3600, 'UTC') AS window,
                native_rows AS x_native, toUInt64(0) AS s_native
         FROM check.expected_rows
         UNION ALL
         SELECT timestamp, 0, transactions
-        FROM extended.historical_native_balances_state WHERE interval_min = 1
+        FROM extended.historical_native_balances_state WHERE interval_min = 60
     )
-    WHERE window > first_ts AND window + 60 <= last_ts
+    WHERE window > first_ts AND window + 3600 <= last_ts
     GROUP BY window
 )
 WHERE stored_native != expected_native
@@ -138,14 +140,14 @@ SELECT throwIf(
                    sum(x_native) AS expected_native, sum(s_native) AS stored_native
             FROM
             (
-                SELECT toDateTime(intDiv(toUInt32(timestamp), 60) * 60, 'UTC') AS window,
+                SELECT toDateTime(intDiv(toUInt32(timestamp), 3600) * 3600, 'UTC') AS window,
                        native_rows AS x_native, toUInt64(0) AS s_native
                 FROM check.expected_rows
                 UNION ALL
                 SELECT timestamp, 0, transactions
-                FROM extended.historical_native_balances_state WHERE interval_min = 1
+                FROM extended.historical_native_balances_state WHERE interval_min = 60
             )
-            WHERE window > first_ts AND window + 60 <= last_ts
+            WHERE window > first_ts AND window + 3600 <= last_ts
             GROUP BY window
         )
         WHERE stored_native != expected_native) > 0

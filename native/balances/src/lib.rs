@@ -142,7 +142,9 @@ fn validate_genesis(block: &eth::Block) -> Result<(), Error> {
 
 /// Balance-change reasons whose behavior inside a failed or reverted
 /// transaction is pinned: the three gas reasons persist (shared rules), as
-/// does a blob transaction's blob fee ([`failed_blob_fees`]), and the
+/// do a blob transaction's blob fee ([`failed_blob_fees`]), a base-fee
+/// `BURN` credit ([`failed_base_fee_burns`]) and the `TRANSFER` credits that
+/// pay the fee after the execution ([`failed_fee_transfers`]), and the
 /// reasons listed here revert with the execution frame. Any other reason in a failed
 /// transaction's root call (for example OP-stack deposit mints, a blob fee
 /// outside a blob transaction, or a reason this crate cannot name) has no
@@ -174,13 +176,18 @@ fn validate_failed_transaction_reasons(block: &eth::Block) -> Result<(), Error> 
 /// Every persisted native balance record in the block, with its persistence
 /// scope, retained for package tests and offline inspection: the shared
 /// rules' records in array order, then the blob fees of failed blob
-/// transactions, which BNB Chain pays whatever the outcome.
+/// transactions, which BNB Chain pays whatever the outcome, the base-fee
+/// credits of failed transactions, which Polygon pays whatever the outcome,
+/// and the fee transfers of failed transactions, which Arbitrum pays whatever
+/// the outcome.
 pub fn records(block: &eth::Block) -> Result<Vec<Record>, Error> {
     validate_block(block)?;
     validate_failed_transaction_reasons(block)?;
     let mut collected = Collected::default();
     persist::collect_block(block, &mut collected)?;
     collected.records.extend(failed_blob_fees(block));
+    collected.records.extend(failed_base_fee_burns(block));
+    collected.records.extend(failed_fee_transfers(block));
     Ok(collected.records)
 }
 
@@ -223,6 +230,127 @@ fn failed_blob_fees(block: &eth::Block) -> Vec<Record> {
     fees
 }
 
+/// Polygon's Bor client does not burn a transaction's base fee: it credits
+/// `gas_used * base_fee` to its burn contract with a `BURN` record in the
+/// root call, after the gas refund and before the fee credit, and does so
+/// for a failed transaction too. In block 95,537,024 the reverted
+/// transactions `0xad18a4f2…` (tx 4) and `0x20b9dd82…` (tx 19) credit
+/// `0x3ef57def…` 429,288 and 79,010 gas at the base fee, and the account's
+/// next record starts from the credited balance. The shared rules persist
+/// only the three gas reasons of a failed transaction's root call. Returns the
+/// `BURN` records of failed transactions' root calls that move exactly
+/// `gas_used * base_fee` (base fee positive); any other `BURN` there still
+/// reverts. Like every record, they must chain.
+fn failed_base_fee_burns(block: &eth::Block) -> Vec<Record> {
+    let big = |v: Option<&eth::BigInt>| v.map_or_else(|| BigInt::from(0), |v| BigInt::from_unsigned_bytes_be(&v.bytes));
+    let base_fee = big(block.header.as_option().and_then(|h| h.base_fee_per_gas.as_option()));
+    if base_fee.is_zero() {
+        return Vec::new();
+    }
+    let mut burns = Vec::new();
+    for tx in block.transaction_traces.iter().filter(|tx| persist::is_failed(tx)) {
+        let Some(root) = tx.calls.first() else { continue };
+        let fee = BigInt::from(tx.gas_used) * base_fee.clone();
+        for c in root
+            .balance_changes
+            .iter()
+            .filter(|c| c.reason.as_known() == Some(eth::balance_change::Reason::Burn))
+        {
+            let (old, new) = (
+                c.old_value.as_option().map(|v| v.bytes.clone()),
+                c.new_value.as_option().map(|v| v.bytes.clone()),
+            );
+            let (Ok(old_word), Ok(new_word)) = (value(old.as_deref()), value(new.as_deref())) else {
+                continue;
+            };
+            if BigInt::from_unsigned_bytes_be(&new_word) - BigInt::from_unsigned_bytes_be(&old_word) != fee {
+                continue;
+            }
+            burns.push(Record {
+                address: c.address.clone(),
+                old_value: old,
+                new_value: new,
+                ordinal: c.ordinal,
+                reason: c.reason.to_i32(),
+                scope: persist::Scope::TxFailedPersistent,
+            });
+        }
+    }
+    burns
+}
+
+/// Arbitrum's ArbOS pays a transaction's fee after the execution, in the
+/// root call: after the sender's `GAS_REFUND`, `TRANSFER` credits to its fee
+/// accounts (the network fee account `0xbf5041fc…`, the L1 pricer pool
+/// `0xa4b0…00f6` and, in later blocks, the infrastructure fee account
+/// `0x32e7af5a…`, which may also take the tip as a `REWARD_TRANSACTION_FEE`).
+/// These credits add up to the gas the sender paid, its `GAS_BUY` debit less
+/// its `GAS_REFUND` credit, and ArbOS pays them for a failed transaction too.
+/// In block 150,000,072 the reverted transactions 4 to 7 (`0x4bfa5ca1…` on)
+/// credit both accounts, and their next records, in transaction 8, start
+/// from the credited balances. The shared rules persist only the three gas
+/// reasons of a failed transaction's root call. Returns the `TRANSFER`
+/// records of a failed transaction's root call after its execution (ordinal
+/// past the call's end) when the shape is exact: the call holds exactly one
+/// `GAS_BUY`, a debit `g` of the payer, and at most one `GAS_REFUND`, a
+/// credit `r` of the payer, and every other record after the execution is a
+/// positive `TRANSFER` or `REWARD_TRANSACTION_FEE` credit of another account,
+/// at least one a `TRANSFER`, adding up to `g - r`. Any other shape still
+/// reverts. Like every record, they must chain.
+fn failed_fee_transfers(block: &eth::Block) -> Vec<Record> {
+    use eth::balance_change::Reason;
+    let words = |c: &eth::BalanceChange| -> Option<(BigInt, BigInt)> {
+        let old = value(c.old_value.as_option().map(|v| v.bytes.as_slice())).ok()?;
+        let new = value(c.new_value.as_option().map(|v| v.bytes.as_slice())).ok()?;
+        Some((BigInt::from_unsigned_bytes_be(&old), BigInt::from_unsigned_bytes_be(&new)))
+    };
+    let mut transfers = Vec::new();
+    for tx in block.transaction_traces.iter().filter(|tx| persist::is_failed(tx)) {
+        let Some(root) = tx.calls.first() else { continue };
+        let of = |reason: Reason| root.balance_changes.iter().filter(move |c| c.reason.as_known() == Some(reason));
+        let (buys, refunds): (Vec<_>, Vec<_>) = (of(Reason::GasBuy).collect(), of(Reason::GasRefund).collect());
+        let [buy] = buys.as_slice() else { continue };
+        let Some((old, new)) = words(buy) else { continue };
+        let mut paid = old - new;
+        match refunds.as_slice() {
+            [] => {}
+            [refund] if refund.address == buy.address => {
+                let Some((old, new)) = words(refund) else { continue };
+                paid -= new - old;
+            }
+            _ => continue,
+        }
+        let after: Vec<_> = root
+            .balance_changes
+            .iter()
+            .filter(|c| c.ordinal > root.end_ordinal && c.reason.as_known() != Some(Reason::GasRefund))
+            .collect();
+        let mut credited = BigInt::from(0);
+        let mut exact = after.iter().any(|c| c.reason.as_known() == Some(Reason::Transfer));
+        for c in &after {
+            let fee = matches!(c.reason.as_known(), Some(Reason::Transfer | Reason::RewardTransactionFee));
+            match words(c) {
+                Some((old, new)) if fee && c.address != buy.address && new > old => credited += new - old,
+                _ => exact = false,
+            }
+        }
+        if !exact || credited != paid {
+            continue;
+        }
+        for c in after.into_iter().filter(|c| c.reason.as_known() == Some(Reason::Transfer)) {
+            transfers.push(Record {
+                address: c.address.clone(),
+                old_value: c.old_value.as_option().map(|v| v.bytes.clone()),
+                new_value: c.new_value.as_option().map(|v| v.bytes.clone()),
+                ordinal: c.ordinal,
+                reason: c.reason.to_i32(),
+                scope: persist::Scope::TxFailedPersistent,
+            });
+        }
+    }
+    transfers
+}
+
 /// A value transfer from an account to itself, a CALLCODE with value or a CALL
 /// whose caller is its address, does not move the balance; geth records
 /// nothing for it. The BSC producer records it as two `TRANSFER` records of
@@ -230,8 +358,13 @@ fn failed_blob_fees(block: &eth::Block) -> Vec<Record> {
 /// same prior balance `b`: `b -> b - v` and `b -> b + v`, where `v` is the
 /// call's value (block 127,411,449, transaction `0x5c664637…`). The second
 /// record's old value breaks continuity although the balance never moved.
+/// The HyperEVM producer records it as two `TRANSFER` records at consecutive
+/// ordinals that both end at the balance `b`: `b + v -> b` and `b - v -> b`,
+/// followed by the account's actual debit and credit `b -> b - v -> b`
+/// (block 44,000,001, transaction `0xbda5325e…`, account `0x20f6ee51…`).
 /// Returns those pairs, as `(account, ordinal)`, from non-reverted calls of
-/// succeeded transactions. Only this exact shape is recognized.
+/// succeeded transactions, so the account's other records must chain across
+/// them. Only these exact shapes are recognized.
 fn self_transfer_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
     let mut pairs = HashSet::new();
     let transfer = |c: &&eth::BalanceChange| c.reason.as_known() == Some(eth::balance_change::Reason::Transfer);
@@ -262,15 +395,17 @@ fn self_transfer_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
                     value(second.old_value.as_option().map(|v| v.bytes.as_slice())),
                     value(second.new_value.as_option().map(|v| v.bytes.as_slice())),
                 );
-                let (Ok(old), Ok(first_new), Ok(second_old), Ok(second_new)) = words else {
+                let (Ok(o1), Ok(n1), Ok(o2), Ok(n2)) = words else {
                     continue;
                 };
-                if old != second_old {
-                    continue;
-                }
-                let [b, n1, n2] = [old, first_new, second_new].map(|w| BigInt::from_unsigned_bytes_be(&w));
-                let (debit, credit) = (b.clone() - v.clone(), b + v.clone());
-                if (n1 == debit && n2 == credit) || (n1 == credit && n2 == debit) {
+                let [o1, n1, o2, n2] = [o1, n1, o2, n2].map(|w| BigInt::from_unsigned_bytes_be(&w));
+                // Either both records start from `b` (BSC) or both end at it
+                // (HyperEVM); the other ends are `b - v` and `b + v`.
+                let apart = |b: &BigInt, x: &BigInt, y: &BigInt| {
+                    let (debit, credit) = (b - &v, b + &v);
+                    (*x == debit && *y == credit) || (*x == credit && *y == debit)
+                };
+                if (o1 == o2 && apart(&o1, &n1, &n2)) || (n1 == n2 && apart(&n1, &o1, &o2)) {
                     pairs.insert((call.caller.clone(), first.ordinal));
                     pairs.insert((call.caller.clone(), second.ordinal));
                 }
@@ -366,13 +501,23 @@ fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
 /// `0xeb4fc94a…`), which this shape does not match. Returns the debits
 /// these stand for: the destroyed account from `d` to zero at the credit's
 /// ordinal. The continuity check then verifies `d` against the account's
-/// previous balance. Only this exact shape is recognized: a persisted call
-/// (non-reverted, in a succeeded transaction) that self-destructs, holds
-/// exactly one balance record, a positive `SUICIDE_REFUND` credit of another
-/// account, and no record of the destroyed account. The destroyed account is
-/// the call's execution context: its caller for DELEGATECALL and CALLCODE, its
-/// address otherwise.
+/// previous balance. Polygon's producer of `Block.ver` 3 (to block
+/// 73,440,255) records no `SUICIDE_WITHDRAW` at all: an account created and
+/// self-destructed in one transaction keeps, in its records, the balance it
+/// was created with (block 70,000,124, transaction `0x4b2ad563…`: the CREATE
+/// root call credits `0x3e58cebd…` 0.1067 POL, which its constructor
+/// self-destructs to `0x91cea390…`; the chain reads zero after the block).
+/// Since v0.7.8 the self-destructing call may hold other records, so the
+/// shape is: a persisted call (non-reverted, in a succeeded transaction) that
+/// self-destructs, holds exactly one `SUICIDE_REFUND`, a positive credit of
+/// another account, no `SUICIDE_WITHDRAW` and no record of the destroyed
+/// account after the credit, in a transaction without a `SUICIDE_WITHDRAW`
+/// of the destroyed account. The destroyed account is the call's execution
+/// context: its caller for DELEGATECALL and CALLCODE, its address otherwise.
+/// A producer that records the debit in another shape breaks the continuity
+/// check instead.
 fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
+    use eth::balance_change::Reason;
     let mut debits = Vec::new();
     for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
         for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
@@ -380,10 +525,23 @@ fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
                 Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
                 _ => &call.address,
             };
-            let [credit] = call.balance_changes.as_slice() else {
+            let is = |c: &eth::BalanceChange, reason: Reason| c.reason.as_known() == Some(reason);
+            let refunds: Vec<_> = call.balance_changes.iter().filter(|c| is(c, Reason::SuicideRefund)).collect();
+            let [credit] = refunds.as_slice() else {
                 continue;
             };
-            if credit.reason.as_known() != Some(eth::balance_change::Reason::SuicideRefund) || credit.address == *destroyed {
+            let withdrawn = trx
+                .calls
+                .iter()
+                .flat_map(|c| &c.balance_changes)
+                .any(|c| is(c, Reason::SuicideWithdraw) && c.address == *destroyed);
+            if credit.address == *destroyed
+                || withdrawn
+                || call
+                    .balance_changes
+                    .iter()
+                    .any(|c| is(c, Reason::SuicideWithdraw) || (c.address == *destroyed && c.ordinal > credit.ordinal))
+            {
                 continue;
             }
             let words = (
