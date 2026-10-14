@@ -18,6 +18,12 @@ balance packages with their `db_out`), manifests, SQL, Makefiles, regression
 tests and fixtures. Host-side diagnostic tools, reference models and harnesses were
 removed on 2026-10-03. They remain in git history at `6dade89`, which the
 dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
+The one exception is `scripts/check-live-balances.ts` (owner, 2026-10-14): a
+Bun script with no dependencies that streams a package's `map_events` over
+recent blocks with `substreams run` and compares every emitted balance with
+`balanceOf` or `eth_getBalance` at the same block. Running it is a live step
+(see Evidence). It reads its endpoints and API key from the environment and
+never prints them.
 
 ## Production boundary
 
