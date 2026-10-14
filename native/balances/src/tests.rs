@@ -11,6 +11,7 @@ const SELF_TRANSFER: &str = include_str!("../tests/fixtures/bsc-127411449-callco
 const FEE_POOL_PAYOUTS: &str = include_str!("../tests/fixtures/bsc-fee-pool-payout-ver3.json");
 const GENESIS: &str = include_str!("../tests/fixtures/bsc-0-genesis.json");
 const FAILED_BLOB_FEE: &str = include_str!("../tests/fixtures/bsc-42357369-failed-blob-fee.json");
+const SELFDESTRUCT_6780: &str = include_str!("../tests/fixtures/eth-20249174-selfdestruct-6780.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -587,6 +588,7 @@ fn captured_call(c: &Value) -> eth::Call {
         address: hex::decode(c["address"].as_str().unwrap()).unwrap(),
         value: hex_big(&c["value"]).into(),
         state_reverted: c["state_reverted"].as_bool().unwrap(),
+        suicide: c["suicide"].as_bool().unwrap_or(false),
         balance_changes: c["balance_changes"].as_array().unwrap().iter().map(captured_change).collect(),
         ..Default::default()
     }
@@ -970,4 +972,81 @@ fn captured_failed_blob_transaction_pays_its_blob_fee_to_the_fee_pool() {
     let mut not_blob = b.clone();
     not_blob.transaction_traces[0].r#type = eth::transaction_trace::Type::TrxTypeDynamicFee.into();
     assert!(changes(&not_blob).unwrap_err().to_string().contains("pinned persistence"));
+}
+
+/// Ethereum block 20,249,174 as captured from Firehose: transaction 87
+/// (`0x16bb56d4…`) whole. Its call 23, a DELEGATECALL from `0x0000000000bb3d7b…`,
+/// self-destructs that account after Cancun (EIP-6780).
+fn captured_selfdestruct() -> eth::Block {
+    captured_block(&serde_json::from_str(SELFDESTRUCT_6780).unwrap())
+}
+const DESTROYED: &str = "0000000000bb3d7b871e07631585786819c923f5";
+const BENEFICIARY: &str = "475f8f47efc5e459e7f23b6082fd64a5bb6a215f";
+
+#[test]
+fn captured_eip6780_selfdestruct_debit_is_restored_and_chains() {
+    let b = captured_selfdestruct();
+    let (destroyed, beneficiary) = (hex::decode(DESTROYED).unwrap(), hex::decode(BENEFICIARY).unwrap());
+    // The producer records only the beneficiary's credit of the whole balance.
+    let suicide = b.transaction_traces[0].calls.iter().find(|c| c.suicide).unwrap();
+    assert_eq!((suicide.index, suicide.call_type.as_known()), (23, Some(eth::CallType::DELEGATE)));
+    assert!(!records(&b).unwrap().iter().any(|r| r.address == destroyed && r.ordinal == 9099));
+    let rows = changes(&b).unwrap();
+    // The account chains through the restored debit (0.809968634248451551 ETH
+    // to zero at ordinal 9099) into the next credit, which starts from zero.
+    let row = row_of(&rows, &destroyed);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+        ("0", "200000000000000000", 8956, 9149, 11)
+    );
+    let row = row_of(&rows, &beneficiary);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.records),
+        ("200000000000000000", "9968634248451551", 2)
+    );
+}
+
+#[test]
+fn the_selfdestruct_debit_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    fn suicide(b: &mut eth::Block) -> &mut eth::Call {
+        b.transaction_traces[0].calls.iter_mut().find(|c| c.index == 23).unwrap()
+    }
+    // Only a self-destructing call.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).suicide = false;
+    assert!(fails(&b));
+    // Only the beneficiary's self-destruct credit.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).balance_changes[0].reason = eth::balance_change::Reason::Transfer.into();
+    assert!(fails(&b));
+    // The destroyed account is the DELEGATECALL's caller, not the code address.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).call_type = eth::CallType::CALL.into();
+    assert!(fails(&b));
+    // A credit of another amount does not chain.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).balance_changes[0].new_value = big(1_009_968_634_248_451_550).into();
+    assert!(changes(&b).is_err());
+    // A credit to the destroyed account itself is not a transfer away.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).balance_changes[0].address = hex::decode(DESTROYED).unwrap();
+    assert!(changes(&b).is_err());
+    // A reverted self-destruct moves nothing: its credit does not persist either.
+    let mut b = captured_selfdestruct();
+    suicide(&mut b).state_reverted = true;
+    assert!(fails(&b));
+    // When the producer records the debit itself, it is used, not doubled.
+    let mut b = captured_selfdestruct();
+    let withdraw = eth::BalanceChange {
+        address: hex::decode(DESTROYED).unwrap(),
+        reason: eth::balance_change::Reason::SuicideWithdraw.into(),
+        ..change(0, 9098, Some(809_968_634_248_451_551), Some(0))
+    };
+    suicide(&mut b).balance_changes.insert(0, withdraw);
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &hex::decode(DESTROYED).unwrap());
+    assert_eq!((row.amount.as_str(), row.records), ("200000000000000000", 11));
 }

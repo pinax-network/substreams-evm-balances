@@ -41,7 +41,8 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   as in blocks 958 and 4104), and accepts block 0, where it emits the genesis
   allocations ([README](../native/balances/README.md#genesis-v070)). v0.7.2
   persists a failed blob transaction's blob fee, on which v0.7.0 refused
-  block 42,357,369
+  block 42,357,369, and v0.7.3 restores the Ethereum EIP-6780 self-destruct
+  debit, on which v0.7.2 refused Ethereum block 20,249,174
   ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)). Not
   qualified. The
   last qualified build is historical: the prost build was live-qualified on
@@ -112,10 +113,10 @@ the fee pool; v0.7.2 keeps that record.
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Finish the full-history noops: ERC-20 v0.7.0, and native v0.7.2 from
-   block 0 (v0.7.2 accepts every block v0.7.0 and v0.7.1 accept, with the
-   same rows, plus the payout shape of blocks 958 and 4104 and failed blob
-   transactions). Ethereum runs the same noops from genesis since 2026-10-14
+1. Finish the full-history noops: ERC-20 v0.7.0, and native from block 0
+   (each native version accepts every block the earlier ones accept, with
+   the same rows: v0.7.1 adds the payout shape of blocks 958 and 4104, v0.7.2
+   failed blob transactions, v0.7.3 the EIP-6780 self-destruct debit). Ethereum runs the same noops from genesis since 2026-10-14
    (owner), a faster full-history test of about 26M blocks; its databases
    would be `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.
