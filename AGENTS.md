@@ -89,7 +89,7 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1), the Ethereum
   EIP-6780 self-destruct debit (v0.7.3), self-destruct to itself
   (v0.7.5) and self-destruct credit of an account created in the
-  transaction (v0.7.6). v0.7.2 also persists
+  transaction (v0.7.6, v0.7.7). v0.7.2 also persists
   a failed blob transaction's blob fee, which the shared rules drop (BNB
   Chain pays it whatever the outcome; captured fixture). Since v0.7.0 block 0
   emits the genesis allocations when every balance record in it is a
@@ -154,6 +154,17 @@ deploy it, no hash file (README, Releases). The plain `v<version>` tags and the
 `evm-balances` releases before v0.7.0 belong to the retired combined package. A
 release states that it is not live-qualified unless dated evidence names its
 module hashes.
+
+Before tagging a release, run a pre-release noop (owner, 2026-10-14) of the
+CI-built spkg from the PR's `packages` artifact, whose module hashes are the
+release's: `substreams run <spkg> db_out -e <chain>.substreams.pinax.network:443
+--noop-mode --production-mode --limit-processed-blocks 0 -s <start> -t <stop>`
+(the default limit of 10,000 blocks would stop a longer window). Cover every
+hard fork of each network the package targets, the range where the latest
+refusals appeared, and the latest blocks before the live sink's start block.
+A deterministic refusal ends the run with `error from block <n>`; fix it and
+rerun before tagging. The full-history noops of the released package still
+run before any ClickHouse write.
 
 The workspace is on substreams 0.8.0, substreams-ethereum 0.12.0 and buffa
 0.9.2 (2026-10-05). `proto/src/pb` is generated from `proto/v1` by `buf

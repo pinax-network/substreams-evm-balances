@@ -53,7 +53,11 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   Cancun, on which v0.7.3 refused Ethereum block 19,481,732, and v0.7.6
   carries a self-destruct credit from an account created in the transaction
   into the beneficiary's later records in it, on which v0.7.5 refused
-  Ethereum block 25,741,008. Not qualified. The
+  Ethereum block 25,741,008, and v0.7.7 adds the sum of such credits to the
+  beneficiary's records after the execution only, on which v0.7.6 refused
+  Ethereum block 25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused
+  blocks 25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. Not
+  qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
   it emitted in the stated windows
@@ -126,7 +130,16 @@ Native v0.7.3 then refused Ethereum block 19,481,732, an EIP-6780
 self-destruct to itself whose refund and withdraw v0.7.5 drops. Native v0.7.5
 refused Ethereum block 25,741,008, where an account created in the
 transaction self-destructs to the sender and the sender's gas refund starts
-from the balance before the credit; v0.7.6 adds the credit to it.
+from the balance before the credit; v0.7.6 adds the credit to it. Native
+v0.7.6 refused Ethereum block 25,747,303, the same producer shape in a
+contract-creation transaction's root call. A pre-release noop (owner,
+2026-10-14: a noop-mode run of the CI-built package before the release) of an
+earlier v0.7.7 build, the CI package of `0ac0c20` (module `map_events`
+`1e379e88…`), refused blocks 25,750,184, 25,869,452 and 25,920,498: several
+credits chain during the execution, and only the records after it leave out
+their sum. The released v0.7.7 shifts only those records, by exactly the
+gas refund or fee amount the transaction implies, and its pre-release noop
+passes.
 
 ## Next steps (owner)
 
@@ -142,9 +155,10 @@ package's noop over that range passes (owner, 2026-10-13).
    version decodes; native v0.7.5 drops the self-destruct-to-itself pair,
    which v0.7.4 refuses, or, when it is the account's first record in the
    block, keeps as a wrong zero; native v0.7.6 shifts only records that
-   v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts).
-   BSC continues native v0.7.5, which has refused no BSC block; Ethereum
-   native moves to v0.7.6. Ethereum runs the same noops from genesis since
+   v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts;
+   native v0.7.7 shifts only records after the execution, by the sum of the
+   transaction's credits, and so also changes only blocks v0.7.5 refuses). BSC continues native v0.7.5, which has refused no BSC
+   block; Ethereum native moves to v0.7.7. Ethereum runs the same noops from genesis since
    2026-10-14 (owner), a faster full-history test of about 26M blocks, into
    `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.
@@ -155,8 +169,7 @@ package's noop over that range passes (owner, 2026-10-13).
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
    they replace the v0.6.1 shadow. The Ethereum native backfill into
    `mainnet:evm-balances-native@v0.7.5` stopped when native v0.7.5 refused
-   block 25,741,008; its partial rows are superseded by v0.7.6 and the
-   database is to be dropped (owner).
+   block 25,741,008; the owner dropped that database on 2026-10-14.
 3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),

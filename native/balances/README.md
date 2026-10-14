@@ -152,30 +152,60 @@ a CALL to itself; a block explorer reads 1 wei after the block). The
 transaction is the fixture
 [`tests/fixtures/eth-19481732-selfdestruct-to-self.json`](tests/fixtures/eth-19481732-selfdestruct-to-self.json).
 
-**Self-destruct of an account created in the transaction (v0.7.6).** Since
-Cancun, a self-destruct destroys an account created in the same transaction,
-and its balance `d` moves to the beneficiary. The Ethereum producer of
-`Block.ver` 5 records the account's `SUICIDE_WITHDRAW` from `d` to zero and,
-at the next ordinal, the beneficiary's `SUICIDE_REFUND` from `b` to `b + d`,
-but the beneficiary's later records in that transaction start from `b`, as if
-the credit had not happened. When a persisted call self-destructs an account
-created by a CREATE in the transaction, holds exactly those two records, `d`
-positive, the refund persisted as recorded, and the beneficiary's first later
-record in the transaction starts from `b`, native adds `d` to the old and new
-values of every later record of the beneficiary in the transaction, and the
-continuity check verifies them. Each of those records must move the balance
-by an amount (`TRANSFER`, `GAS_REFUND`, `REWARD_TRANSACTION_FEE` or
-`SUICIDE_REFUND`): a record that sets it, such as the beneficiary's own
-self-destruct withdraw to zero, would keep `d` once shifted, so the block
-fails instead. Several such credits to one beneficiary in a transaction add
-up (not captured). Records after the transaction are not shifted. Native
-v0.7.5 refused Ethereum
-block 25,741,008 on it (transaction `0xd6299894…`: a CREATE at
-`0x1af6cfe5…`, which already holds 0.159 ETH, self-destructs in its
-constructor to the sender `0xc6acbee4…`, whose gas refund starts from the
-balance before the credit; a block explorer reads the credit in the sender's
-balance after the block). The transaction is the fixture
-[`tests/fixtures/eth-25741008-selfdestruct-created-credit.json`](tests/fixtures/eth-25741008-selfdestruct-created-credit.json).
+**Self-destruct of an account created in the transaction (v0.7.6, v0.7.7).**
+Since Cancun, a self-destruct destroys an account created in the same
+transaction, and its balance `d` moves to the beneficiary. The Ethereum
+producer of `Block.ver` 5 records the account's `SUICIDE_WITHDRAW` from `d` to
+zero and, at the next ordinal, the beneficiary's `SUICIDE_REFUND` from `b` to
+`b + d`. The beneficiary's records during the rest of the execution include
+the credit, but its records after the execution (the gas refund, a fee
+credit) leave out every such credit of the transaction, by their sum `c`. The
+balance after the transaction includes them.
+
+Since v0.7.7, a credit counts when a persisted call self-destructs an account
+created by a CREATE in the transaction and holds exactly one
+`SUICIDE_WITHDRAW`, of that account, from `d` to zero, and exactly one
+`SUICIDE_REFUND`, of another account, from `b` to `b + d` at the next ordinal
+during the execution, `d` positive and the refund persisted as recorded; the
+call's other records are not part of the shape. Native then adds `c` to the
+old and new values of each of the beneficiary's records after the execution
+(after the root call's end ordinal, before the transaction's) when the first
+of them starts exactly `c` below the beneficiary's last balance during the
+transaction and each moves the balance by the amount the transaction
+implies: a `GAS_REFUND` by `(gas_limit - gas_used) * gas_price`, a
+`REWARD_TRANSACTION_FEE` by `gas_used * (gas_price - base_fee)`; so only
+records whose old and new values both leave out `c` are shifted. The
+continuity check then verifies them. Records during the execution and after
+the transaction are not shifted; any other shape is not shifted, and fails
+the block only when the continuity check fails (records that already include
+the credits pass). v0.7.6
+added `d` to every later record of the beneficiary in the transaction, for a
+single credit, which the captured blocks below contradict once a transfer or
+another credit follows the first.
+
+Captured, each with a block explorer reading the credits in the beneficiary's
+balance after the block:
+- block 25,741,008 (transaction `0xd6299894…`; native v0.7.5 refused it): a
+  CREATE at `0x1af6cfe5…`, which already holds 0.159 ETH, self-destructs in
+  its constructor to the sender `0xc6acbee4…`, whose gas refund starts from
+  the balance before the credit
+  ([fixture](tests/fixtures/eth-25741008-selfdestruct-created-credit.json));
+- block 25,747,303 (`0x97a06638…`; v0.7.6 refused it): the self-destructing
+  call is the root call of a contract-creation transaction, which also holds
+  the gas and fee records
+  ([fixture](tests/fixtures/eth-25747303-selfdestruct-creation-tx.json));
+- block 25,869,452 (`0x90f5b5c9…`): four credits to the sender, each refund
+  chaining from the previous one, and a gas refund short by their sum
+  ([fixture](tests/fixtures/eth-25869452-selfdestruct-four-credits.json));
+  block 25,750,184 (`0x04812d41…`) has five;
+- block 25,920,498 (`0x06fc62ea…`): the self-destructing CREATE also carries
+  value, and a transfer from the sender during the execution starts from the
+  credited balance
+  ([fixture](tests/fixtures/eth-25920498-selfdestruct-transfer-during-execution.json)).
+
+An earlier v0.7.7 build (the CI package of `0ac0c20`, module `map_events`
+`1e379e88…`) refused blocks 25,750,184, 25,869,452 and 25,920,498 in its
+pre-release noop; the released v0.7.7 accepts them.
 
 ### Genesis (v0.7.0)
 
@@ -270,8 +300,9 @@ debit; v0.7.4 decodes the block with a 1 GiB element budget instead of
 buffa's 32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed.
 v0.7.5 keeps the balance of an account that self-destructs to itself.
 v0.7.6 carries a self-destruct credit from an account created in the
-transaction into the beneficiary's later records in it. None is
-live-qualified.
+transaction into the beneficiary's later records in it, and v0.7.7 adds the
+sum of such credits to the beneficiary's records after the execution only.
+None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 

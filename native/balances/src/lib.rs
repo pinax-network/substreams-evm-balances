@@ -475,45 +475,58 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// same transaction, and its balance `d` moves to the beneficiary. The
 /// Ethereum producer of `Block.ver` 5 records the account's `SUICIDE_WITHDRAW`
 /// from `d` to zero and, at the next ordinal, the beneficiary's
-/// `SUICIDE_REFUND` from `b` to `b + d`, but the beneficiary's later records in
-/// that transaction start from `b`, without the credit. The balance after the
-/// transaction includes it (block 25,741,008, transaction `0xd6299894…`: a
-/// CREATE at an address holding 0.159 ETH self-destructs in its constructor
-/// to the sender `0xc6acbee4…`, whose gas refund starts from the balance
-/// before the credit; an explorer reads the credit in the sender's balance
-/// after the block). Returns the shift `d` of each such later record, by
-/// `(account, ordinal)`: every persisted record of the beneficiary after the
-/// credit and before the transaction ends, when the first of them starts from
-/// `b` and each of them moves the balance by an amount ([`SHIFTABLE`]). A
-/// later record that sets the balance, such as the beneficiary's own
-/// self-destruct withdraw to zero, would keep `d` once shifted, so the block
-/// fails instead. The continuity check then verifies the shifted records.
-/// Without the shift that first record breaks continuity with the persisted
-/// credit, so blocks that native v0.7.5 accepts are unchanged. Only this exact
-/// shape is recognized: a persisted call (non-reverted, in a succeeded
-/// transaction) that self-destructs an account created by a CREATE in the
-/// same transaction and holds exactly those two records, `d` positive, the
-/// refund persisted as recorded. The destroyed account is resolved as in
-/// `selfdestruct_debits`. Several such credits to one beneficiary in a
-/// transaction add up.
-/// The reasons of records that move a balance by an amount, which
-/// `selfdestruct_credit_shifts` may shift.
-const SHIFTABLE: [eth::balance_change::Reason; 4] = [
-    eth::balance_change::Reason::Transfer,
-    eth::balance_change::Reason::GasRefund,
-    eth::balance_change::Reason::RewardTransactionFee,
-    eth::balance_change::Reason::SuicideRefund,
-];
-
+/// `SUICIDE_REFUND` from `b` to `b + d`. The beneficiary's records during the
+/// rest of the execution include the credit, but its records after the
+/// execution, the gas refund and a fee credit, leave out every such credit of
+/// the transaction, by their sum `c`. The balance after the transaction
+/// includes them. Captured: block 25,741,008 (transaction `0xd6299894…`, one
+/// credit), 25,747,303 (`0x97a06638…`, the root call of a contract-creation
+/// transaction), 25,750,184 (`0x04812d41…`, five credits, each refund chaining
+/// from the previous one), 25,869,452 (`0x90f5b5c9…`, four credits) and
+/// 25,920,498 (`0x06fc62ea…`, a transfer during the execution starts from the
+/// credited balance); in each, an explorer reads the credits in the
+/// beneficiary's balance after the block.
+///
+/// Returns the shift `c` of each of the beneficiary's records after the
+/// execution (after the root call's end ordinal, before the transaction's),
+/// when the first of them starts exactly `c` below the beneficiary's last
+/// balance during the transaction and each moves the balance by the amount
+/// the transaction implies: a `GAS_REFUND` by `(gas_limit - gas_used) *
+/// gas_price`, a `REWARD_TRANSACTION_FEE` by `gas_used * (gas_price -
+/// base_fee)`. Only a record whose old and new values both leave out `c`
+/// passes both checks. The continuity check then verifies them. Without the shift that
+/// first record breaks continuity, so the shift changes only blocks native
+/// v0.7.5 refuses. A credit counts only in this exact shape: a persisted call
+/// (non-reverted, in a succeeded transaction) that self-destructs an account
+/// created by a CREATE in the same transaction and holds exactly one
+/// `SUICIDE_WITHDRAW`, of that account, from `d` to zero, and exactly one
+/// `SUICIDE_REFUND`, of another account, from `b` to `b + d` at the next
+/// ordinal and during the execution, `d` positive, the refund persisted as
+/// recorded. The call's other records are not part of the shape. The
+/// destroyed account is resolved as in `selfdestruct_debits`.
 fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap<(Vec<u8>, u64), BigInt> {
     let mut shifts: HashMap<(Vec<u8>, u64), BigInt> = HashMap::new();
     for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        let Some(root) = trx.calls.first().filter(|c| c.depth == 0) else {
+            continue;
+        };
+        let execution_end = root.end_ordinal;
+        // The amounts a gas refund and a fee credit of this transaction move.
+        let big = |v: Option<&eth::BigInt>| v.map_or_else(|| BigInt::from(0), |v| BigInt::from_unsigned_bytes_be(&v.bytes));
+        let gas_price = big(trx.gas_price.as_option());
+        let base_fee = big(block.header.as_option().and_then(|h| h.base_fee_per_gas.as_option()));
+        let gas_refund = BigInt::from(trx.gas_limit.saturating_sub(trx.gas_used)) * gas_price.clone();
+        let fee = BigInt::from(trx.gas_used) * (gas_price - base_fee);
+        let mut credits: BTreeMap<Vec<u8>, BigInt> = BTreeMap::new();
         for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
             let destroyed = match call.call_type.as_known() {
                 Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
                 _ => &call.address,
             };
-            let [withdraw, refund] = call.balance_changes.as_slice() else {
+            let of = |reason| call.balance_changes.iter().filter(move |c| c.reason.as_known() == Some(reason));
+            let withdraws: Vec<_> = of(eth::balance_change::Reason::SuicideWithdraw).collect();
+            let refunds: Vec<_> = of(eth::balance_change::Reason::SuicideRefund).collect();
+            let ([withdraw], [refund]) = (withdraws.as_slice(), refunds.as_slice()) else {
                 continue;
             };
             let created = trx
@@ -523,10 +536,9 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
             if !created
                 || withdraw.address != *destroyed
                 || refund.address == *destroyed
-                || withdraw.reason.as_known() != Some(eth::balance_change::Reason::SuicideWithdraw)
-                || refund.reason.as_known() != Some(eth::balance_change::Reason::SuicideRefund)
                 || withdraw.ordinal == 0
                 || refund.ordinal != withdraw.ordinal + 1
+                || refund.ordinal > execution_end
             {
                 continue;
             }
@@ -549,20 +561,39 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
             if !persisted {
                 continue;
             }
-            // The beneficiary's later persisted records in the transaction.
-            let mut later: Vec<&Record> = records
+            let credit = credits.entry(refund.address.clone()).or_insert_with(|| BigInt::from(0));
+            *credit = credit.clone() + moved;
+        }
+        for (beneficiary, credit) in credits {
+            // The beneficiary's persisted records in the transaction, split at
+            // the end of the execution.
+            let mut mine: Vec<&Record> = records
                 .iter()
-                .filter(|r| r.address == refund.address && r.ordinal > refund.ordinal && r.ordinal < trx.end_ordinal)
+                .filter(|r| r.address == beneficiary && r.ordinal > trx.begin_ordinal && r.ordinal < trx.end_ordinal)
                 .collect();
-            later.sort_by_key(|r| r.ordinal);
-            let starts_without_credit = later.first().is_some_and(|r| value(r.old_value.as_deref()).is_ok_and(|old| old == b));
-            let shiftable = later.iter().all(|r| SHIFTABLE.iter().any(|reason| *reason as i32 == r.reason));
-            if !starts_without_credit || !shiftable {
+            mine.sort_by_key(|r| r.ordinal);
+            let split = mine.partition_point(|r| r.ordinal <= execution_end);
+            let (during, after) = mine.split_at(split);
+            let (Some(last), Some(first)) = (during.last(), after.first()) else {
+                continue;
+            };
+            let (Ok(last_new), Ok(first_old)) = (value(last.new_value.as_deref()), value(first.old_value.as_deref())) else {
+                continue;
+            };
+            let stale = BigInt::from_unsigned_bytes_be(&first_old) + credit.clone() == BigInt::from_unsigned_bytes_be(&last_new);
+            let as_implied = after.iter().all(|r| {
+                let (Ok(old), Ok(new)) = (value(r.old_value.as_deref()), value(r.new_value.as_deref())) else {
+                    return false;
+                };
+                let moved = BigInt::from_unsigned_bytes_be(&new) - BigInt::from_unsigned_bytes_be(&old);
+                (r.reason == eth::balance_change::Reason::GasRefund as i32 && moved == gas_refund)
+                    || (r.reason == eth::balance_change::Reason::RewardTransactionFee as i32 && moved == fee)
+            });
+            if !stale || !as_implied {
                 continue;
             }
-            for r in later {
-                let shift = shifts.entry((r.address.clone(), r.ordinal)).or_insert_with(|| BigInt::from(0));
-                *shift = shift.clone() + moved.clone();
+            for r in after {
+                shifts.insert((r.address.clone(), r.ordinal), credit.clone());
             }
         }
     }
@@ -582,10 +613,10 @@ fn shifted(bytes: Option<&[u8]>, shift: &BigInt) -> Result<Vec<u8>, Error> {
 /// producer shapes are exceptions. The self-transfer pair
 /// (`self_transfer_pairs`) and the EIP-6780 self-destruct to itself
 /// (`selfdestruct_to_self_pairs`) are dropped, so the account's other records
-/// must chain across them. The beneficiary's records that follow an EIP-6780
-/// self-destruct credit from an account created in the transaction
-/// (`selfdestruct_credit_shifts`) are shifted by the credit, so they must
-/// chain from it. The fee pool's system-reward payout (`fee_pool_payouts`) is
+/// must chain across them. The beneficiary's records after the execution of a
+/// transaction with EIP-6780 self-destruct credits from accounts created in it
+/// (`selfdestruct_credit_shifts`) are shifted by the credits' sum, so they
+/// must chain from the balance during the execution. The fee pool's system-reward payout (`fee_pool_payouts`) is
 /// restored from the `n -> n` record the shared rules drop, so the pool must
 /// chain through it. The debit of an account destroyed by an EIP-6780
 /// self-destruct (`selfdestruct_debits`) is restored from its beneficiary's
@@ -597,8 +628,8 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
     records.extend(fee_pool_payouts(block));
     records.extend(selfdestruct_debits(block));
-    // After the restored records, so the first record shifted is the one that
-    // follows the credit in the continuity check.
+    // After the restored records, so the beneficiary's last balance during the
+    // execution is the one the continuity check sees.
     let shifts = selfdestruct_credit_shifts(block, &records);
     for record in records.iter_mut() {
         if let Some(shift) = shifts.get(&(record.address.clone(), record.ordinal)) {
