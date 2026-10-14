@@ -355,20 +355,78 @@ fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
     payouts
 }
 
+/// A self-destruct moves the destroyed account's whole balance to its
+/// beneficiary. Since Cancun (EIP-6780) the Ethereum producer records only the
+/// beneficiary's `SUICIDE_REFUND` credit `d` when the account was not created
+/// in the same transaction: the account's debit to zero is missing, and its
+/// next record starts from zero (block 20,249,174, transaction `0x16bb56d4…`,
+/// a DELEGATECALL self-destruct of `0x0000000000bb3d7b…`). Returns the debits
+/// these stand for: the destroyed account from `d` to zero at the credit's
+/// ordinal. The continuity check then verifies `d` against the account's
+/// previous balance. Only this exact shape is recognized: a persisted call
+/// (non-reverted, in a succeeded transaction) that self-destructs, holds
+/// exactly one balance record, a positive `SUICIDE_REFUND` credit of another
+/// account, and no record of the destroyed account. The destroyed account is
+/// the call's execution context: its caller for DELEGATECALL and CALLCODE, its
+/// address otherwise.
+fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
+    let mut debits = Vec::new();
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
+            let destroyed = match call.call_type.as_known() {
+                Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
+                _ => &call.address,
+            };
+            let [credit] = call.balance_changes.as_slice() else {
+                continue;
+            };
+            if credit.reason.as_known() != Some(eth::balance_change::Reason::SuicideRefund) || credit.address == *destroyed {
+                continue;
+            }
+            let words = (
+                value(credit.old_value.as_option().map(|v| v.bytes.as_slice())),
+                value(credit.new_value.as_option().map(|v| v.bytes.as_slice())),
+            );
+            let (Ok(old), Ok(new)) = words else {
+                continue;
+            };
+            let [old, new] = [old, new].map(|w| BigInt::from_unsigned_bytes_be(&w));
+            if new <= old {
+                continue;
+            }
+            let Ok(moved) = word(&(new - old).to_bytes_be().1) else {
+                continue;
+            };
+            debits.push(Record {
+                address: destroyed.clone(),
+                old_value: Some(moved.to_vec()),
+                new_value: Some([0; 32].to_vec()),
+                ordinal: credit.ordinal,
+                reason: eth::balance_change::Reason::SuicideWithdraw as i32,
+                scope: persist::Scope::Tx,
+            });
+        }
+    }
+    debits
+}
+
 /// Reduce persisted records by execution ordinal into one row per account.
 /// Every record needs a canonical 20-byte account, a positive ordinal, values
 /// that fit `uint256`, a strictly increasing ordinal per account and old/new
-/// continuity. Ambiguous or discontinuous producer data fails the block. Two
+/// continuity. Ambiguous or discontinuous producer data fails the block. Three
 /// producer shapes are exceptions. The self-transfer pair
 /// (`self_transfer_pairs`) is dropped, so the account's other records must
 /// chain across it. The fee pool's system-reward payout (`fee_pool_payouts`)
 /// is restored from the `n -> n` record the shared rules drop, so the pool
-/// must chain through it.
+/// must chain through it. The debit of an account destroyed by an EIP-6780
+/// self-destruct (`selfdestruct_debits`) is restored from its beneficiary's
+/// credit, so the account must chain through it.
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
     let pairs = self_transfer_pairs(block);
     records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
     records.extend(fee_pool_payouts(block));
+    records.extend(selfdestruct_debits(block));
     // Array order is not execution order: block-level records follow the
     // transactions in the message but can precede or follow them by ordinal.
     records.sort_by_key(|r| r.ordinal);

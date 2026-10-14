@@ -114,6 +114,24 @@ fixture
 (blocks 363, 958 and 4104 whole, the others from the pool's last transaction
 fee on).
 
+**Self-destruct debit (v0.7.3).** A self-destruct moves the destroyed
+account's whole balance to its beneficiary. Since Cancun (EIP-6780) the
+account is deleted only when it was created in the same transaction, and for
+the others the Ethereum producer records only the beneficiary's
+`SUICIDE_REFUND` credit `d`: the account's debit to zero is missing, and its
+next record starts from zero. When a persisted call (non-reverted, in a
+succeeded transaction) self-destructs, holds exactly one balance record, a
+positive `SUICIDE_REFUND` credit of another account, and no record of the
+destroyed account, native restores that account's debit `d -> 0` at the
+credit's ordinal, and the continuity check verifies `d` against its previous
+balance. The destroyed account is the call's execution context: its caller
+for DELEGATECALL and CALLCODE, its address otherwise. Any other shape still
+fails the block. Native v0.7.2 refused Ethereum block 20,249,174 on it, found
+by the Ethereum full-history noop on 2026-10-14 (transaction `0x16bb56d4…`, a
+DELEGATECALL self-destruct of `0x0000000000bb3d7b…` that sends 0.81 ETH to
+`0x475f8f47…`). The transaction is the fixture
+[`tests/fixtures/eth-20249174-selfdestruct-6780.json`](tests/fixtures/eth-20249174-selfdestruct-6780.json).
+
 ### Genesis (v0.7.0)
 
 Block 0 carries the chain's genesis allocations. The BSC producer records them
@@ -202,7 +220,8 @@ self-transfer pair exception above; until v0.6.1 the combined `evm-balances`
 package imported it and wrote its rows. v0.7.0 (package `evm_balances_native`)
 adds `db_out`, `NativeEvents`, the fee pool payout and genesis; v0.7.1 accepts
 the payout credit after a skipped ordinal; v0.7.2 persists a failed blob
-transaction's blob fee. None is live-qualified.
+transaction's blob fee; v0.7.3 restores the Ethereum EIP-6780 self-destruct
+debit. None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
