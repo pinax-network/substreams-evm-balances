@@ -44,14 +44,13 @@ package's rows.
   own database, named `<network>:evm-balances-native@<version>` and
   `<network>:evm-balances-erc20@<version>` (owner, 2026-10-13;
   [ClickHouse](clickhouse.md#token-api-live-sinks-bsc) has the BSC sinks).
-  The names extend the `<network>:evm-balances@<version>` that
-  [#117](https://github.com/pinax-network/substreams-evm-balances/issues/117)
-  proposed and the combined package used until v0.6.1, and stay apart from
+  The names extend the `<network>:evm-balances@<version>` that the combined
+  package used until v0.6.1, and stay apart from
   the RPC-era `<network>:evm-balances@v0.3.x`, which holds both packages'
   tables.
 - Before a sink starts or resumes, compare the hash of the first block it will
   process with `eth_getBlockByNumber` on that network's RPC, and do not start
-  on a mismatch (#117). A wrong endpoint writes another chain's balances, and
+  on a mismatch (#8). A wrong endpoint writes another chain's balances, and
   neither the module nor the tables can detect it.
 - `cursors` holds one row per `db_out` module hash, and a sink resumes from
   the row of its own hash. If the database holds only rows of other hashes,
@@ -327,5 +326,5 @@ scope, and never summed into one coverage figure:
 - **Token API:** before the cutover, a `native-balances` database setting per
   network next to `balances`, so that the native routes read the native
   database ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
-- **#117:** the endpoint identity check in
+- **#8:** the endpoint identity check, to add to
   [ClickHouse](clickhouse.md#build-and-deploy).
