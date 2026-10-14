@@ -45,7 +45,9 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   debit, on which v0.7.2 refused Ethereum block 20,249,174
   ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)).
   v0.7.4 decodes the block with a 1 GiB element budget instead of buffa's
-  32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed. Not
+  32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed, and
+  v0.7.5 keeps the balance of an account that self-destructs to itself after
+  Cancun, on which v0.7.3 refused Ethereum block 19,481,732. Not
   qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
@@ -115,19 +117,23 @@ the fee pool; v0.7.2 keeps that record. Native v0.7.2 refused Ethereum block
 v0.7.0 noop failed to decode BSC block 43,772,003 (29.9 MB encoded) under the
 default buffa limits of the SDK's handler macro, which native v0.7.3 shares;
 native v0.7.4 and ERC-20 v0.7.1 decode it with a 1 GiB element budget.
+Native v0.7.3 then refused Ethereum block 19,481,732, an EIP-6780
+self-destruct to itself whose refund and withdraw v0.7.5 drops.
 
 ## Next steps (owner)
 
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Finish the full-history noops: ERC-20 v0.7.1, and native v0.7.4 from
+1. Finish the full-history noops: ERC-20 v0.7.1, and native v0.7.5 from
    block 0 (the native versions up to v0.7.2 each accept every block the
    earlier ones accept, with the same rows: v0.7.1 adds the payout shape of
    blocks 958 and 4104, v0.7.2 failed blob transactions; v0.7.3 adds the
    EIP-6780 self-destruct debit; native v0.7.4 and ERC-20 v0.7.1 change only
    the decode budget, so they give the same rows on every block the previous
-   version decodes). Ethereum runs the same noops from genesis since 2026-10-14
+   version decodes; native v0.7.5 drops the self-destruct-to-itself pair,
+   which v0.7.4 refuses, or, when it is the account's first record in the
+   block, keeps as a wrong zero). Ethereum runs the same noops from genesis since 2026-10-14
    (owner), a faster full-history test of about 26M blocks; its databases
    would be `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.

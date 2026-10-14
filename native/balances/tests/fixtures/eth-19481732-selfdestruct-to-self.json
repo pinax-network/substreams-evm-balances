@@ -1,0 +1,98 @@
+{
+ "source": "Ethereum Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 19481732,
+ "hash": "8c6cf5858267a7e4fdb10a6e271423f4c1b8185aadf296b2530d7dd32178a9ba",
+ "ver": 3,
+ "coinbase": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
+ "contents": "transaction 131 whole: every call with its balance records and self-destruct flag; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 131,
+   "hash": "833a78e6ac9466865d9c8e5311b1820b12d5c0b103466bcdbf8b3db058a849e3",
+   "type": 2,
+   "begin_ordinal": 5145,
+   "end_ordinal": 5162,
+   "status": 1,
+   "from": "b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef",
+   "to": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef",
+     "address": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+     "value": "01",
+     "state_reverted": false,
+     "suicide": false,
+     "balance_changes": [
+      {
+       "address": "b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef",
+       "old_value": "02d0bd87ad628499",
+       "new_value": "02ce1bfbd2ac6975",
+       "ordinal": 5146,
+       "reason": 7
+      },
+      {
+       "address": "b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef",
+       "old_value": "02ce1bfbd2ac6975",
+       "new_value": "02ce1bfbd2ac6974",
+       "ordinal": 5150,
+       "reason": 5
+      },
+      {
+       "address": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+       "old_value": "",
+       "new_value": "01",
+       "ordinal": 5151,
+       "reason": 5
+      },
+      {
+       "address": "b4f1e5db68512f06d378b5e02e7ebbe7d2c705ef",
+       "old_value": "02ce1bfbd2ac6974",
+       "new_value": "02ce2495b667bb71",
+       "ordinal": 5160,
+       "reason": 9
+      },
+      {
+       "address": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
+       "old_value": "cfb307b3eb553a75",
+       "new_value": "cfb30862ce134f82",
+       "ordinal": 5161,
+       "reason": 8
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 1,
+     "caller": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+     "address": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "balance_changes": [
+      {
+       "address": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+       "old_value": "",
+       "new_value": "01",
+       "ordinal": 5155,
+       "reason": 11
+      },
+      {
+       "address": "6550f9a4bd878a384625f62ad5aab1fe7c3412de",
+       "old_value": "01",
+       "new_value": "",
+       "ordinal": 5156,
+       "reason": 13
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

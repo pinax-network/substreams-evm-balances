@@ -132,6 +132,22 @@ DELEGATECALL self-destruct of `0x0000000000bb3d7b…` that sends 0.81 ETH to
 `0x475f8f47…`). The transaction is the fixture
 [`tests/fixtures/eth-20249174-selfdestruct-6780.json`](tests/fixtures/eth-20249174-selfdestruct-6780.json).
 
+**Self-destruct to itself (v0.7.5).** Since Cancun, an account not created
+in the same transaction that self-destructs to itself keeps its balance:
+geth debits it and credits it back. The Ethereum producer records the credit
+as a `SUICIDE_REFUND` from zero to `d`, without the debit, and then a
+`SUICIDE_WITHDRAW` from `d` to zero at the next ordinal, although the account
+keeps `d`. When a persisted call self-destructs and holds exactly those two
+records of the destroyed account (resolved as above), `d` positive, and the
+transaction has no CREATE of that account, native drops both, and the
+account's other records must chain across them. A legacy self-destruct to
+itself, which burns the balance, credits from the prior balance and is kept.
+Native v0.7.4 refused Ethereum block 19,481,732 on it (transaction
+`0x833a78e6…`: `0x6550f9a4…` receives 1 wei and self-destructs to itself in
+a CALL to itself; a block explorer reads 1 wei after the block). The
+transaction is the fixture
+[`tests/fixtures/eth-19481732-selfdestruct-to-self.json`](tests/fixtures/eth-19481732-selfdestruct-to-self.json).
+
 ### Genesis (v0.7.0)
 
 Block 0 carries the chain's genesis allocations. The BSC producer records them
@@ -223,6 +239,7 @@ the payout credit after a skipped ordinal; v0.7.2 persists a failed blob
 transaction's blob fee; v0.7.3 restores the Ethereum EIP-6780 self-destruct
 debit; v0.7.4 decodes the block with a 1 GiB element budget instead of
 buffa's 32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed.
+v0.7.5 keeps the balance of an account that self-destructs to itself.
 None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)

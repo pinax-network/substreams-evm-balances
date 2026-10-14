@@ -410,20 +410,79 @@ fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
     debits
 }
 
+/// Since Cancun (EIP-6780) a self-destruct to itself of an account not created
+/// in the same transaction moves nothing: geth debits the balance `d` and
+/// credits it back, and the account survives. The Ethereum producer records
+/// the credit as a `SUICIDE_REFUND` from zero to `d`, without the debit, and
+/// then a `SUICIDE_WITHDRAW` from `d` to zero at the next ordinal, although
+/// the account keeps `d` (block 19,481,732, transaction `0x833a78e6…`:
+/// `0x6550f9a4…` keeps 1 wei). The refund's zero old value breaks continuity,
+/// and the withdraw would zero the account. Returns that pair, as
+/// `(account, ordinal)`. Only this exact shape is recognized: a persisted call
+/// (non-reverted, in a succeeded transaction) that self-destructs and holds
+/// exactly those two records of the destroyed account, `d` positive, in a
+/// transaction with no CREATE of that account. The destroyed account is
+/// resolved as in `selfdestruct_debits`.
+fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
+    let mut pairs = HashSet::new();
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
+            let destroyed = match call.call_type.as_known() {
+                Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
+                _ => &call.address,
+            };
+            let [refund, withdraw] = call.balance_changes.as_slice() else {
+                continue;
+            };
+            let created = trx
+                .calls
+                .iter()
+                .any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == *destroyed);
+            if created
+                || refund.address != *destroyed
+                || withdraw.address != *destroyed
+                || refund.reason.as_known() != Some(eth::balance_change::Reason::SuicideRefund)
+                || withdraw.reason.as_known() != Some(eth::balance_change::Reason::SuicideWithdraw)
+                || refund.ordinal == 0
+                || withdraw.ordinal != refund.ordinal + 1
+            {
+                continue;
+            }
+            let words = (
+                value(refund.old_value.as_option().map(|v| v.bytes.as_slice())),
+                value(refund.new_value.as_option().map(|v| v.bytes.as_slice())),
+                value(withdraw.old_value.as_option().map(|v| v.bytes.as_slice())),
+                value(withdraw.new_value.as_option().map(|v| v.bytes.as_slice())),
+            );
+            let (Ok(refund_old), Ok(d), Ok(withdraw_old), Ok(withdraw_new)) = words else {
+                continue;
+            };
+            if refund_old != [0; 32] || d == [0; 32] || withdraw_old != d || withdraw_new != [0; 32] {
+                continue;
+            }
+            pairs.insert((destroyed.clone(), refund.ordinal));
+            pairs.insert((destroyed.clone(), withdraw.ordinal));
+        }
+    }
+    pairs
+}
+
 /// Reduce persisted records by execution ordinal into one row per account.
 /// Every record needs a canonical 20-byte account, a positive ordinal, values
 /// that fit `uint256`, a strictly increasing ordinal per account and old/new
-/// continuity. Ambiguous or discontinuous producer data fails the block. Three
+/// continuity. Ambiguous or discontinuous producer data fails the block. Four
 /// producer shapes are exceptions. The self-transfer pair
-/// (`self_transfer_pairs`) is dropped, so the account's other records must
-/// chain across it. The fee pool's system-reward payout (`fee_pool_payouts`)
-/// is restored from the `n -> n` record the shared rules drop, so the pool
-/// must chain through it. The debit of an account destroyed by an EIP-6780
-/// self-destruct (`selfdestruct_debits`) is restored from its beneficiary's
-/// credit, so the account must chain through it.
+/// (`self_transfer_pairs`) and the EIP-6780 self-destruct to itself
+/// (`selfdestruct_to_self_pairs`) are dropped, so the account's other records
+/// must chain across them. The fee pool's system-reward payout
+/// (`fee_pool_payouts`) is restored from the `n -> n` record the shared rules
+/// drop, so the pool must chain through it. The debit of an account destroyed
+/// by an EIP-6780 self-destruct (`selfdestruct_debits`) is restored from its
+/// beneficiary's credit, so the account must chain through it.
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
-    let pairs = self_transfer_pairs(block);
+    let mut pairs = self_transfer_pairs(block);
+    pairs.extend(selfdestruct_to_self_pairs(block));
     records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
     records.extend(fee_pool_payouts(block));
     records.extend(selfdestruct_debits(block));
