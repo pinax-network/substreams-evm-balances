@@ -14,7 +14,7 @@ Native account balances from Firehose **Extended** blocks, written to ClickHouse
 | `blocks` | `block_num` | Every block that wrote a native balance row |
 | `historical_native_balances` | view | Open/high/low/close balance bars at 1h, 4h, 1d and 1w |
 
-Balances are raw `UInt256` amounts in wei. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history by partition](https://github.com/${REPO}/blob/${TAG}/native/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
+Balances are raw `UInt256` amounts in wei. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history](https://github.com/${REPO}/blob/${TAG}/native/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
 
 ## Token API live sink
 

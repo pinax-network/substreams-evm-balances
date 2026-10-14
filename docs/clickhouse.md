@@ -6,7 +6,9 @@ and a `db_out` in one spkg. Each `db_out` writes its half of the ClickHouse
 tables of substreams-evm `evm-balances` v0.3.4 into its own database. The SQL
 is upstream's and each spkg embeds its half, so `substreams-sink-sql setup`
 needs only the package. The tables and the row format equal the RPC-era
-database's, so a new database can take that history by partition copy.
+database's, so a new database can take that history by partition copy (its
+history state, which the RPC-era database also holds at 1m to 30m, by an
+`INSERT ... SELECT` of the 1h, 4h, 1d and 1w bars).
 
 ```
 Clock ─────────────────────┐
@@ -244,11 +246,14 @@ database is cut over on its own.
 1. Stop the RPC-era sink; its cursor gives its last block, `S-1`.
 2. Set up a fresh database and start the package at `S`.
 3. Run the package's `clickhouse/examples/backfill-from-rpc-database.sql`: a
-   DDL check, a boundary check and three partition copies (`blocks`, the
-   balance table and its state table). Either check throws on failure, so a
-   run of the whole file stops before it copies anything. Partition copies do
-   not fire the materialized views, so `transactions` is not double-counted,
-   and `AggregatingMergeTree` merges the windows that span `S`.
+   table check, a boundary check, two partition copies (`blocks` and the
+   balance table) and an `INSERT ... SELECT` of the state table's 1h, 4h, 1d
+   and 1w bars (since native v0.7.8 and ERC-20 v0.7.2 the state keeps no
+   others). Either check throws on failure, so a run of the whole file stops
+   before it copies anything. Neither the partition copies nor the state
+   insert fire the materialized view, which reads the balance table, so
+   `transactions` is not double-counted, and `AggregatingMergeTree` merges the
+   windows that span `S` (tested in clickhouse-local on 2026-10-14).
 
 - **Schema first.** Compare `SHOW CREATE TABLE` in the RPC-era database with
   v0.3.4 (step 0 does). An unmerged v0.3.5 variant on upstream branch

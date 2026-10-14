@@ -14,7 +14,7 @@ ERC-20 balances from Firehose **Extended** blocks, inferred per block from `Tran
 | `blocks` | `block_num` | Every block that wrote an ERC-20 balance row |
 | `historical_erc20_balances` | view | Open/high/low/close balance bars at 1h, 4h, 1d and 1w |
 
-Balances are raw `UInt256` amounts, with no token decimals applied. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history by partition](https://github.com/${REPO}/blob/${TAG}/erc20/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
+Balances are raw `UInt256` amounts, with no token decimals applied. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history](https://github.com/${REPO}/blob/${TAG}/erc20/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
 
 ## Token API live sink
 

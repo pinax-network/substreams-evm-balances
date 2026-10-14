@@ -4,7 +4,8 @@
 -- Preconditions:
 --   * Same server. The schema embedded in this package is byte-identical to
 --     the `blocks` and native tables of the one in
---     evm-clickhouse-balances-v0.3.4; step 0 checks the DDL.
+--     evm-clickhouse-balances-v0.3.4, except that since v0.7.8 its history keeps
+--     only the 1h, 4h, 1d and 1w bars; step 0 checks the tables.
 --   * No block is written by both pipelines: the RPC-era sink stopped with its
 --     cursor at block S-1 and this package's sink started at block S.
 --   * `rpc` stays a separate database. Never copy its `cursors` table, and never
@@ -20,33 +21,48 @@
 -- native_balances would re-run mv_historical_native_balances and add the
 -- copied rows to the OHLC state a second time (`transactions` double-counts).
 -- Copying the state table lets AggregatingMergeTree merge the windows that
--- span block S from both sides.
+-- span block S from both sides. Its 1h, 4h, 1d and 1w bars are copied with
+-- `INSERT ... SELECT`, which does not fire the view either (it reads
+-- native_balances): the RPC-era state also holds 1m to 30m bars, and its table
+-- differs in the interval column's default, so it cannot be attached.
 
 -- Steps 0 and 1 throw on failure, so a run of the whole file (for example
 -- `clickhouse-client --multiquery < this-file`) stops before step 2 copies
 -- anything. A partial copy (blocks attached, a balance table refused) would
 -- otherwise need manual cleanup.
 
--- 0. Check the table structures match. The listing shows any difference; the
---    assertion stops the run on one. A database set up from another schema,
---    such as the unmerged v0.3.5 variant, cannot be attached. Only this
---    package's tables are compared: `rpc` also holds the ERC-20 tables, and
---    each sink creates its own `cursors`.
+-- 0. Check the table structures match: `blocks` and `native_balances` exactly, and
+--    `historical_native_balances_state` by its columns' names and types (the RPC-era
+--    table differs only in the interval column's default and comment, and its
+--    views in the intervals). The listings show any difference; the assertion
+--    stops the run on one. A database set up from another schema, such as the
+--    unmerged v0.3.5 variant, cannot be copied. Only this package's tables are
+--    compared: `rpc` also holds the ERC-20 tables, and each sink creates its
+--    own `cursors`.
 SELECT name, r.q = '' AS missing_in_rpc, e.q = '' AS missing_in_extended
 FROM (SELECT name, replaceAll(create_table_query, 'rpc.', '') AS q FROM system.tables WHERE database = 'rpc') AS r
 FULL OUTER JOIN (SELECT name, replaceAll(create_table_query, 'extended.', '') AS q FROM system.tables WHERE database = 'extended') AS e
 USING (name)
 WHERE r.q != e.q
-  AND name IN ('blocks', 'native_balances', 'historical_native_balances_state',
-               'mv_historical_native_balances', 'historical_native_balances');
+  AND name IN ('blocks', 'native_balances');
 
-SELECT throwIf(count() > 0, 'rpc and extended table structures differ (listed above): nothing was copied')
-FROM (SELECT name, replaceAll(create_table_query, 'rpc.', '') AS q FROM system.tables WHERE database = 'rpc') AS r
-FULL OUTER JOIN (SELECT name, replaceAll(create_table_query, 'extended.', '') AS q FROM system.tables WHERE database = 'extended') AS e
-USING (name)
-WHERE r.q != e.q
-  AND name IN ('blocks', 'native_balances', 'historical_native_balances_state',
-               'mv_historical_native_balances', 'historical_native_balances');
+SELECT
+    (SELECT arraySort(groupArray((position, name, type))) FROM system.columns
+     WHERE database = 'rpc' AND table = 'historical_native_balances_state') AS rpc_columns,
+    (SELECT arraySort(groupArray((position, name, type))) FROM system.columns
+     WHERE database = 'extended' AND table = 'historical_native_balances_state') AS extended_columns
+WHERE rpc_columns != extended_columns;
+
+SELECT throwIf(
+    (SELECT count() FROM (SELECT name, replaceAll(create_table_query, 'rpc.', '') AS q FROM system.tables WHERE database = 'rpc') AS r
+     FULL OUTER JOIN (SELECT name, replaceAll(create_table_query, 'extended.', '') AS q FROM system.tables WHERE database = 'extended') AS e
+     USING (name)
+     WHERE r.q != e.q AND name IN ('blocks', 'native_balances')) > 0
+    OR (SELECT arraySort(groupArray((position, name, type))) FROM system.columns
+        WHERE database = 'rpc' AND table = 'historical_native_balances_state')
+       != (SELECT arraySort(groupArray((position, name, type))) FROM system.columns
+           WHERE database = 'extended' AND table = 'historical_native_balances_state'),
+    'rpc and extended table structures differ (listed above): nothing was copied');
 
 -- 1. Check the boundary before copying: rpc_last < extended_first, and
 --    extended already has blocks.
@@ -62,4 +78,5 @@ SELECT throwIf(
 -- 2. Copy history.
 ALTER TABLE extended.blocks                            ATTACH PARTITION tuple() FROM rpc.blocks;
 ALTER TABLE extended.native_balances                   ATTACH PARTITION tuple() FROM rpc.native_balances;
-ALTER TABLE extended.historical_native_balances_state  ATTACH PARTITION tuple() FROM rpc.historical_native_balances_state;
+INSERT INTO extended.historical_native_balances_state
+SELECT * FROM rpc.historical_native_balances_state WHERE interval_min IN (60, 240, 1440, 10080);
