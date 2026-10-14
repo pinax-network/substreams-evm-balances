@@ -667,10 +667,10 @@ fn a_call_to_itself_with_value_is_the_same_self_transfer() {
     assert!(changes(&b).unwrap().is_empty());
 }
 
-/// Blocks 363, 12,700,000 and 25,401,003 (`Block.ver` 3) as captured from BSC
-/// Firehose: block 363 whole, the other two from the fee pool's last
-/// transaction fee on, with every block-level record and every record of the
-/// coinbase.
+/// Blocks 363, 958, 4104, 12,700,000 and 25,401,003 (`Block.ver` 3) as
+/// captured from BSC Firehose: the first three whole, the other two from the
+/// fee pool's last transaction fee on, with every block-level record and every
+/// record of the coinbase.
 fn captured_fee_pool_payouts() -> Vec<eth::Block> {
     let f: Value = serde_json::from_str(FEE_POOL_PAYOUTS).unwrap();
     f["blocks"]
@@ -695,6 +695,8 @@ fn captured_fee_pool_payouts() -> Vec<eth::Block> {
                 .map(|t| eth::TransactionTrace {
                     index: t["index"].as_u64().unwrap() as u32,
                     hash: hex::decode(t["hash"].as_str().unwrap()).unwrap(),
+                    begin_ordinal: t["begin_ordinal"].as_u64().unwrap(),
+                    end_ordinal: t["end_ordinal"].as_u64().unwrap(),
                     status: (t["status"].as_i64().unwrap() as i32).into(),
                     calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
                     ..Default::default()
@@ -722,6 +724,8 @@ fn captured_ver3_fee_pool_payouts_are_restored_and_chain() {
     // the coinbase receives and sends on (1/16 of it).
     let expected = [
         (363, "1765700000000000", "110356250000000"),
+        (958, "11392820000000000", "712051250000000"),
+        (4104, "2741610000000000", "171350625000000"),
         (12700000, "524137595951089443", "32758599746943090"),
         (25401003, "65907155340083753", "4119197208755234"),
     ];
@@ -778,14 +782,23 @@ fn the_fee_pool_payout_shape_is_exact() {
     }
     let pool = hex::decode(SYSTEM_FEE_ADDRESS).unwrap();
     let block_363 = || captured_fee_pool_payouts().swap_remove(0);
+    let block_958 = || captured_fee_pool_payouts().swap_remove(1);
     // Block-level records of block 363: the pool's `n -> n` at ordinal 17, the
-    // coinbase's credit at 18, the pool's last payout at 27 and its credit at 28.
+    // coinbase's credit at 18, the pool's last payout at 27 and its credit at
+    // 28. Block 958 skips an ordinal: 109, 111, 120, 121; its system reward
+    // transaction begins at 112.
     assert_eq!(block_363().balance_changes.iter().map(|c| c.ordinal).collect::<Vec<_>>(), [17, 18, 27, 28]);
-    // The credit must follow at the next ordinal...
-    let mut b = block_363();
-    b.balance_changes[1].ordinal = 19;
+    assert_eq!(block_958().balance_changes.iter().map(|c| c.ordinal).collect::<Vec<_>>(), [109, 111, 120, 121]);
+    assert_eq!(block_958().transaction_traces[2].begin_ordinal, 112);
+    // The credit must be the next block-level record...
+    let mut b = block_958();
+    b.balance_changes.push(change(4, 110, Some(0), Some(1)));
     assert!(fails(&b));
-    // ...be a fee credit...
+    // ...before any transaction starts...
+    let mut b = block_958();
+    b.transaction_traces[2].begin_ordinal = 110;
+    assert!(fails(&b));
+    // ...and a fee credit...
     let mut b = block_363();
     b.balance_changes[1].reason = eth::balance_change::Reason::Transfer.into();
     assert!(fails(&b));

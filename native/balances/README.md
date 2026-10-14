@@ -99,15 +99,20 @@ pool's balance in place before setting it, so the tracer read the lowered
 balance as the old value. That block-level `REWARD_TRANSACTION_FEE` record
 reads `n -> n`, the shared rules drop it as a no-op, and the pool's next record
 starts from `n`, so continuity broke although the balance moved exactly as the
-coinbase's credit records. When the next ordinal is a block-level fee credit
-`r` of the block's coinbase with `r = (n + r) >> 4`, v0.7.0 restores the debit
-as `n + r -> n`, and the continuity check verifies `n + r` against the pool's
-previous balance. Any other shape still fails the block. Native v0.2.2 refused
-BSC blocks 363, 12,700,000 and 25,401,003 on it, found by the full-history
-noop on 2026-10-13 (every range below block 38.1M failed); the three blocks
-are the fixture
+coinbase's credit records. When the next block-level record, before any
+transaction starts, is a fee credit `r` of the block's coinbase with
+`r = (n + r) >> 4`, native restores the debit as `n + r -> n`, and the
+continuity check verifies `n + r` against the pool's previous balance. Any
+other shape still fails the block. The credit is one or two ordinals after the
+`n -> n` record: the producer can skip an ordinal between them. Native v0.2.2
+refused BSC blocks 363, 12,700,000 and 25,401,003 on this shape, found by the
+full-history noop on 2026-10-13 (every range below block 38.1M failed); v0.7.0
+required the credit at the very next ordinal and refused blocks 958 and 4104,
+where the producer skipped one, which v0.7.1 accepts. The five blocks are the
+fixture
 [`tests/fixtures/bsc-fee-pool-payout-ver3.json`](tests/fixtures/bsc-fee-pool-payout-ver3.json)
-(block 363 whole, the others from the pool's last transaction fee on).
+(blocks 363, 958 and 4104 whole, the others from the pool's last transaction
+fee on).
 
 ### Genesis (v0.7.0)
 
@@ -181,8 +186,8 @@ It has no new live qualification. v0.2.1 is the same source built with Rust
 `d3b6a549…` and module `72453949…`, also not live-qualified. v0.2.2 adds the
 self-transfer pair exception above; until v0.6.1 the combined `evm-balances`
 package imported it and wrote its rows. v0.7.0 (package `evm_balances_native`)
-adds `db_out`, `NativeEvents`, the fee pool payout and genesis; it is not
-live-qualified.
+adds `db_out`, `NativeEvents`, the fee pool payout and genesis; v0.7.1 accepts
+the payout credit after a skipped ordinal. Neither is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 

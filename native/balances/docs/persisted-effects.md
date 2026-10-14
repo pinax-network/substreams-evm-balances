@@ -26,10 +26,11 @@ new`) and strictly increasing ordinals are required; ties and gaps fail the
 block. The only exceptions are two recognized producer shapes, each with a
 captured fixture ([rules](../README.md#persistence-and-fail-closed-rules)):
 the self-transfer pair (v0.2.2), whose two records are dropped, and the BSC
-`Block.ver` 3 fee pool payout (v0.7.0): the producer recorded the 1/16
-system-reward debit of the fee pool `0xff…fe` as `n -> n`, and native
-restores it as `n + r -> n` from the coinbase credit `r` at the next ordinal,
-where `r = (n + r) >> 4`, then checks `n + r` for continuity like any record.
+`Block.ver` 3 fee pool payout (v0.7.0, v0.7.1): the producer recorded the
+1/16 system-reward debit of the fee pool `0xff…fe` as `n -> n`, and native
+restores it as `n + r -> n` from the coinbase credit `r`, the next block-level
+record before any transaction starts (one or two ordinals later), where
+`r = (n + r) >> 4`, then checks `n + r` for continuity like any record.
 Ordinal 0 is rejected; there is no fixture for a legitimate zero-ordinal
 persisted record. BSC's genesis allocations do not need one: block 0 records
 them as `GENESIS_BALANCE` records from zero at positive ordinals (11, 24 and

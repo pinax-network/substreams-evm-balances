@@ -13,20 +13,13 @@ specification this page replaces is kept in
 [history](history/initialization-and-completeness-host-ledger-2026-09-19-to-2026-10-06.md).
 
 **Scope.** [`native/balances`](../native/balances/README.md) and
-[`erc20/balances`](../erc20/balances/README.md) v0.7.0, each with its own
+[`erc20/balances`](../erc20/balances/README.md) from v0.7.0, each with its own
 `db_out` that writes its half of the upstream v0.3.4 tables into its own
 database ([ClickHouse](clickhouse.md)), written by
-pinax-network/substreams-sink-sql v4.13.0, commit `933a187`. Their module
-hashes:
+pinax-network/substreams-sink-sql v4.13.0, commit `933a187`. The current
+builds are on the [Releases](https://github.com/pinax-network/substreams-evm-balances/releases) page.
 
-| Package | Module | Module hash | WASM sha256 |
-| --- | --- | --- | --- |
-| `spkg/evm-balances-native-v0.7.0.spkg` | `map_events` | `0759418fb023485e9ca06bfe7a0c1c5c0d2c4c63` | `c448342379378455221f116cbf74813a18d47c8a02d258042a677cbd1cb965e0` |
-| | `db_out` | `29f7d1596fc6454ce5df7bcdf53636e11a533cf8` | same WASM |
-| `spkg/evm-balances-erc20-v0.7.0.spkg` | `map_events` | `65629a0baac9167970079510489900648822fce5` | `a2c12a1284ad571308b5afcbed72e847d777680dba2210bdd5e5e5572eeb484d` |
-| | `db_out` | `73627870ed1c72a9b76ad69f46fa94f9979afbb4` | same WASM |
-
-None of these is live-qualified
+Neither package is live-qualified
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 Unless marked live, every number below was measured offline on captured BSC
 Extended blocks: window a is 122,288,006–122,289,029 and window b is

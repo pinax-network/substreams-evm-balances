@@ -246,12 +246,14 @@ const BSC_FEE_POOL: [u8; 20] = [
 /// on in a system transaction. The BSC producer of `Block.ver` 3 records the
 /// first move's pool debit with its old value equal to its new one: the client
 /// lowered the pool's balance in place before setting it, so the tracer read
-/// the lowered balance as the old value (blocks 363, 12,700,000 and
-/// 25,401,003). The block-level `REWARD_TRANSACTION_FEE` record of the pool
-/// reads `n -> n`, and the next ordinal credits the coinbase with `r`, where
-/// `r = (n + r) >> 4`. The shared rules drop the `n -> n` record as a no-op,
-/// and the pool's next record starts from `n`, so continuity breaks although
-/// the balance moved exactly as recorded for the coinbase.
+/// the lowered balance as the old value (blocks 363, 958, 4104, 12,700,000
+/// and 25,401,003). The block-level `REWARD_TRANSACTION_FEE` record of the
+/// pool reads `n -> n`, and the next block-level record credits the coinbase
+/// with `r`, where `r = (n + r) >> 4`, before any transaction starts. The
+/// credit is one or two ordinals later: the producer can skip an ordinal
+/// between them. The shared rules drop the `n -> n` record as a no-op, and
+/// the pool's next record starts from `n`, so continuity breaks although the
+/// balance moved exactly as recorded for the coinbase.
 ///
 /// Returns the records these stand for: the pool from `n + r` to `n` at the
 /// `n -> n` record's ordinal. The continuity check then verifies `n + r`
@@ -263,10 +265,15 @@ fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
     };
     let mut payouts = Vec::new();
     for pool in block.balance_changes.iter().filter(|c| c.address == BSC_FEE_POOL && fee(c) && c.ordinal > 0) {
-        let Some(credit) = block.balance_changes.iter().find(|c| c.ordinal == pool.ordinal + 1) else {
+        // The next block-level record, with no transaction starting between.
+        let Some(credit) = block.balance_changes.iter().filter(|c| c.ordinal > pool.ordinal).min_by_key(|c| c.ordinal) else {
             continue;
         };
-        if credit.address != header.coinbase || !fee(credit) {
+        let interrupted = block
+            .transaction_traces
+            .iter()
+            .any(|t| t.begin_ordinal > pool.ordinal && t.begin_ordinal < credit.ordinal);
+        if credit.address != header.coinbase || !fee(credit) || interrupted {
             continue;
         }
         let words = (
