@@ -4,7 +4,8 @@
  "hash": "925e02a45c9268a12bcc3369124288e0a0f2bb4138d90ef664a720179c596af6",
  "ver": 5,
  "coinbase": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
- "contents": "transaction 298 whole: every call with its balance records, self-destruct flag and ordinals; no block-level record",
+ "base_fee_per_gas": "0671f2cd",
+ "contents": "transaction 298 whole: every call with its balance records, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
  "block_balance_changes": [],
  "transactions": [
   {
@@ -14,6 +15,9 @@
    "begin_ordinal": 10965,
    "end_ordinal": 11345,
    "status": 1,
+   "gas_limit": 1335850,
+   "gas_used": 1026233,
+   "gas_price": "06930c71",
    "from": "3128a77f4a845b7db9f70c579a070175485b0baa",
    "to": "5c2ff26379ea2e53d958c1279e78e920e12b541d",
    "calls": [

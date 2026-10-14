@@ -171,9 +171,14 @@ call's other records are not part of the shape. Native then adds `c` to the
 old and new values of each of the beneficiary's records after the execution
 (after the root call's end ordinal, before the transaction's) when the first
 of them starts exactly `c` below the beneficiary's last balance during the
-transaction and each is a `GAS_REFUND` or a `REWARD_TRANSACTION_FEE`, and the
-continuity check verifies them. Records during the execution and after the
-transaction are not shifted; any other shape still fails the block. v0.7.6
+transaction and each moves the balance by the amount the transaction
+implies: a `GAS_REFUND` by `(gas_limit - gas_used) * gas_price`, a
+`REWARD_TRANSACTION_FEE` by `gas_used * (gas_price - base_fee)`; so only
+records whose old and new values both leave out `c` are shifted. The
+continuity check then verifies them. Records during the execution and after
+the transaction are not shifted; any other shape is not shifted, and fails
+the block only when the continuity check fails (records that already include
+the credits pass). v0.7.6
 added `d` to every later record of the beneficiary in the transaction, for a
 single credit, which the captured blocks below contradict once a transfer or
 another credit follows the first.
@@ -198,7 +203,9 @@ balance after the block:
   credited balance
   ([fixture](tests/fixtures/eth-25920498-selfdestruct-transfer-during-execution.json)).
 
-The last three were found by the pre-release noop of v0.7.7.
+An earlier v0.7.7 build (the CI package of `0ac0c20`, module `map_events`
+`1e379e88…`) refused blocks 25,750,184, 25,869,452 and 25,920,498 in its
+pre-release noop; the released v0.7.7 accepts them.
 
 ### Genesis (v0.7.0)
 

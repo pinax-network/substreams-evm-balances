@@ -471,11 +471,6 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
     pairs
 }
 
-/// The reasons of a beneficiary's records after a transaction's execution
-/// that `selfdestruct_credit_shifts` may shift: the gas refund and the fee
-/// credit, which move the balance by an amount.
-const POST_EXECUTION_SHIFTABLE: [eth::balance_change::Reason; 2] = [eth::balance_change::Reason::GasRefund, eth::balance_change::Reason::RewardTransactionFee];
-
 /// Since Cancun (EIP-6780) a self-destruct destroys an account created in the
 /// same transaction, and its balance `d` moves to the beneficiary. The
 /// Ethereum producer of `Block.ver` 5 records the account's `SUICIDE_WITHDRAW`
@@ -495,8 +490,11 @@ const POST_EXECUTION_SHIFTABLE: [eth::balance_change::Reason; 2] = [eth::balance
 /// Returns the shift `c` of each of the beneficiary's records after the
 /// execution (after the root call's end ordinal, before the transaction's),
 /// when the first of them starts exactly `c` below the beneficiary's last
-/// balance during the transaction and each is a [`POST_EXECUTION_SHIFTABLE`]
-/// record. The continuity check then verifies them. Without the shift that
+/// balance during the transaction and each moves the balance by the amount
+/// the transaction implies: a `GAS_REFUND` by `(gas_limit - gas_used) *
+/// gas_price`, a `REWARD_TRANSACTION_FEE` by `gas_used * (gas_price -
+/// base_fee)`. Only a record whose old and new values both leave out `c`
+/// passes both checks. The continuity check then verifies them. Without the shift that
 /// first record breaks continuity, so the shift changes only blocks native
 /// v0.7.5 refuses. A credit counts only in this exact shape: a persisted call
 /// (non-reverted, in a succeeded transaction) that self-destructs an account
@@ -513,6 +511,12 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
             continue;
         };
         let execution_end = root.end_ordinal;
+        // The amounts a gas refund and a fee credit of this transaction move.
+        let big = |v: Option<&eth::BigInt>| v.map_or_else(|| BigInt::from(0), |v| BigInt::from_unsigned_bytes_be(&v.bytes));
+        let gas_price = big(trx.gas_price.as_option());
+        let base_fee = big(block.header.as_option().and_then(|h| h.base_fee_per_gas.as_option()));
+        let gas_refund = BigInt::from(trx.gas_limit.saturating_sub(trx.gas_used)) * gas_price.clone();
+        let fee = BigInt::from(trx.gas_used) * (gas_price - base_fee);
         let mut credits: BTreeMap<Vec<u8>, BigInt> = BTreeMap::new();
         for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
             let destroyed = match call.call_type.as_known() {
@@ -577,8 +581,15 @@ fn selfdestruct_credit_shifts(block: &eth::Block, records: &[Record]) -> HashMap
                 continue;
             };
             let stale = BigInt::from_unsigned_bytes_be(&first_old) + credit.clone() == BigInt::from_unsigned_bytes_be(&last_new);
-            let shiftable = after.iter().all(|r| POST_EXECUTION_SHIFTABLE.iter().any(|reason| *reason as i32 == r.reason));
-            if !stale || !shiftable {
+            let as_implied = after.iter().all(|r| {
+                let (Ok(old), Ok(new)) = (value(r.old_value.as_deref()), value(r.new_value.as_deref())) else {
+                    return false;
+                };
+                let moved = BigInt::from_unsigned_bytes_be(&new) - BigInt::from_unsigned_bytes_be(&old);
+                (r.reason == eth::balance_change::Reason::GasRefund as i32 && moved == gas_refund)
+                    || (r.reason == eth::balance_change::Reason::RewardTransactionFee as i32 && moved == fee)
+            });
+            if !stale || !as_implied {
                 continue;
             }
             for r in after {

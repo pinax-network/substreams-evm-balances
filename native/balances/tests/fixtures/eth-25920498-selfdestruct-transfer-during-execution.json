@@ -4,7 +4,8 @@
  "hash": "0dca7f046833fae781e270a747ef5d47537421c9c3ed0f2874350265e5d3a25e",
  "ver": 5,
  "coinbase": "dadb0d80178819f2319190d340ce9a924f783711",
- "contents": "transaction 260 whole: every call with its balance records, self-destruct flag and ordinals; no block-level record",
+ "base_fee_per_gas": "030e4761",
+ "contents": "transaction 260 whole: every call with its balance records, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
  "block_balance_changes": [],
  "transactions": [
   {
@@ -14,6 +15,9 @@
    "begin_ordinal": 11787,
    "end_ordinal": 11848,
    "status": 1,
+   "gas_limit": 234743,
+   "gas_used": 224940,
+   "gas_price": "030e4765",
    "from": "213f6e00a32593c0af669fe2e902f7d369422c73",
    "to": "213f6e00a32593c0af669fe2e902f7d369422c73",
    "calls": [

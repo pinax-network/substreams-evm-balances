@@ -707,6 +707,7 @@ fn captured_block(c: &Value) -> eth::Block {
     b.header = buffa::MessageField::some(eth::BlockHeader {
         number,
         coinbase: hex::decode(c["coinbase"].as_str().unwrap()).unwrap(),
+        base_fee_per_gas: c["base_fee_per_gas"].as_str().and_then(|_| hex_big(&c["base_fee_per_gas"])).into(),
         ..b.header.as_option().unwrap().clone()
     });
     b.balance_changes = c["block_balance_changes"].as_array().unwrap().iter().map(captured_change).collect();
@@ -721,6 +722,9 @@ fn captured_block(c: &Value) -> eth::Block {
             begin_ordinal: t["begin_ordinal"].as_u64().unwrap(),
             end_ordinal: t["end_ordinal"].as_u64().unwrap(),
             status: (t["status"].as_i64().unwrap() as i32).into(),
+            gas_limit: t["gas_limit"].as_u64().unwrap_or(0),
+            gas_used: t["gas_used"].as_u64().unwrap_or(0),
+            gas_price: t["gas_price"].as_str().and_then(|_| hex_big(&t["gas_price"])).into(),
             calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
             ..Default::default()
         })
@@ -1210,9 +1214,12 @@ fn the_selfdestruct_credit_shape_is_exact() {
     let mut b = captured_selfdestruct_created();
     suicide(&mut b).balance_changes[1].ordinal = 9577;
     assert!(fails(&b));
-    // Only a refund of the withdrawn balance.
+    // Only a refund of the withdrawn balance, even when the gas refund is short
+    // by exactly the withdrawn amount.
     let mut b = captured_selfdestruct_created();
     suicide(&mut b).balance_changes[1].new_value = wei(79_029_982_257_484_949_924).into();
+    gas_refund(&mut b).old_value = wei(78_870_637_669_729_415_182).into();
+    gas_refund(&mut b).new_value = wei(78_870_685_429_296_131_176).into();
     assert!(fails(&b));
     // A reverted self-destruct moves nothing: the gas refund chains from the
     // gas purchase.
@@ -1244,21 +1251,62 @@ fn the_selfdestruct_credit_shape_is_exact() {
     gas_refund(&mut b).old_value = wei(78_870_637_669_729_415_178).into();
     gas_refund(&mut b).new_value = wei(78_870_685_429_296_131_172).into();
     assert!(fails(&b));
-    // Only a gas refund or a fee credit after the execution is shifted.
+    // Only a gas refund or a fee credit after the execution is shifted, and
+    // each must move the amount the transaction implies: the refund
+    // (100,000 - 72,826) * 1,757,546,431 wei, the fee 72,826 * (1,757,546,431
+    // - 94,001,672) wei.
     let mut b = captured_selfdestruct_created();
     gas_refund(&mut b).reason = eth::balance_change::Reason::Transfer.into();
     assert!(fails(&b));
     let mut b = captured_selfdestruct_created();
     gas_refund(&mut b).reason = eth::balance_change::Reason::RewardTransactionFee.into();
-    assert_eq!(sender_amount(&b), "79030030017051665919");
+    assert!(fails(&b));
+    // A gas refund whose new value alone includes the credit is not shifted.
+    let mut b = captured_selfdestruct_created();
+    gas_refund(&mut b).new_value = wei(79_030_030_017_051_665_919).into();
+    assert!(fails(&b));
+    // Every record after the execution is shifted: here the sender is also paid
+    // the fee.
+    let after = |reason: eth::balance_change::Reason, moved: u128| eth::BalanceChange {
+        address: hex::decode(SENDER).unwrap(),
+        old_value: wei(78_870_685_429_296_131_177).into(),
+        new_value: wei(78_870_685_429_296_131_177 + moved).into(),
+        ordinal: 9582,
+        reason: reason.into(),
+    };
+    let fee = 121_149_310_618_934;
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls[0]
+        .balance_changes
+        .push(after(eth::balance_change::Reason::RewardTransactionFee, fee));
+    assert_eq!(sender_amount(&b), "79030151166362284853");
+    for reason in [eth::balance_change::Reason::Transfer, eth::balance_change::Reason::SuicideRefund] {
+        let mut b = captured_selfdestruct_created();
+        b.transaction_traces[0].calls[0].balance_changes.push(after(reason, fee));
+        assert!(fails(&b));
+    }
     // The credit happens during the execution.
     let mut b = captured_selfdestruct_created();
     b.transaction_traces[0].calls[0].end_ordinal = 9570;
     assert!(fails(&b));
-    // Records after the transaction are not shifted: a later transaction's
-    // record must start from the credited balance.
+    // A refund recorded after the transaction does not shift the gas refund.
     let mut b = captured_selfdestruct_created();
-    let next = eth::TransactionTrace {
+    suicide(&mut b).balance_changes[0].ordinal = 9584;
+    suicide(&mut b).balance_changes[1].ordinal = 9585;
+    suicide(&mut b).balance_changes[1].old_value = wei(78_870_685_429_296_131_177).into();
+    suicide(&mut b).balance_changes[1].new_value = wei(79_030_030_017_051_665_919).into();
+    gas_refund(&mut b).old_value = wei(78_711_293_081_973_880_441).into();
+    gas_refund(&mut b).new_value = wei(78_711_340_841_540_596_435).into();
+    assert!(fails(&b));
+    // The execution ends with the root call: a first call that is not at depth
+    // 0 gives no end, and no shift.
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls[0].depth = 1;
+    assert!(fails(&b));
+    // Records after the transaction are not shifted: a later transaction's
+    // record must start from the credited balance, even a gas refund of the
+    // same amount.
+    let next = |reason: eth::balance_change::Reason, old: u128, new: u128| eth::TransactionTrace {
         index: 466,
         status: eth::TransactionTraceStatus::Succeeded.into(),
         begin_ordinal: 9584,
@@ -1266,17 +1314,95 @@ fn the_selfdestruct_credit_shape_is_exact() {
         calls: vec![eth::Call {
             balance_changes: vec![eth::BalanceChange {
                 address: hex::decode(SENDER).unwrap(),
-                old_value: wei(78_870_685_429_296_131_177).into(),
-                new_value: wei(78_870_685_429_296_131_176).into(),
+                old_value: wei(old).into(),
+                new_value: wei(new).into(),
                 ordinal: 9585,
-                reason: eth::balance_change::Reason::GasBuy.into(),
+                reason: reason.into(),
             }],
             ..Default::default()
         }],
         ..Default::default()
     };
-    b.transaction_traces.push(next);
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces.push(next(
+        eth::balance_change::Reason::GasRefund,
+        78_870_685_429_296_131_177,
+        78_870_733_188_862_847_171,
+    ));
     assert!(fails(&b));
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces.push(next(
+        eth::balance_change::Reason::GasBuy,
+        79_030_030_017_051_665_919,
+        79_030_030_017_051_665_918,
+    ));
+    assert_eq!(sender_amount(&b), "79030030017051665918");
+    // Credits add up per transaction: a later transaction's own credit shifts
+    // only its own gas refund.
+    let sender = hex::decode(SENDER).unwrap();
+    let record = |address: &[u8], old: u128, new: Option<u128>, ordinal: u64, reason: eth::balance_change::Reason| eth::BalanceChange {
+        address: address.to_vec(),
+        old_value: wei(old).into(),
+        new_value: new.and_then(wei).into(),
+        ordinal,
+        reason: reason.into(),
+    };
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces.push(eth::TransactionTrace {
+        index: 466,
+        status: eth::TransactionTraceStatus::Succeeded.into(),
+        begin_ordinal: 9584,
+        end_ordinal: 9600,
+        gas_limit: 5,
+        gas_used: 0,
+        gas_price: wei(1).into(),
+        calls: vec![
+            eth::Call {
+                index: 1,
+                end_ordinal: 9595,
+                balance_changes: vec![
+                    record(
+                        &sender,
+                        79_030_030_017_051_665_919,
+                        Some(79_030_030_017_051_665_900),
+                        9585,
+                        eth::balance_change::Reason::GasBuy,
+                    ),
+                    record(
+                        &sender,
+                        79_030_030_017_051_665_900,
+                        Some(79_030_030_017_051_665_905),
+                        9597,
+                        eth::balance_change::Reason::GasRefund,
+                    ),
+                ],
+                ..Default::default()
+            },
+            eth::Call {
+                index: 2,
+                parent_index: 1,
+                depth: 1,
+                call_type: eth::CallType::CREATE.into(),
+                address: vec![0x33; 20],
+                suicide: true,
+                balance_changes: vec![
+                    record(&[0x33; 20], 7, None, 9590, eth::balance_change::Reason::SuicideWithdraw),
+                    record(
+                        &sender,
+                        79_030_030_017_051_665_900,
+                        Some(79_030_030_017_051_665_907),
+                        9591,
+                        eth::balance_change::Reason::SuicideRefund,
+                    ),
+                ],
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    });
+    let rows = changes(&b).unwrap();
+    assert_eq!(row_of(&rows, &sender).amount, "79030030017051665912");
+    assert_eq!(row_of(&rows, &[0x33; 20]).amount, "0");
     let other = hex::decode("00000000000000000000000000000000000000aa").unwrap();
     // The withdraw must be the destroyed account's, and end at zero.
     let mut b = captured_selfdestruct_created();
@@ -1298,9 +1424,9 @@ fn the_selfdestruct_credit_shape_is_exact() {
     b.transaction_traces[0].calls[0].balance_changes.push(eth::BalanceChange {
         address: hex::decode(CREATED).unwrap(),
         old_value: wei(0).into(),
-        new_value: wei(5).into(),
-        ordinal: 9578,
-        reason: eth::balance_change::Reason::Transfer.into(),
+        new_value: wei(fee).into(),
+        ordinal: 9582,
+        reason: eth::balance_change::Reason::RewardTransactionFee.into(),
     });
     assert!(fails(&b));
     // A DELEGATECALL self-destruct destroys its caller, here the created
@@ -1320,9 +1446,9 @@ fn the_selfdestruct_credit_shape_is_exact() {
         ..Default::default()
     });
     assert_eq!(sender_amount(&b), "79030030017051665919");
-    // A later record that sets the balance is not shifted: shifted, the
-    // beneficiary's own withdraw to zero would keep the credit. The block
-    // fails, whether the producer recorded the withdraw...
+    // The beneficiary's own withdraw to zero during the execution is not
+    // shifted, so a withdraw that leaves out the credit fails the block,
+    // whether the producer recorded it...
     let mut b = captured_selfdestruct_created();
     b.transaction_traces[0].calls[0].balance_changes.push(eth::BalanceChange {
         address: hex::decode(SENDER).unwrap(),
@@ -1392,6 +1518,30 @@ fn the_selfdestruct_credit_shape_is_exact() {
     let mut b = captured_selfdestruct_created();
     b.transaction_traces[0].calls.push(second(78_870_637_669_729_415_183));
     assert!(fails(&b));
+    // The shifts see the restored debits: a restored debit of the beneficiary
+    // is its last balance during the execution, so the gas refund, which
+    // starts from it, is not shifted.
+    let d: u128 = 159_344_587_755_534_742;
+    let mut b = captured_selfdestruct_created();
+    b.transaction_traces[0].calls[0].balance_changes[0].new_value = None.into();
+    suicide(&mut b).balance_changes[1].old_value = None.into();
+    suicide(&mut b).balance_changes[1].new_value = wei(d).into();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 5,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CALL.into(),
+        caller: sender.clone(),
+        address: sender.clone(),
+        suicide: true,
+        balance_changes: vec![record(&other, 0, Some(d), 9578, eth::balance_change::Reason::SuicideRefund)],
+        ..Default::default()
+    });
+    gas_refund(&mut b).old_value = None.into();
+    gas_refund(&mut b).new_value = wei(47_759_566_715_994).into();
+    let rows = changes(&b).unwrap();
+    let row = row_of(&rows, &sender);
+    assert_eq!((row.amount.as_str(), row.records), ("47759566715994", 4));
 }
 
 /// Ethereum block 25,747,303 as captured from Firehose: transaction 298
