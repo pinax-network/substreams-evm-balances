@@ -87,8 +87,9 @@ dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
   balance continuity checks. Its only continuity exceptions are recognized
   producer shapes with a captured fixture: the self-transfer pair (v0.2.2),
   the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1), the Ethereum
-  EIP-6780 self-destruct debit (v0.7.3) and self-destruct to itself
-  (v0.7.5). v0.7.2 also persists
+  EIP-6780 self-destruct debit (v0.7.3), self-destruct to itself
+  (v0.7.5) and self-destruct credit of an account created in the
+  transaction (v0.7.6). v0.7.2 also persists
   a failed blob transaction's blob fee, which the shared rules drop (BNB
   Chain pays it whatever the outcome; captured fixture). Since v0.7.0 block 0
   emits the genesis allocations when every balance record in it is a

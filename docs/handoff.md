@@ -19,8 +19,11 @@ authorizes a live step.
 Since v0.7.0 (owner, 2026-10-13) each balance package ships its `map_events`
 and its own `db_out` in one spkg, is released by its own tag and writes its
 own ClickHouse database; [ClickHouse](clickhouse.md) has the tables, the
-deployment and the reasons. Full-history BSC noops of both packages are
-running; no sink runs them yet.
+deployment and the reasons. Full-history noops of both packages run on BSC
+and Ethereum. Since 2026-10-14 (owner) backfills write the ranges whose noops
+passed, from genesis: `bsc:evm-balances-native@v0.7.5`,
+`bsc:evm-balances-erc20@v0.7.1` and `mainnet:evm-balances-erc20@v0.7.0`. No
+live sink runs yet.
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -47,8 +50,10 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   v0.7.4 decodes the block with a 1 GiB element budget instead of buffa's
   32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed, and
   v0.7.5 keeps the balance of an account that self-destructs to itself after
-  Cancun, on which v0.7.3 refused Ethereum block 19,481,732. Not
-  qualified. The
+  Cancun, on which v0.7.3 refused Ethereum block 19,481,732, and v0.7.6
+  carries a self-destruct credit from an account created in the transaction
+  into the beneficiary's later records in it, on which v0.7.5 refused
+  Ethereum block 25,741,008. Not qualified. The
   last qualified build is historical: the prost build was live-qualified on
   BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
   it emitted in the stated windows
@@ -118,7 +123,10 @@ v0.7.0 noop failed to decode BSC block 43,772,003 (29.9 MB encoded) under the
 default buffa limits of the SDK's handler macro, which native v0.7.3 shares;
 native v0.7.4 and ERC-20 v0.7.1 decode it with a 1 GiB element budget.
 Native v0.7.3 then refused Ethereum block 19,481,732, an EIP-6780
-self-destruct to itself whose refund and withdraw v0.7.5 drops.
+self-destruct to itself whose refund and withdraw v0.7.5 drops. Native v0.7.5
+refused Ethereum block 25,741,008, where an account created in the
+transaction self-destructs to the sender and the sender's gas refund starts
+from the balance before the credit; v0.7.6 adds the credit to it.
 
 ## Next steps (owner)
 
@@ -133,15 +141,22 @@ package's noop over that range passes (owner, 2026-10-13).
    the decode budget, so they give the same rows on every block the previous
    version decodes; native v0.7.5 drops the self-destruct-to-itself pair,
    which v0.7.4 refuses, or, when it is the account's first record in the
-   block, keeps as a wrong zero). Ethereum runs the same noops from genesis since 2026-10-14
-   (owner), a faster full-history test of about 26M blocks; its databases
-   would be `mainnet:evm-balances-native@<version>` and
+   block, keeps as a wrong zero; native v0.7.6 shifts only records that
+   v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts).
+   BSC continues native v0.7.5, which has refused no BSC block; Ethereum
+   native moves to v0.7.6. Ethereum runs the same noops from genesis since
+   2026-10-14 (owner), a faster full-history test of about 26M blocks, into
+   `mainnet:evm-balances-native@<version>` and
    `mainnet:evm-balances-erc20@<version>`.
-2. Per package, run the backfill (the sink over past blocks) and the live
-   sink into its own database, `bsc:evm-balances-native@<version>` or
-   `bsc:evm-balances-erc20@<version>`
-   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). They
-   replace the v0.6.1 shadow.
+2. Per package, finish the backfill (the sink over past blocks, started
+   2026-10-14 on the ranges whose noops passed) and run the live sink into its
+   own database, `<chain>:evm-balances-native@<version>` or
+   `<chain>:evm-balances-erc20@<version>`
+   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
+   they replace the v0.6.1 shadow. The Ethereum native backfill into
+   `mainnet:evm-balances-native@v0.7.5` stopped when native v0.7.5 refused
+   block 25,741,008; its partial rows are superseded by v0.7.6 and the
+   database is to be dropped (owner).
 3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
