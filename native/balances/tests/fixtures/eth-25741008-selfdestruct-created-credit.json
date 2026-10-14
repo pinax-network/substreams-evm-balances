@@ -1,0 +1,108 @@
+{
+ "source": "Ethereum Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 25741008,
+ "hash": "1b6a29481b8d799d750dc107e791fcf17d7576b0343de3cd651b94dc5e9751e9",
+ "ver": 5,
+ "coinbase": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
+ "contents": "transaction 465 whole: every call with its balance records and self-destruct flag; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 465,
+   "hash": "d62998949eaf6dc2744dd1dcb8a0e3bd878c7afc1e1317c3087c2b3b375add38",
+   "type": 2,
+   "begin_ordinal": 9564,
+   "end_ordinal": 9583,
+   "status": 1,
+   "from": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
+   "to": "7c5a71c9fefbc7691f9d4ac7baf70c743792f716",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
+     "address": "7c5a71c9fefbc7691f9d4ac7baf70c743792f716",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "balance_changes": [
+      {
+       "address": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
+       "old_value": "04468d6aef19d5816f",
+       "new_value": "04468ccb1608c3b00f",
+       "ordinal": 9565,
+       "reason": 7
+      },
+      {
+       "address": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
+       "old_value": "04468ccb1608c3b00f",
+       "new_value": "04468cf685ecc5ec69",
+       "ordinal": 9580,
+       "reason": 9
+      },
+      {
+       "address": "4838b106fce9647bdf1e7877bf73ce8b0bad5f97",
+       "old_value": "653ea2a924f8081c",
+       "new_value": "653f10d86a97d552",
+       "ordinal": 9581,
+       "reason": 8
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 5,
+     "caller": "7c5a71c9fefbc7691f9d4ac7baf70c743792f716",
+     "address": "1af6cfe55b7b83445077477fa3487709dbc1b0c8",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "balance_changes": [
+      {
+       "address": "1af6cfe55b7b83445077477fa3487709dbc1b0c8",
+       "old_value": "02361b0eee0cb996",
+       "new_value": "",
+       "ordinal": 9575,
+       "reason": 13
+      },
+      {
+       "address": "c6acbee42e9e323140c1ed060c2f6ea9cc3b4b75",
+       "old_value": "04468ccb1608c3b00f",
+       "new_value": "0448c2e624f6d069a5",
+       "ordinal": 9576,
+       "reason": 11
+      }
+     ]
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 4,
+     "caller": "1af6cfe55b7b83445077477fa3487709dbc1b0c8",
+     "address": "7c5a71c9fefbc7691f9d4ac7baf70c743792f716",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "balance_changes": []
+    },
+    {
+     "index": 4,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 4,
+     "caller": "1af6cfe55b7b83445077477fa3487709dbc1b0c8",
+     "address": "7c5a71c9fefbc7691f9d4ac7baf70c743792f716",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "balance_changes": []
+    }
+   ]
+  }
+ ]
+}

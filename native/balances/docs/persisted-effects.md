@@ -23,8 +23,12 @@ execution order: block-level records are serialized after the transactions but
 the fee reset at block 122260950 (ordinal 3244) must follow the last
 transaction credit (ordinal 3237). Per-account continuity (`old == previous
 new`) and strictly increasing ordinals are required; ties and gaps fail the
-block. The only exceptions are four recognized producer shapes, each with a
+block. The only exceptions are five recognized producer shapes, each with a
 captured fixture ([rules](../README.md#persistence-and-fail-closed-rules)).
+The Ethereum EIP-6780 self-destruct of an account created in the
+transaction (v0.7.6): the producer records `SUICIDE_WITHDRAW` `d -> 0` and
+the beneficiary's `SUICIDE_REFUND` `b -> b + d`, but the beneficiary's later
+records in the transaction start from `b`, and native adds `d` to them.
 The Ethereum EIP-6780 self-destruct (v0.7.3): the producer records only the
 beneficiary's `SUICIDE_REFUND` credit `d` of the destroyed account's whole
 balance, and native restores the account's debit `d -> 0` at the credit's
@@ -62,7 +66,7 @@ saved-data replay of 1,439 BSC producer-version-5 blocks.
 | `GAS_REFUND` | 9 | persists | persists | 85,350 (Tx), 3,311 (failed) |
 | `REWARD_BLOB_FEE` | 17 | persists (BNB Chain blob fee, credited to the system fee account after execution) | persists in a blob transaction (v0.7.2, [block 42,357,369](../tests/fixtures/bsc-42357369-failed-blob-fee.json)); fails the block in any other transaction | 218 (Tx); live 2026-09-23: 37 (Tx) in 250 parity-checked blocks; failed: 1 (block 42,357,369) |
 | `TOUCH_ACCOUNT` | 10 | persists (no-op records are dropped) | reverts | none observed |
-| `SUICIDE_REFUND`, `SUICIDE_WITHDRAW` | 11, 13 | persist; for an Ethereum EIP-6780 self-destruct the producer omits the destroyed account's debit, which native v0.7.3 restores from the credit ([block 20,249,174](../tests/fixtures/eth-20249174-selfdestruct-6780.json)); for one to itself it records a refund from zero and a withdraw to zero, which native v0.7.5 drops ([block 19,481,732](../tests/fixtures/eth-19481732-selfdestruct-to-self.json)) | revert | Ethereum block 20,249,174: 1 `SUICIDE_REFUND` (Tx), no `SUICIDE_WITHDRAW`; block 19,481,732: 1 `SUICIDE_REFUND`, 1 `SUICIDE_WITHDRAW` (Tx) |
+| `SUICIDE_REFUND`, `SUICIDE_WITHDRAW` | 11, 13 | persist; for an Ethereum EIP-6780 self-destruct the producer omits the destroyed account's debit, which native v0.7.3 restores from the credit ([block 20,249,174](../tests/fixtures/eth-20249174-selfdestruct-6780.json)); for one to itself it records a refund from zero and a withdraw to zero, which native v0.7.5 drops ([block 19,481,732](../tests/fixtures/eth-19481732-selfdestruct-to-self.json)); for an account created in the transaction the beneficiary's later records in it omit the credit, which native v0.7.6 adds ([block 25,741,008](../tests/fixtures/eth-25741008-selfdestruct-created-credit.json)) | revert | Ethereum block 20,249,174: 1 `SUICIDE_REFUND` (Tx), no `SUICIDE_WITHDRAW`; block 19,481,732: 1 `SUICIDE_REFUND`, 1 `SUICIDE_WITHDRAW` (Tx); block 25,741,008: 1 `SUICIDE_WITHDRAW`, 1 `SUICIDE_REFUND` (Tx) |
 | `CALL_BALANCE_OVERRIDE` | 12 | persists | reverts | none observed |
 | `BURN` | 15 | persists | reverts | none observed |
 | `REWARD_FEE_RESET` | 14 | persists | fails the block | none observed; the BSC v5 reset is recorded as `REWARD_TRANSACTION_FEE` at block level |

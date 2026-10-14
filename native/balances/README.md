@@ -148,6 +148,25 @@ a CALL to itself; a block explorer reads 1 wei after the block). The
 transaction is the fixture
 [`tests/fixtures/eth-19481732-selfdestruct-to-self.json`](tests/fixtures/eth-19481732-selfdestruct-to-self.json).
 
+**Self-destruct of an account created in the transaction (v0.7.6).** Since
+Cancun, a self-destruct destroys an account created in the same transaction,
+and its balance `d` moves to the beneficiary. The Ethereum producer of
+`Block.ver` 5 records the account's `SUICIDE_WITHDRAW` from `d` to zero and,
+at the next ordinal, the beneficiary's `SUICIDE_REFUND` from `b` to `b + d`,
+but the beneficiary's later records in that transaction start from `b`, as if
+the credit had not happened. When a persisted call self-destructs an account
+created by a CREATE in the transaction, holds exactly those two records, `d`
+positive, and the beneficiary's first later record in the transaction starts
+from `b`, native adds `d` to the old and new values of every later record of
+the beneficiary in the transaction, and the continuity check verifies them.
+Records after the transaction are not shifted. Native v0.7.5 refused Ethereum
+block 25,741,008 on it (transaction `0xd6299894…`: a CREATE at
+`0x1af6cfe5…`, which already holds 0.159 ETH, self-destructs in its
+constructor to the sender `0xc6acbee4…`, whose gas refund starts from the
+balance before the credit; a block explorer reads the credit in the sender's
+balance after the block). The transaction is the fixture
+[`tests/fixtures/eth-25741008-selfdestruct-created-credit.json`](tests/fixtures/eth-25741008-selfdestruct-created-credit.json).
+
 ### Genesis (v0.7.0)
 
 Block 0 carries the chain's genesis allocations. The BSC producer records them
@@ -240,7 +259,9 @@ transaction's blob fee; v0.7.3 restores the Ethereum EIP-6780 self-destruct
 debit; v0.7.4 decodes the block with a 1 GiB element budget instead of
 buffa's 32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed.
 v0.7.5 keeps the balance of an account that self-destructs to itself.
-None is live-qualified.
+v0.7.6 carries a self-destruct credit from an account created in the
+transaction into the beneficiary's later records in it. None is
+live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
