@@ -197,6 +197,79 @@ fn validate_failed_transaction_reasons(block: &eth::Block) -> Result<(), Error> 
     Ok(())
 }
 
+/// A failed transaction's root-call record outside its execution cannot
+/// belong to the reverted frame. The silent wrong balances found so far came
+/// from records that the chain keeps whatever the outcome, most of them after
+/// or before the execution: the shared rules keep only a failed root call's
+/// gas records, and the reason guard (`validate_failed_transaction_reasons`)
+/// lets the reasons that revert with the frame through, so such a record was
+/// dropped, and a dropped record that is its account's last in the block still
+/// chains. Arbitrum's fee transfers and retry settlements after the execution
+/// ([`failed_fee_transfers`], [`failed_retry_settlements`]), Polygon's
+/// base-fee `BURN` ([`failed_base_fee_burns`]), BNB Chain's blob fee
+/// ([`failed_blob_fees`]) and the OP-stack deposit mint before the execution
+/// ([`failed_deposit_mint`]) are each pinned in their exact shape; what ArbOS
+/// keeps inside a root call recorded from ordinal 0 is pinned by transaction
+/// type ([`failed_arbos_settlements`], [`failed_retry_settlements`]).
+///
+/// Fails the block when a record of a failed transaction's root call moves a
+/// balance (its values differ, or one exceeds `uint256`), lies outside the
+/// execution and does not persist as recorded (`records`): after it, past
+/// the root call's end ordinal, or before it, at a positive ordinal below the
+/// root call's begin ordinal. The producers of `Block.ver` 3 record every root
+/// call's begin ordinal as 0 (`evm_persist`), so only the window after the
+/// execution applies to them; those of `Block.ver` 4 and 5 record the begin
+/// after the sender's `GAS_BUY` and a deposit's mint. A root call without an
+/// end ordinal in a transaction with one cannot place its records, so any
+/// record that moves a balance and does not persist fails the block too; a
+/// transaction without ordinals (end ordinal 0), as synthetic traces are, is
+/// left to the other checks. A record during the execution, or at ordinal 0,
+/// reverts with the frame as before.
+///
+/// In samples of every supported chain and era (2026-10-15: Ethereum,
+/// BNB Chain, Polygon, Arbitrum One, Base, Optimism, Unichain and HyperEVM,
+/// windows of 1,000 to 27,000 blocks from each chain's early blocks to its
+/// head, and the blocks of every captured failed-transaction shape), every
+/// record of a failed root call outside its execution that moves a balance
+/// persists by the rules above or as a gas record, and every failed root call
+/// has an end ordinal. `changes` applies this check after the reduction, so a
+/// dropped record that already breaks continuity keeps that error.
+fn validate_failed_records_outside_execution(block: &eth::Block, records: &[Record]) -> Result<(), Error> {
+    type Key<'a> = (&'a [u8], u64, i32, Option<&'a [u8]>, Option<&'a [u8]>);
+    let persisted: HashSet<Key> = records
+        .iter()
+        .filter(|r| r.scope == persist::Scope::TxFailedPersistent)
+        .map(|r| (r.address.as_slice(), r.ordinal, r.reason, r.old_value.as_deref(), r.new_value.as_deref()))
+        .collect();
+    for tx in block.transaction_traces.iter().filter(|tx| persist::is_failed(tx)) {
+        let Some(root) = tx.calls.first() else { continue };
+        for c in &root.balance_changes {
+            let message = if root.end_ordinal == 0 {
+                if tx.end_ordinal == 0 {
+                    continue;
+                }
+                "failed transaction carries a balance record that its root call's missing end ordinal cannot place"
+            } else if c.ordinal > root.end_ordinal {
+                "failed transaction carries a balance record after its execution without pinned persistence semantics"
+            } else if c.ordinal > 0 && c.ordinal < root.begin_ordinal {
+                "failed transaction carries a balance record before its execution without pinned persistence semantics"
+            } else {
+                continue;
+            };
+            let key: Key = (
+                c.address.as_slice(),
+                c.ordinal,
+                c.reason.to_i32(),
+                c.old_value.as_option().map(|v| v.bytes.as_slice()),
+                c.new_value.as_option().map(|v| v.bytes.as_slice()),
+            );
+            let moves = value_change(c).is_none_or(|moved| !moved.is_zero());
+            require(!moves || persisted.contains(&key), message)?;
+        }
+    }
+    Ok(())
+}
+
 /// Every persisted native balance record in the block, with its persistence
 /// scope, retained for package tests and offline inspection: the shared
 /// rules' records in array order, then the blob fees of failed blob
@@ -634,26 +707,32 @@ fn failed_submission_settlement(tx: &eth::TransactionTrace) -> Option<Vec<&eth::
 /// execution, when `l` is positive, the sender's `GAS_REFUND` of `l * b` and a
 /// debit of `l * b` of the sender; pairs of a debit of an account other than
 /// the sender and a credit of the same amount of another account, the sender
-/// or one refund address, adding up to `l * b`; and, when `v` is positive, a
-/// debit of `v` of the sender and a credit of `v` of the escrow. Any other
-/// shape of a failed `ArbitrumRetryTx` with balance records, a value past
-/// `uint256` or a gas use past the gas limit among them, fails the block: its
+/// or one refund address, adding up to `l * b`, with no credit of the refund
+/// address after one of the sender; and, when `v` is positive, a debit of `v`
+/// of the sender and a credit of `v` of the escrow. Any other shape of a
+/// failed `ArbitrumRetryTx` with balance records fails the block, as does a
+/// value past `uint256` among them or a gas use past the gas limit: its
 /// settlement persists, and a block without it can chain with wrong balances.
-/// Like every record, they must chain.
+/// Like every record, they must chain. The order of the payments is Nitro's
+/// (`arbos/tx_processor.go` at v2.0.0, v2.3.0, v3.0.0, v3.9.0 and master):
+/// each of `EndTxHook`'s refunds pays the refund address out of what is left
+/// of the ticket's maximum refund, then the sender the rest, and nothing
+/// restores that maximum, so once the sender is paid every later share of the
+/// refund address is zero.
 ///
 /// One such shape is the multi-dimensional gas refund
 /// (`BalanceChangeMultiGasRefund`). From ArbOS 60, and from ArbOS 61 only
-/// under the `MultiGasConstraints` gas model, Nitro's `EndTxHook` makes a
-/// third refund when `b * gas_used` exceeds the transaction's
-/// multi-dimensional cost: right after the network fee account's refund and
-/// before the call value goes back to the escrow, the network fee account
-/// pays the difference `m` to the refund address, to the sender past the
-/// ticket's maximum refund, or in two pairs to both, the refund address
-/// first. A failed retry with it carries one or two more pairs from the
-/// network fee account, so its pairs add up to `l * b + m`, and the trace
-/// does not carry `m`: the block fails until a captured fixture pins that
-/// pair. On Arbitrum One the six failed retries the qualification found under
-/// ArbOS 61, up to block 511,131,266, carry no such pair.
+/// under the `MultiGasConstraints` gas model, Nitro's `EndTxHook` makes one
+/// more refund when `b * gas_used` exceeds the transaction's
+/// multi-dimensional cost: right after the network fee account's refund of
+/// the gas left and before the call value goes back to the escrow, the
+/// network fee account pays the difference `m` to the refund address, to the
+/// sender past the ticket's maximum refund, or in two pairs to both, the
+/// refund address first. A failed retry with it carries one or two more
+/// pairs from the network fee account, so its pairs add up to `l * b + m`,
+/// and the trace does not carry `m`: the block fails until a captured fixture
+/// pins that pair. On Arbitrum One the six failed retries the qualification
+/// found under ArbOS 61, up to block 511,131,266, carry no such pair.
 fn failed_retry_settlements(block: &eth::Block) -> Result<Vec<Record>, Error> {
     let base_fee = block
         .header
@@ -746,9 +825,9 @@ fn retry_settlement<'a>(tx: &eth::TransactionTrace, root: &'a eth::Call, base_fe
         }
         rest = tail;
     }
-    // ...the fee accounts' refunds to the refund address or the sender...
+    // ...the fee accounts' refunds to one refund address, then to the sender...
     let mut refunded = BigInt::from(0);
-    let mut refund_to: Option<&[u8]> = None;
+    let mut last_payee: Option<&[u8]> = None;
     while let [debit, credit, tail @ ..] = rest {
         if debit.0.address == sender {
             break;
@@ -756,12 +835,12 @@ fn retry_settlement<'a>(tx: &eth::TransactionTrace, root: &'a eth::Call, base_fe
         let paid = credit.1.clone();
         let to = credit.0.address.as_slice();
         let pair = paid > 0 && to != debit.0.address && transfer(debit, None, &-paid.clone()) && transfer(credit, Some(to), &paid);
-        if !pair || (to != sender && refund_to.is_some_and(|r| r != to)) {
+        // An account other than the sender is paid only first or right after
+        // its own payment: one refund address, and none after the sender.
+        if !pair || (to != sender && last_payee.is_some_and(|p| p != to)) {
             return None;
         }
-        if to != sender {
-            refund_to = Some(to);
-        }
+        last_payee = Some(to);
         refunded += paid;
         rest = tail;
     }
@@ -1219,6 +1298,91 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
         }
     }
     stale
+}
+
+/// Since Cancun (EIP-6780; on Arbitrum One ArbOS 20, from block 190,301,731)
+/// a self-destruct to itself of an account not created in the same
+/// transaction moves nothing: geth debits the balance `d`, credits it back,
+/// and the account survives with `d`. Arbitrum One's producer of `Block.ver`
+/// 3 records a self-destruct of such an account to another beneficiary as
+/// the debit, a `SUICIDE_WITHDRAW` from `d` to zero, the beneficiary's
+/// `SUICIDE_REFUND` and the repeat, a `SUICIDE_WITHDRAW` from `d` to zero
+/// again, at consecutive ordinals (block 514,819,388, transaction
+/// `0xae385f2d…`, `0x06bba4e1…` to `0xf3359221…`; block 191,077,275,
+/// `0xa32de857…`, `0x7bd535a8…`; `stale_selfdestruct_withdraws`). To
+/// itself, that order is the debit, a refund of the account from zero to
+/// `d` and the repeat: these records chain and end at zero, while the chain
+/// keeps `d`. No continuity check sees that wrong balance, and no such
+/// self-destruct is captured, so this shape fails the block. Other
+/// producers record a self-destruct to itself in other shapes: Ethereum's
+/// `Block.ver` 3 records the refund from zero and then the withdraw (block
+/// 19,481,732, `selfdestruct_to_self_pairs`); a producer that records only
+/// the debit and the refund ends at `d`.
+///
+/// Refused: a persisted call (non-reverted, in a succeeded transaction) that
+/// self-destructs an account no CREATE of the transaction creates, whose
+/// `SUICIDE_WITHDRAW` and `SUICIDE_REFUND` records of that account, no-ops
+/// left out, are exactly a withdraw from `d` to zero, a refund from zero to
+/// `d` and a withdraw from `d` to zero, in this order by ordinal, `d`
+/// positive. Gaps between their ordinals do not matter: the records end at
+/// zero all the same. An account created in the transaction is destroyed,
+/// so zero is its balance. The destroyed account is resolved as in
+/// `selfdestruct_debits`.
+fn validate_selfdestructs_to_self(block: &eth::Block) -> Result<(), Error> {
+    use eth::balance_change::Reason;
+    let words = |c: &eth::BalanceChange| {
+        Some((
+            value(c.old_value.as_option().map(|v| v.bytes.as_slice())).ok()?,
+            value(c.new_value.as_option().map(|v| v.bytes.as_slice())).ok()?,
+        ))
+    };
+    let zero = [0; 32];
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
+            let destroyed = match call.call_type.as_known() {
+                Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
+                _ => &call.address,
+            };
+            let is = |c: &eth::BalanceChange, reason: Reason| c.reason.as_known() == Some(reason);
+            // The account's withdraws and refunds with their (old, new) words.
+            let mut own: Vec<_> = call
+                .balance_changes
+                .iter()
+                .filter(|c| c.address == *destroyed && (is(c, Reason::SuicideWithdraw) || is(c, Reason::SuicideRefund)))
+                .filter_map(|c| words(c).map(|w| (c, w)))
+                .filter(|(_, (old, new))| old != new)
+                .collect();
+            own.sort_by_key(|(c, _)| c.ordinal);
+            let [(debit, (d, debit_new)), (refund, (refund_old, credited)), (repeat, (repeat_old, repeat_new))] = own.as_slice() else {
+                continue;
+            };
+            let created = trx
+                .calls
+                .iter()
+                .any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == *destroyed);
+            let shape = !created
+                && is(debit, Reason::SuicideWithdraw)
+                && is(refund, Reason::SuicideRefund)
+                && is(repeat, Reason::SuicideWithdraw)
+                && debit.ordinal < refund.ordinal
+                && refund.ordinal < repeat.ordinal
+                && *debit_new == zero
+                && *refund_old == zero
+                && credited == d
+                && repeat_old == d
+                && *repeat_new == zero;
+            if shape {
+                let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+                return Err(Error::msg(format!(
+                    "unrecognized self-destruct to itself: 0x{} in transaction 0x{} is recorded as debited, credited and debited \
+                     again to zero, but an account not created in its transaction keeps its balance (EIP-6780)",
+                    hex(destroyed),
+                    hex(&trx.hash)
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Since Cancun (EIP-6780) a self-destruct destroys an account created in the
@@ -1751,7 +1915,9 @@ fn execution_order(record: &Record) -> Order {
 /// continuity. Execution order is the ordinal, except in a Bor state-sync
 /// transaction (`bor_state_sync`), where it is the depth-1 call, then the
 /// ordinal (`execution_order`). Ambiguous or discontinuous producer data fails
-/// the block. Seven producer shapes are exceptions. The self-transfer pair
+/// the block, as does a failed transaction's record outside its execution that
+/// no rule persists (`validate_failed_records_outside_execution`). Seven
+/// producer shapes are exceptions. The self-transfer pair
 /// (`self_transfer_pairs`), the EIP-6780 self-destruct to itself
 /// (`selfdestruct_to_self_pairs`) and Arbitrum's repeated withdraw of a
 /// self-destructed account
@@ -1767,9 +1933,15 @@ fn execution_order(record: &Record) -> Order {
 /// credit, so the account must chain through it. An OP-stack fee vault's fee
 /// credit after the execution of a transaction that withdrew the vault
 /// (`fee_vault_credit_rewrites`) is rewritten to start from the withdrawn
-/// vault's zero, so the vault's next record must chain from the fee.
+/// vault's zero, so the vault's next record must chain from the fee. A
+/// self-destruct to itself whose records chain to zero although the account
+/// keeps its balance fails the block (`validate_selfdestructs_to_self`).
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
+    // Returned after the reduction, so a dropped record that breaks continuity
+    // keeps that error.
+    let outside_execution = validate_failed_records_outside_execution(block, &records);
+    validate_selfdestructs_to_self(block)?;
     let mut pairs = self_transfer_pairs(block);
     pairs.extend(selfdestruct_to_self_pairs(block));
     pairs.extend(stale_selfdestruct_withdraws(block, &records));
@@ -1831,6 +2003,7 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
             }
         }
     }
+    outside_execution?;
     Ok(rows.into_values().map(|(row, _, _)| row).collect())
 }
 

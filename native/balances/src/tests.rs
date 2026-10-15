@@ -556,6 +556,253 @@ fn failed_transactions_with_unpinned_reasons_fail_closed() {
     assert_eq!(changes(&b).unwrap().len(), 2);
 }
 
+/// A failed transaction in the ordinal layout of the producers of `Block.ver`
+/// 4 and 5: the transaction from 10 to 40, the sender's (account 8) `GAS_BUY`
+/// at 12, the root call from 14 to 30 with the reverted value transfer to
+/// account 9 at 16 and 17, then the sender's `GAS_REFUND` at 32 and the fee
+/// credit of account 10 at 33.
+fn failed_with_execution_window() -> eth::Block {
+    use eth::balance_change::Reason;
+    let with = |reason: Reason, c: eth::BalanceChange| eth::BalanceChange { reason: reason.into(), ..c };
+    let mut b = block();
+    b.transaction_traces = vec![eth::TransactionTrace {
+        status: eth::TransactionTraceStatus::Reverted.into(),
+        from: vec![8; 20],
+        to: vec![9; 20],
+        begin_ordinal: 10,
+        end_ordinal: 40,
+        gas_used: 3,
+        calls: vec![eth::Call {
+            state_reverted: true,
+            begin_ordinal: 14,
+            end_ordinal: 30,
+            balance_changes: vec![
+                with(Reason::GasBuy, change(8, 12, Some(100), Some(90))),
+                change(8, 16, Some(90), Some(80)),
+                change(9, 17, Some(0), Some(10)),
+                with(Reason::GasRefund, change(8, 32, Some(90), Some(95))),
+                with(Reason::RewardTransactionFee, change(10, 33, Some(0), Some(5))),
+            ],
+            ..Default::default()
+        }],
+        ..Default::default()
+    }];
+    b
+}
+
+#[test]
+fn a_failed_transaction_s_record_outside_its_execution_fails_unless_pinned() {
+    use eth::balance_change::Reason;
+    const AFTER: &str = "after its execution without pinned persistence semantics";
+    const BEFORE: &str = "before its execution without pinned persistence semantics";
+    fn refused(b: &eth::Block, message: &str) -> bool {
+        changes(b).unwrap_err().to_string().contains(message)
+    }
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn with(b: &eth::Block, c: eth::BalanceChange) -> eth::Block {
+        let mut b = b.clone();
+        root(&mut b).balance_changes.push(c);
+        b
+    }
+    // The rows without account 11, which only the added records touch.
+    fn unmoved(b: &eth::Block) -> bool {
+        let rows = changes(b).unwrap();
+        rows.len() == 2 && (row(&rows, 8).old_amount.as_str(), row(&rows, 8).amount.as_str(), row(&rows, 10).amount.as_str()) == ("100", "95", "5")
+    }
+    for status in [eth::TransactionTraceStatus::Failed, eth::TransactionTraceStatus::Reverted] {
+        let mut b = failed_with_execution_window();
+        b.transaction_traces[0].status = status.into();
+        // The gas records persist and the reverted transfer does not.
+        assert!(unmoved(&b));
+        // A credit after the execution of an account without another record
+        // in the block would chain unseen: the shared rules drop it...
+        let credit = change(11, 34, Some(0), Some(7));
+        let after = with(&b, credit.clone());
+        assert!(!records(&after).unwrap().iter().any(|r| r.address == vec![11; 20]));
+        // ...so the block fails, also past the transaction's end, for a debit
+        // of the sender after its refund and for every reason that reverts
+        // with the execution frame, or with a value past uint256.
+        assert!(refused(&after, AFTER), "{status:?}");
+        assert!(refused(&with(&b, change(11, 45, Some(0), Some(7))), AFTER));
+        assert!(refused(&with(&b, change(8, 34, Some(95), Some(94))), AFTER));
+        for reason in [
+            Reason::Transfer,
+            Reason::TouchAccount,
+            Reason::SuicideRefund,
+            Reason::CallBalanceOverride,
+            Reason::SuicideWithdraw,
+            Reason::Burn,
+        ] {
+            let c = eth::BalanceChange {
+                reason: reason.into(),
+                ..credit.clone()
+            };
+            assert!(refused(&with(&b, c), AFTER), "{reason:?}");
+        }
+        let mut wide = credit.clone();
+        wide.new_value = buffa::MessageField::some(eth::BigInt { bytes: vec![1; 33] });
+        assert!(refused(&with(&b, wide), AFTER));
+        // Before the execution: after the transaction's begin, or before it.
+        for ordinal in [13, 11, 5] {
+            assert!(refused(&with(&b, change(11, ordinal, Some(0), Some(7))), BEFORE), "ordinal {ordinal}");
+        }
+        // During the execution, its begin and end ordinals included, and at
+        // ordinal 0, the record reverts with the frame; a no-op moves nothing.
+        for ordinal in [0, 14, 20, 30] {
+            assert!(unmoved(&with(&b, change(11, ordinal, Some(0), Some(7)))), "ordinal {ordinal}");
+        }
+        assert!(unmoved(&with(&b, change(11, 34, Some(7), Some(7)))));
+        // A pinned record after the execution persists: Polygon's base-fee
+        // BURN of gas_used * base_fee (3 * 2 wei). Another amount fails.
+        let mut fee = b.clone();
+        fee.header.as_option_mut().unwrap().base_fee_per_gas = big(2).into();
+        let burn = |new| eth::BalanceChange {
+            reason: Reason::Burn.into(),
+            ..change(11, 34, Some(0), Some(new))
+        };
+        let rows = changes(&with(&fee, burn(6))).unwrap();
+        assert_eq!((rows.len(), row(&rows, 11).amount.as_str()), (3, "6"));
+        assert!(refused(&with(&fee, burn(7)), AFTER));
+        // Only the exact record persists: not another of the account at the
+        // same ordinal and reason with other values, nor an equal block-level
+        // record.
+        let twin = eth::BalanceChange {
+            reason: Reason::Burn.into(),
+            ..change(11, 34, Some(6), Some(13))
+        };
+        assert!(refused(&with(&with(&fee, burn(6)), twin), AFTER));
+        let mut block_level = after.clone();
+        block_level.balance_changes = vec![credit.clone()];
+        assert!(refused(&block_level, AFTER));
+        // The producers of `Block.ver` 3 record the root call's begin as 0, so
+        // no window lies before the execution.
+        let mut ver3 = with(&b, change(11, 13, Some(0), Some(7)));
+        root(&mut ver3).begin_ordinal = 0;
+        assert!(unmoved(&ver3));
+        // A root call without an end ordinal cannot place a record that does
+        // not persist, the reverted transfer included...
+        let mut open = with(&b, credit.clone());
+        root(&mut open).end_ordinal = 0;
+        assert!(refused(&open, "missing end ordinal cannot place"));
+        let mut open = b.clone();
+        root(&mut open).end_ordinal = 0;
+        assert!(refused(&open, "missing end ordinal cannot place"));
+        // ...unless its records all persist...
+        root(&mut open).balance_changes.retain(persist::is_gas_reason);
+        assert!(unmoved(&open));
+        // ...or the transaction has no ordinals either, as synthetic traces.
+        let mut bare = with(&b, credit.clone());
+        root(&mut bare).end_ordinal = 0;
+        (bare.transaction_traces[0].begin_ordinal, bare.transaction_traces[0].end_ordinal) = (0, 0);
+        assert!(unmoved(&bare));
+        // A succeeded transaction persists the record.
+        let mut ok = with(&b, credit.clone());
+        ok.transaction_traces[0].status = eth::TransactionTraceStatus::Succeeded.into();
+        root(&mut ok).state_reverted = false;
+        root(&mut ok).balance_changes.retain(|c| c.ordinal != 16 && c.ordinal != 17);
+        assert_eq!(row(&changes(&ok).unwrap(), 11).amount, "7");
+    }
+}
+
+/// The records of a block's failed transactions' root calls that move a
+/// balance outside the execution, as counts after it, before it and in a root
+/// call without an end ordinal (a fixture captured without call ordinals);
+/// each persists as recorded.
+fn persisted_outside_execution(b: &eth::Block) -> [usize; 3] {
+    let records = records(b).unwrap();
+    let mut counts = [0; 3];
+    for tx in b.transaction_traces.iter().filter(|t| persist::is_failed(t)) {
+        let root = &tx.calls[0];
+        for c in root.balance_changes.iter().filter(|c| value_change(c).is_none_or(|m| !m.is_zero())) {
+            let window = if root.end_ordinal == 0 {
+                2
+            } else if c.ordinal > root.end_ordinal {
+                0
+            } else if c.ordinal > 0 && c.ordinal < root.begin_ordinal {
+                1
+            } else {
+                continue;
+            };
+            let kept = records.iter().any(|r| {
+                r.scope == persist::Scope::TxFailedPersistent
+                    && r.address == c.address
+                    && r.ordinal == c.ordinal
+                    && r.new_value.as_deref() == c.new_value.as_option().map(|v| v.bytes.as_slice())
+            });
+            assert!(kept, "block {} tx {} ordinal {}", b.number, tx.index, c.ordinal);
+            counts[window] += 1;
+        }
+    }
+    counts
+}
+
+#[test]
+fn captured_failed_transactions_persist_every_record_outside_their_execution() {
+    use eth::balance_change::Reason;
+    // Every captured failed-transaction shape: BNB Chain's blob fee and gas
+    // records, Polygon's base-fee burn, Arbitrum's fee transfers, tip,
+    // submission and retry settlements and SetCode transactions, and the
+    // OP-stack deposit mints of Base, Optimism and Unichain.
+    let fixtures = |f: &str| captured_block(&serde_json::from_str(f).unwrap());
+    let mut blocks = vec![
+        eth::Block::decode_from_slice(FIXTURE_BLOCK).unwrap(),
+        captured_failed_blob_fee(),
+        captured_polygon_failed_base_fee(),
+        captured_arbitrum_failed_fee(),
+        captured_arbitrum_failed_fee_tip(),
+        captured_arbitrum_failed_submission_without_records(),
+        captured_arbitrum_failed_submission_mint(),
+        captured_arbitrum_failed_submission_call_value(),
+        captured_arbitrum_failed_retry(),
+        captured_arbitrum_failed_retry_value(),
+        captured_arbitrum_failed_retry_out_of_gas(),
+        captured_base_failed_deposit(),
+        captured_base_failed_deposit_reverted_call(),
+        fixtures(OPTIMISM_FAILED_DEPOSIT),
+        fixtures(OPTIMISM_FAILED_DEPOSIT_REVERTED_CALL),
+        fixtures(OPTIMISM_V5_FAILED_DEPOSIT),
+        fixtures(UNICHAIN_FAILED_DEPOSIT_REVERTED_CALL),
+    ];
+    blocks.extend(captured_arbitrum_failed_setcode());
+    let mut totals = [0; 3];
+    for b in &blocks {
+        assert!(changes(b).is_ok(), "block {}", b.number);
+        let counts = persisted_outside_execution(b);
+        (0..3).for_each(|i| totals[i] += counts[i]);
+    }
+    // 44 records after the execution (gas refunds and fee credits, Arbitrum's
+    // fee transfers and retry settlements, Polygon's burn), 8 before it (gas
+    // purchases and deposit mints) and the 4 records of BNB Chain's failed
+    // blob transaction, captured without call ordinals.
+    assert_eq!(totals, [44, 8, 4]);
+
+    // Unpinned, the same records fail the block where they would have chained
+    // unseen. Arbitrum block 150,000,072 up to transaction 7, whose fee
+    // credits at 454 and 455 are its accounts' last: one wei more no longer
+    // adds up to the gas paid...
+    let mut b = captured_arbitrum_failed_fee();
+    b.transaction_traces[4].calls[0].balance_changes[2].new_value = wei(2_866_154_730_594_200_000_001).into();
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+    b.transaction_traces.truncate(5);
+    assert!(!records(&b).unwrap().iter().any(|r| r.ordinal == 454 || r.ordinal == 455));
+    assert!(changes(&b).unwrap_err().to_string().contains("after its execution without pinned persistence"));
+    // ...Polygon block 95,537,024 up to transaction 4, whose base-fee burn at
+    // 111 moves one wei more than gas_used * base_fee...
+    let mut b = captured_polygon_failed_base_fee();
+    b.transaction_traces[1].calls[0].balance_changes[2].new_value = wei(62_430_004_462_142_801_726_820_036).into();
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+    b.transaction_traces.truncate(2);
+    assert!(changes(&b).unwrap_err().to_string().contains("after its execution without pinned persistence"));
+    // ...and Base block 5,044,695, whose failed deposit's mint at 25, before
+    // the execution, is recorded as a TRANSFER.
+    let mut b = captured_base_failed_deposit();
+    b.transaction_traces[0].calls[0].balance_changes[0].reason = Reason::Transfer.into();
+    assert!(records(&b).unwrap().is_empty());
+    assert!(changes(&b).unwrap_err().to_string().contains("before its execution without pinned persistence"));
+}
+
 /// WETH9-style wrapping on captured WBNB transactions: the holder's WBNB is an
 /// ERC-20 balance and the wrapper contract's BNB is native account state. The
 /// wrapper's native balance moves by the event's amount; the holder gets no
@@ -2093,10 +2340,15 @@ fn the_failed_arbos_transaction_guard_is_exact() {
     calls(&mut b)[1].balance_changes.truncate(1);
     calls(&mut b)[1].balance_changes[0].reason = eth::balance_change::Reason::GasBuy.into();
     assert!(refused_as_kept_by_arbos(&b));
-    // ...as does a value past `uint256`.
+    // ...as does a value past `uint256`, new or old.
     let mut b = report.clone();
     calls(&mut b)[1].balance_changes.truncate(1);
     calls(&mut b)[1].balance_changes[0].new_value = Some(eth::BigInt { bytes: vec![1; 33] }).into();
+    assert!(refused_as_kept_by_arbos(&b));
+    let mut b = report.clone();
+    calls(&mut b)[1].balance_changes.truncate(1);
+    let c = &mut calls(&mut b)[1].balance_changes[0];
+    (c.old_value, c.new_value) = (Some(eth::BigInt { bytes: vec![1; 33] }).into(), None.into());
     assert!(refused_as_kept_by_arbos(&b));
     // The shared rules persist a gas record of the root call.
     let mut b = report.clone();
@@ -2285,6 +2537,19 @@ fn the_failed_submission_fee_refund_shape_is_exact() {
     assert!(refused(&|b| record(b, 10).new_value = wei(58_032_420_375_634_204_652).into()));
     assert!(refused(&|b| record(b, 11).old_value = wei(58_032_420_375_634_204_652).into()));
     assert!(refused(&|b| record(b, 12).new_value = wei(60_000_000_000_001).into()));
+    // ...the sender's debit too: not 1 wei more, although the sender then
+    // chains, 1 wei short, nor of another account...
+    assert!(refused(&|b| {
+        record(b, 9).new_value = wei(57_995_630_662_927).into();
+        let c = record(b, 12);
+        (c.old_value, c.new_value) = (wei(57_995_630_662_927).into(), wei(59_999_999_999_999).into());
+    }));
+    assert!(refused(&|b| {
+        let c = record(b, 9);
+        (c.address, c.old_value, c.new_value) = (vec![9; 20], wei(2_004_369_337_072).into(), wei(0).into());
+        let c = record(b, 12);
+        (c.old_value, c.new_value) = (wei(60_000_000_000_000).into(), wei(62_004_369_337_072).into());
+    }));
     // ...in this order...
     assert!(refused(&|b| {
         record(b, 10).ordinal = 0;
@@ -2500,12 +2765,16 @@ fn captured_arbitrum_failed_manual_redeem_returns_its_call_value_to_the_escrow()
     // does not persist.
     assert!(!rows.iter().any(|r| hex::encode(&r.address) == "2eaf07a964c6601c4faefd6d8969df0b84f65e55"));
     // Without the settlement every account still chains, but the sender keeps
-    // the call value and the refund, as native v0.7.8 reported.
+    // the call value and the refund, as native v0.7.8 reported. Its records
+    // after the execution now fail the block instead
+    // (`validate_failed_records_outside_execution`).
     let mut other = b.clone();
     other.transaction_traces[1].r#type = eth::transaction_trace::Type::TrxTypeDynamicFee.into();
-    let rows = changes(&other).unwrap();
-    assert_eq!(row_of(&rows, &hex::decode(RETRY_VALUE_SENDER).unwrap()).amount, "6035201444132000");
-    assert!(!rows.iter().any(|r| hex::encode(&r.address) == RETRY_ESCROW));
+    assert!(!records(&other).unwrap().iter().any(|r| hex::encode(&r.address) == RETRY_ESCROW));
+    assert!(changes(&other)
+        .unwrap_err()
+        .to_string()
+        .contains("after its execution without pinned persistence"));
 }
 
 #[test]
@@ -2607,6 +2876,13 @@ fn the_failed_retry_settlement_shape_is_exact() {
     let mut b = captured_arbitrum_failed_retry();
     b.transaction_traces[1].gas_used -= 1;
     assert!(refused(&b));
+    // ...no record after the execution, or the GAS_REFUND without its burn and
+    // the payments, although the sender chains through the mint either way...
+    for last in [102, 103] {
+        let mut b = captured_arbitrum_failed_retry();
+        b.transaction_traces[1].calls[0].balance_changes.retain(|c| c.ordinal <= last);
+        assert!(refused(&b));
+    }
     // ...a GAS_REFUND of another account, a TRANSFER in its place, or a
     // GAS_REFUND of another amount than the burn...
     let mut b = captured_arbitrum_failed_retry();
@@ -2700,10 +2976,15 @@ fn the_failed_retry_settlement_shape_is_exact() {
         },
     ]);
     assert!(refused(&b));
-    // ...payments that add up to another amount than the refund...
+    // ...payments that add up to another amount than the refund, more or less
+    // (here nothing, as when a fee account cannot pay its refund and Nitro
+    // skips it)...
     let mut b = captured_arbitrum_failed_retry();
     record(&mut b, 105).new_value = wei(919_240_220_428_078_778_327).into();
     record(&mut b, 106).new_value = wei(146_044_608_097_841_378).into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes.retain(|c| c.ordinal < 105);
     assert!(refused(&b));
     // ...or another record after the execution fails the block.
     let mut b = captured_arbitrum_failed_retry();
@@ -2746,21 +3027,24 @@ fn the_failed_retry_settlement_shape_is_exact() {
         reason: eth::balance_change::Reason::Transfer.into(),
     });
     assert_eq!(changes(&b).unwrap(), changes(&captured_arbitrum_failed_retry()).unwrap());
-    // A value past uint256 fails the block, beside the settlement (here in the
-    // reverted execution) or as the retry's only record.
-    let oversize = eth::BalanceChange {
-        address: other.clone(),
-        old_value: None.into(),
-        new_value: Some(eth::BigInt { bytes: vec![1; 33] }).into(),
-        ordinal: 60,
-        reason: eth::balance_change::Reason::Transfer.into(),
-    };
-    let mut b = captured_arbitrum_failed_retry();
-    b.transaction_traces[1].calls[0].balance_changes.push(oversize.clone());
-    assert!(refused(&b));
-    let mut b = captured_arbitrum_failed_retry();
-    b.transaction_traces[1].calls[0].balance_changes = vec![oversize];
-    assert!(refused(&b));
+    // A value past uint256, new or old, fails the block, beside the settlement
+    // (here in the reverted execution) or as the retry's only record.
+    let past_uint256 = Some(eth::BigInt { bytes: vec![1; 33] });
+    for (old_value, new_value) in [(None, past_uint256.clone()), (past_uint256, None)] {
+        let oversize = eth::BalanceChange {
+            address: other.clone(),
+            old_value: old_value.into(),
+            new_value: new_value.into(),
+            ordinal: 60,
+            reason: eth::balance_change::Reason::Transfer.into(),
+        };
+        let mut b = captured_arbitrum_failed_retry();
+        b.transaction_traces[1].calls[0].balance_changes.push(oversize.clone());
+        assert!(refused(&b));
+        let mut b = captured_arbitrum_failed_retry();
+        b.transaction_traces[1].calls[0].balance_changes = vec![oversize];
+        assert!(refused(&b));
+    }
     // A call value without the escrow's moves fails the block.
     let mut b = captured_arbitrum_failed_retry();
     b.transaction_traces[1].value = wei(1).into();
@@ -2813,21 +3097,58 @@ fn the_failed_retry_settlement_shape_is_exact() {
     let mut b = captured_arbitrum_failed_retry_value();
     record(&mut b, 285).address = vec![9; 20];
     assert!(refused(&b));
-    // ...which the sender never counts as. Past the ticket's maximum refund the
-    // network fee account pays the sender after the infrastructure fee account
-    // paid the refund address. Nitro pays the sender last, but the shape does
-    // not order the payments, so the reverse order settles too.
+    // ...which the sender never counts as. Past the ticket's maximum refund,
+    // here used up by the infrastructure fee account's payment to the refund
+    // address, the network fee account pays the sender...
     let mut b = captured_arbitrum_failed_retry_value();
     record(&mut b, 285).address = value_sender.clone();
     set(&mut b, 285, value, value + 8_866_104_132_000);
     set(&mut b, 286, value + 8_866_104_132_000, 8_866_104_132_000);
     assert_eq!(row_of(&changes(&b).unwrap(), &value_sender).amount, "8866104132000");
+    // ...or, when the maximum refund runs out within its payment, splits it:
+    // the refund address first, then the sender...
+    let mut b = captured_arbitrum_failed_retry_value();
+    b.transaction_traces[1].end_ordinal = 291;
+    for ordinal in [287, 286] {
+        record(&mut b, ordinal).ordinal = ordinal + 2;
+    }
+    let (network, split, rest) = (54_091_183_612_536_855_824_u128, 8_000_000_000_000_u128, 866_104_132_000_u128);
+    set(&mut b, 284, network, network - split);
+    set(&mut b, 285, 14_015_778_403_599_631, 14_015_778_403_599_631 + split);
+    let (debit, credit) = (record(&mut b, 284).clone(), record(&mut b, 288).clone());
+    b.transaction_traces[1].calls[0].balance_changes.extend([
+        eth::BalanceChange {
+            old_value: wei(network - split).into(),
+            new_value: wei(network - split - rest).into(),
+            ordinal: 286,
+            ..debit
+        },
+        eth::BalanceChange {
+            old_value: wei(value).into(),
+            new_value: wei(value + rest).into(),
+            ordinal: 287,
+            ..credit
+        },
+    ]);
+    set(&mut b, 288, value + rest, rest);
+    assert_rows(
+        &changes(&b).unwrap(),
+        &[
+            (RETRY_VALUE_SENDER, "0", "866104132000", 288, 7),
+            ("2cd28cda6825c4967372478e87d004637b73f996", "14042830579263631", "14023778403599631", 285, 3),
+            (NETWORK_FEE, "54091162600531997824", "54091174746432723824", 286, 3),
+        ],
+    );
+    // ...but no payment to the refund address follows one to the sender (see
+    // `failed_retry_settlements`): the infrastructure fee account paying the
+    // sender before the network fee account pays the refund address fails the
+    // block, although every account chains.
     let mut b = captured_arbitrum_failed_retry_value();
     record(&mut b, 283).address = value_sender.clone();
     set(&mut b, 283, value, value + 881_340_000_000);
     set(&mut b, 285, 14_014_897_063_599_631, 14_023_763_167_731_631);
     set(&mut b, 286, value + 881_340_000_000, 881_340_000_000);
-    assert_eq!(row_of(&changes(&b).unwrap(), &value_sender).amount, "881340000000");
+    assert!(refused(&b));
     // ...and back to the escrow at the end...
     let mut b = captured_arbitrum_failed_retry_value();
     record(&mut b, 287).address = vec![9; 20];
@@ -3632,6 +3953,196 @@ fn the_stale_selfdestruct_withdraw_of_an_existing_account_is_exact() {
     let mut b = before_cancun();
     call(&mut b).balance_changes.push(record(SENDER, 40, 0, 1, Reason::SuicideRefund));
     assert!(fails(&b));
+}
+
+/// Arbitrum One block 514,819,388's self-destruct as if to itself: its
+/// refund at ordinal 173 credits `0x06bba4e1…` from zero to `d` instead of
+/// the beneficiary `0xf3359221…`. No such self-destruct is captured.
+fn arbitrum_selfdestruct_to_itself() -> eth::Block {
+    let mut b = captured_arbitrum_stale_withdraw_existing();
+    b.transaction_traces[0].calls[0].balance_changes[4] = eth::BalanceChange {
+        address: hex::decode(STALE_EXISTING).unwrap(),
+        reason: eth::balance_change::Reason::SuicideRefund.into(),
+        ..change(0, 173, Some(0), Some(3_495_043_890_571))
+    };
+    b
+}
+fn refused_as_selfdestruct_to_itself(b: &eth::Block) -> bool {
+    changes(b).is_err_and(|e| e.to_string().contains("unrecognized self-destruct to itself"))
+}
+
+#[test]
+fn an_arbitrum_selfdestruct_to_itself_of_an_existing_account_fails_the_block() {
+    use eth::balance_change::Reason;
+    let b = arbitrum_selfdestruct_to_itself();
+    let account = hex::decode(STALE_EXISTING).unwrap();
+    // The account's records: the call's value, then Arbitrum's order for an
+    // account not created in the transaction, the debit, the refund (here
+    // of the account itself, from zero) and the repeat.
+    let own: Vec<_> = records(&b)
+        .unwrap()
+        .iter()
+        .filter(|r| r.address == account)
+        .map(|r| {
+            let [old, new] = [&r.old_value, &r.new_value].map(|v| amount(&value(v.as_deref()).unwrap()));
+            (r.ordinal, old, new, r.reason)
+        })
+        .collect();
+    let (d, zero) = ("3495043890571".to_string(), "0".to_string());
+    assert_eq!(
+        own,
+        [
+            (170, zero.clone(), d.clone(), Reason::Transfer as i32),
+            (172, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (173, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
+            (174, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+        ]
+    );
+    // These records chain and end at zero, while since Cancun (EIP-6780) the
+    // account keeps `d`: without the self-destruct flag the block passes
+    // with the account at zero, and no other self-destruct rule takes them.
+    let mut unflagged = b.clone();
+    unflagged.transaction_traces[0].calls[0].suicide = false;
+    let rows = changes(&unflagged).unwrap();
+    let row = row_of(&rows, &account);
+    assert_eq!((row.amount.as_str(), row.records), ("0", 4));
+    let persisted = records(&b).unwrap();
+    assert!(stale_selfdestruct_withdraws(&b, &persisted).is_empty());
+    assert!(selfdestruct_to_self_pairs(&b).is_empty());
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert!(selfdestruct_credit_shifts(&b, &persisted).is_empty());
+    // So the block fails, naming the account and the transaction.
+    let error = changes(&b).unwrap_err().to_string();
+    assert!(
+        error.contains(
+            "unrecognized self-destruct to itself: 0x06bba4e1619ae7ed8332978643399de6cf7de80b in transaction \
+             0xae385f2d908729e19003b207a772e2eab9e3e38c029d8a0863324e6e6c04e2b6"
+        ),
+        "{error}"
+    );
+    assert!(project(&b).is_err());
+}
+
+#[test]
+fn the_selfdestruct_to_itself_refusal_is_exact() {
+    use eth::balance_change::Reason;
+    const D: u64 = 3_495_043_890_571;
+    // Records 2 to 5 of the root call: the call's value (170), the debit
+    // (172), the refund (173) and the repeat (174).
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn record(ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(STALE_EXISTING).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    let refused = refused_as_selfdestruct_to_itself;
+    let discontinuous = |b: &eth::Block| changes(b).is_err_and(|e| e.to_string().contains("discontinuous"));
+    let account = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(STALE_EXISTING).unwrap());
+        (row.amount.clone(), row.records)
+    };
+    let to_itself = arbitrum_selfdestruct_to_itself;
+    assert!(refused(&to_itself()));
+    // The captured self-destructs to another beneficiary, and Ethereum's
+    // `Block.ver` 3 records of a self-destruct to itself (the refund from
+    // zero, then the withdraw), are not this shape.
+    assert_eq!(account(&captured_arbitrum_stale_withdraw_existing()), ("0".to_string(), 2));
+    let rows = changes(&captured_selfdestruct_to_self()).unwrap();
+    assert_eq!(row_of(&rows, &hex::decode(TO_SELF).unwrap()).amount, "1");
+    // Only of an account not created in the transaction: a created account
+    // is destroyed, so its records end at its balance, zero.
+    let mut b = to_itself();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(STALE_EXISTING).unwrap(),
+        ..Default::default()
+    });
+    assert_eq!(account(&b), ("0".to_string(), 4));
+    // Only of a persisted call: not of a reverted call, nor in a failed
+    // transaction.
+    let mut b = to_itself();
+    root(&mut b).state_reverted = true;
+    assert!(!refused(&b));
+    let mut b = to_itself();
+    b.transaction_traces[0].status = eth::TransactionTraceStatus::Failed.into();
+    assert!(!refused(&b));
+    // Only of the account the call self-destructs: for a DELEGATECALL, its
+    // caller.
+    let mut b = to_itself();
+    root(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(!refused(&b));
+    root(&mut b).caller = hex::decode(STALE_EXISTING).unwrap();
+    root(&mut b).address = hex::decode(STALE_EXISTING_BENEFICIARY).unwrap();
+    assert!(refused(&b));
+    // The debit first: with the refund first, as before Cancun, the records
+    // do not chain.
+    let mut b = to_itself();
+    root(&mut b).balance_changes[3].ordinal = 173;
+    root(&mut b).balance_changes[4].ordinal = 172;
+    assert!(!refused(&b) && discontinuous(&b));
+    // Exactly the debit, the refund and the repeat: with the debit and the
+    // refund only, the account ends at `d`; a further withdraw does not
+    // chain.
+    let mut b = to_itself();
+    root(&mut b).balance_changes.remove(5);
+    assert_eq!(account(&b), (D.to_string(), 3));
+    let mut b = to_itself();
+    root(&mut b).balance_changes.push(record(175, D, 0, Reason::SuicideWithdraw));
+    assert!(!refused(&b) && discontinuous(&b));
+    // The refund is a SUICIDE_REFUND, and the debit and the repeat
+    // SUICIDE_WITHDRAWs.
+    for (index, reason) in [
+        (3, Reason::SuicideRefund),
+        (4, Reason::SuicideWithdraw),
+        (5, Reason::SuicideRefund),
+        (4, Reason::Transfer),
+    ] {
+        let mut b = to_itself();
+        root(&mut b).balance_changes[index].reason = reason.into();
+        assert!(!refused(&b), "record {index}");
+    }
+    // Only a refund of the account itself: a beneficiary credited from zero
+    // (as in block 407,513,390) is the self-destruct to another account,
+    // whose repeat is dropped.
+    let mut b = captured_arbitrum_stale_withdraw_existing();
+    let c = &mut root(&mut b).balance_changes[4];
+    (c.old_value, c.new_value) = (big(0).into(), big(D).into());
+    assert!(!refused(&b));
+    assert_eq!(account(&b), ("0".to_string(), 2));
+    // In this order by ordinal: two records at one ordinal are ambiguous.
+    for (index, ordinal) in [(4, 172), (5, 173)] {
+        let mut b = to_itself();
+        root(&mut b).balance_changes[index].ordinal = ordinal;
+        assert!(changes(&b).unwrap_err().to_string().contains("ambiguous"), "record {index}");
+    }
+    // The debit from `d` to zero, the refund from zero to `d` and the repeat
+    // from `d` to zero: other values do not chain, or end at another balance.
+    for (index, old, new) in [(3, D, 1), (4, 1, D), (4, 0, D + 1), (5, D - 1, 0)] {
+        let mut b = to_itself();
+        let c = &mut root(&mut b).balance_changes[index];
+        (c.old_value, c.new_value) = (big(old).into(), big(new).into());
+        assert!(!refused(&b) && discontinuous(&b), "record {index}");
+    }
+    let mut b = to_itself();
+    root(&mut b).balance_changes[5].new_value = big(1).into();
+    assert_eq!(account(&b), ("1".to_string(), 4));
+    // Gaps between the ordinals and no-ops between the records do not
+    // matter: the records end at zero all the same.
+    let mut b = to_itself();
+    root(&mut b).balance_changes[3].ordinal = 171;
+    assert!(refused(&b));
+    let mut b = to_itself();
+    root(&mut b).balance_changes[5].ordinal = 175;
+    root(&mut b).balance_changes.insert(5, record(174, 0, 0, Reason::SuicideWithdraw));
+    assert!(refused(&b));
 }
 
 /// Base block 5,044,695 (`Block.ver` 4) as captured from Firehose:
