@@ -1,0 +1,63 @@
+{
+ "source": "Base Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 7092606,
+ "hash": "d9ea5cbea22c1fbe7e884e6a46ca210881f76b3e848f0ad3d9ef754e134a034e",
+ "ver": 4,
+ "coinbase": "4200000000000000000000000000000000000011",
+ "base_fee_per_gas": "33",
+ "contents": "transaction 1 whole (a failed deposit whose call reverts): every call with its balance records, self-destruct flag and ordinals, gas fields, sender and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 1,
+   "hash": "3869ca9eb6fc53a0d93c2fc97e1f820f3d857d2b7484065aa3517be370201804",
+   "type": 126,
+   "begin_ordinal": 24,
+   "end_ordinal": 35,
+   "status": 2,
+   "gas_limit": 222000,
+   "gas_used": 23527,
+   "gas_price": "",
+   "from": "8117a1888cd0cbf5c294f3ff179c5d243ee573a5",
+   "to": "00008453e27e8e88f305f13cf27c30d724fdd055",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "8117a1888cd0cbf5c294f3ff179c5d243ee573a5",
+     "address": "00008453e27e8e88f305f13cf27c30d724fdd055",
+     "value": "038d7ea4c68000",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 28,
+     "end_ordinal": 33,
+     "balance_changes": [
+      {
+       "address": "8117a1888cd0cbf5c294f3ff179c5d243ee573a5",
+       "old_value": "140444b6d19e3b",
+       "new_value": "1791c35b981e3b",
+       "ordinal": 25,
+       "reason": 18
+      },
+      {
+       "address": "8117a1888cd0cbf5c294f3ff179c5d243ee573a5",
+       "old_value": "1791c35b981e3b",
+       "new_value": "140444b6d19e3b",
+       "ordinal": 30,
+       "reason": 5
+      },
+      {
+       "address": "00008453e27e8e88f305f13cf27c30d724fdd055",
+       "old_value": "",
+       "new_value": "038d7ea4c68000",
+       "ordinal": 31,
+       "reason": 5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

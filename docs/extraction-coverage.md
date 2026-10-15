@@ -71,6 +71,9 @@ is [122288006, 122289030) (version 5).
   "fee payments are not registered as internal EVM calls". The BSC failed-
   transaction gas-only rule is therefore not transferable without Base
   producer fixtures ([native/balances persisted-effect matrix](../native/balances/docs/persisted-effects.md)).
+  Since native v0.7.8 (2026-10-14) captured fixtures pin a failed deposit's
+  `INCREASE_MINT` on Base, Optimism and Unichain and Base's fee vault credit
+  after a vault withdrawal; the operator fee vault has no captured credit.
 - **HyperEVM**: base and priority fees are burned, the priority fee being
   credited to the zero address; HYPE and linked tokens cross the
   HyperCore↔HyperEVM boundary through system addresses (`0x2222…2222` for
@@ -106,7 +109,15 @@ From `sf.ethereum.type.v2` at `streamingfast/firehose-ethereum@9485efe2e6290e525
   every call with `state_reverted == false`; a failed or reverted transaction
   persists only root-call balance changes with reasons `GAS_BUY`,
   `GAS_REFUND`, `REWARD_TRANSACTION_FEE` and the sender nonce, plus accepted
-  EIP-7702 authorizations. Implemented in [`common/persist`](../common/persist).
+  EIP-7702 authorizations. Implemented in [`common/persist`](../common/persist),
+  which, where the root call records `begin_ordinal` 0 (Arbitrum One's
+  version 3), recovers the authorizations' boundary from their records
+  (native v0.7.8, ERC-20 v0.7.3). Chains that keep more of a failed
+  transaction (Polygon's base fee, Arbitrum One's fees and ArbOS settlements,
+  the OP-stack deposit mint) are pinned per shape in
+  [`native/balances`](../native/balances/README.md#failed-transactions),
+  which since v0.7.8 refuses any other record of a failed root call that
+  moves a balance outside the execution.
 - Producer versions: version 3 recorded system-call ordinals on a different
   scale from transaction ordinals and zeroed root-call `begin_ordinal`
   (tracer comments, CHANGELOG v2.10.0); cross-scope ordinal reduction requires
@@ -350,16 +361,22 @@ that will close it.
    currently deferred.)
 2. Extended historical depth available from the documented BSC, Ethereum and
    Base endpoints, and which producer version each serves at which heights
-   (#8). Version 5 rollout is documented only in tracer changelogs.
+   (#8). Version 5 rollout is documented only in tracer changelogs. Partly
+   answered 2026-10-14: Optimism's Extended blocks begin at 105,235,064 and
+   Arbitrum One's at 22,207,818; the versions seen per network are in the
+   [native README](../native/balances/README.md#input-and-networks), and the
+   Polygon endpoint served block 95,537,024 as version 5 and, later, as 4.
 3. HyperEVM: mainnet genesis date/height, `safe`/`finalized` tag semantics,
    the exact on-chain form of Core→EVM HYPE credits, and the chain-id registry
    conflict (ethereum-lists still maps 999 to Wanchain Testnet) (#8).
 4. Arc: `safe`/`finalized` tag behaviour, genesis identity, whether the
    20 Gwei minimum base fee applies to mainnet, the fee recipient identity,
    and whether the system emitter also logs fee debits (#8, #17).
-5. Base: whether a nonzero operator fee is configured since Isthmus, Jovian
-   semantics, and producer fixtures showing where a failed deposit's mint is
-   recorded (#8, #17).
+5. Base: whether a nonzero operator fee is configured since Isthmus, and
+   Jovian semantics (#8, #17). Where a failed deposit's mint is recorded was
+   answered 2026-10-14: an `INCREASE_MINT` of the sender in the root call,
+   before the execution (Base and Unichain `Block.ver` 4, Optimism 4 and 5);
+   no failed deposit of Base or Unichain version 5 is captured.
 6. Aave: runtime and activation binding for Ethereum Core and additional
    revisions/markets (#8). The selected BSC revision-5 aTokens, Pool and
    legacy static-aToken epoch are bound and have bounded packaged-output

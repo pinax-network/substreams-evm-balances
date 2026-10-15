@@ -1,0 +1,373 @@
+{
+  "source": "arbone.firehose.pinax.network:443 sf.firehose.v2.Fetch/Block, fetched 2026-10-14 with firecore tools firehose-client -o bytes",
+  "protobuf_type": "sf.ethereum.type.v2.TransactionTrace",
+  "extraction": "Sliced the selected transaction's TransactionTrace bytes (Block field 10) out of the encoded Extended block without decoding or editing them. RPC confirmed the block hash, the receipt status and the transaction type 4.",
+  "limits": "Arbitrum One, Block.ver 3, whose root calls record begin_ordinal 0. Four reverted SetCode transactions and one succeeded one with a new authority; no failed transaction with a new authority was found in 222,000 scanned blocks (485 reverted SetCode transactions, 143 with applied authorizations). Not a producer, code-clearing or lifecycle matrix.",
+  "records": [
+    {
+      "block_number": 350048039,
+      "block_hash": "0x4049e09f4b777bb4298e8ba0a802b943ae14e3e469667fee4b7a50a261aca95f",
+      "producer_version": 3,
+      "transaction_index": 4,
+      "transaction_hash": "0xfed9d2eccd925e11905e2f24255f99ba029e6764c6dca00384584c8c6d8aba5e",
+      "transaction_status": 3,
+      "rpc_receipt_status": "0x0",
+      "bytes": 21793,
+      "sha256": "ccbd619926f0a8ecefca32feac8e83574b47660bf12e9d729942a5b97fa2db49",
+      "note": "self-authorization; reverted child calls",
+      "transaction_ordinals": [
+        187,
+        322
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 315,
+      "unrecorded_ordinal": 194,
+      "sender": "0xcd21f0d3ad097308c39e2b7914779787d22e831c",
+      "authorizations": [
+        {
+          "authority": "0xcd21f0d3ad097308c39e2b7914779787d22e831c",
+          "address": "0x63c0c19a282a1b52b07dd5a65b58948a07dae32b",
+          "nonce": 589,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0xcd21f0d3ad097308c39e2b7914779787d22e831c",
+          "old": 588,
+          "new": 589,
+          "ordinal": 191
+        },
+        {
+          "address": "0xcd21f0d3ad097308c39e2b7914779787d22e831c",
+          "old": 589,
+          "new": 590,
+          "ordinal": 192
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0xcd21f0d3ad097308c39e2b7914779787d22e831c",
+          "old_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+          "new_hash": "0xb09ef517c48d2bf6eed05457ff56871b2596e3fc904fc6e9795882a870c2e993",
+          "ordinal": 193
+        }
+      ],
+      "filename": "arbitrum-350048039-failed-setcode.pb"
+    },
+    {
+      "block_number": 400015655,
+      "block_hash": "0x58e3eed1dc025c31a699742e6d18e53bde81fbd67b3306d6d3fd5d931c10a629",
+      "producer_version": 3,
+      "transaction_index": 5,
+      "transaction_hash": "0xa777590eccf6c979291d23082142770b8b0878cf00dd538359a60ef37379ebe0",
+      "transaction_status": 3,
+      "rpc_receipt_status": "0x0",
+      "bytes": 1739,
+      "sha256": "b9f11edb6d12db701e994c5f574393f1aa842f4d3cc5e4ce0c8d03642ea212a4",
+      "note": "no child call; delegation renewed with unchanged code",
+      "transaction_ordinals": [
+        246,
+        261
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 254,
+      "unrecorded_ordinal": 253,
+      "sender": "0x4cf609fc3fd878b34c7ea3d63f732248fd7a5b4c",
+      "authorizations": [
+        {
+          "authority": "0xb9c0de368bece5e76b52545a8e377a4c118f597b",
+          "address": "0xff02c0c9644e519256b0e03e19f41793e9c0624f",
+          "nonce": 6419,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0x4cf609fc3fd878b34c7ea3d63f732248fd7a5b4c",
+          "old": 34865,
+          "new": 34866,
+          "ordinal": 250
+        },
+        {
+          "address": "0xb9c0de368bece5e76b52545a8e377a4c118f597b",
+          "old": 6419,
+          "new": 6420,
+          "ordinal": 251
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0xb9c0de368bece5e76b52545a8e377a4c118f597b",
+          "old_hash": "0xc03b1fa83ba103ae8ae2dcdca17a5abf9d0f3037b6a606e2b557ac655665fff5",
+          "new_hash": "0xc03b1fa83ba103ae8ae2dcdca17a5abf9d0f3037b6a606e2b557ac655665fff5",
+          "ordinal": 252
+        }
+      ],
+      "filename": "arbitrum-400015655-failed-setcode.pb"
+    },
+    {
+      "block_number": 450003654,
+      "block_hash": "0x09e66c78f3b312a34976d4543038f49099c1d5436e9f7b1292688a5a57636ff9",
+      "producer_version": 3,
+      "transaction_index": 10,
+      "transaction_hash": "0x009b640c8b6e288f0bf7039768eb420121108b033fcb14d2553e5f9bb5e01a31",
+      "transaction_status": 3,
+      "rpc_receipt_status": "0x0",
+      "bytes": 4196,
+      "sha256": "7aeb002dc51c0cf9612147ff2b0aa6dc1badf59fbfb2e199afea720f260400cb",
+      "note": "a discarded authorization, then four applied ones of the same authority",
+      "transaction_ordinals": [
+        346,
+        385
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 373,
+      "unrecorded_ordinal": 359,
+      "sender": "0xbd43bd6b25e80310869a56d4e395026b8256dd2a",
+      "authorizations": [
+        {
+          "authority": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "address": "0xa28ccfbe39807372f1fc99aef7a6bd5a967a08cc",
+          "nonce": 21,
+          "discarded": true
+        },
+        {
+          "authority": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "address": "0xa28ccfbe39807372f1fc99aef7a6bd5a967a08cc",
+          "nonce": 22,
+          "discarded": false
+        },
+        {
+          "authority": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "address": "0xa28ccfbe39807372f1fc99aef7a6bd5a967a08cc",
+          "nonce": 23,
+          "discarded": false
+        },
+        {
+          "authority": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "address": "0xa28ccfbe39807372f1fc99aef7a6bd5a967a08cc",
+          "nonce": 24,
+          "discarded": false
+        },
+        {
+          "authority": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "address": "0xa28ccfbe39807372f1fc99aef7a6bd5a967a08cc",
+          "nonce": 25,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0xbd43bd6b25e80310869a56d4e395026b8256dd2a",
+          "old": 156,
+          "new": 157,
+          "ordinal": 350
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old": 22,
+          "new": 23,
+          "ordinal": 351
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old": 23,
+          "new": 24,
+          "ordinal": 353
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old": 24,
+          "new": 25,
+          "ordinal": 355
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old": 25,
+          "new": 26,
+          "ordinal": 357
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old_hash": "0x36c7c0376be88cce1050931b1475adf48cd2bc8e27ea6ca760690fe2f69fa146",
+          "new_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "ordinal": 352
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "new_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "ordinal": 354
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "new_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "ordinal": 356
+        },
+        {
+          "address": "0x40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+          "old_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "new_hash": "0xdf3c69f5a6da6e42eea884124b0e8416ebfb6e0fdeef52d163b232fc75c9e987",
+          "ordinal": 358
+        }
+      ],
+      "filename": "arbitrum-450003654-failed-setcode.pb"
+    },
+    {
+      "block_number": 514791024,
+      "block_hash": "0xfb29366f0337181bf0a4483887f66c16236f025a4700a68a66e2a5f3ed9cb34d",
+      "producer_version": 3,
+      "transaction_index": 2,
+      "transaction_hash": "0xdb5f4993aa37cf3bf01037ff168d2ec07699db7c2d796fbbad787813615c7d06",
+      "transaction_status": 3,
+      "rpc_receipt_status": "0x0",
+      "bytes": 3932,
+      "sha256": "afaf207cddbbf26127154f0c5354f63a4c82bf3e90ec823a01f0403f85f8f546",
+      "note": "three applied authorizations of one authority; tip as REWARD_TRANSACTION_FEE",
+      "transaction_ordinals": [
+        110,
+        146
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 133,
+      "unrecorded_ordinal": 121,
+      "sender": "0x1a222f9b072aed5e9e815849de5a11b0fe3958ab",
+      "authorizations": [
+        {
+          "authority": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "address": "0x61d4db8a98045df3456408762cd2403666976e16",
+          "nonce": 10,
+          "discarded": false
+        },
+        {
+          "authority": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "address": "0x61d4db8a98045df3456408762cd2403666976e16",
+          "nonce": 11,
+          "discarded": false
+        },
+        {
+          "authority": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "address": "0x61d4db8a98045df3456408762cd2403666976e16",
+          "nonce": 12,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0x1a222f9b072aed5e9e815849de5a11b0fe3958ab",
+          "old": 1278,
+          "new": 1279,
+          "ordinal": 114
+        },
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old": 10,
+          "new": 11,
+          "ordinal": 115
+        },
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old": 11,
+          "new": 12,
+          "ordinal": 117
+        },
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old": 12,
+          "new": 13,
+          "ordinal": 119
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "new_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "ordinal": 116
+        },
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "new_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "ordinal": 118
+        },
+        {
+          "address": "0x02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+          "old_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "new_hash": "0xa40afb949e194f3187334dc16e09e95a22ba3cae4e950b87a47856a2df70b1a4",
+          "ordinal": 120
+        }
+      ],
+      "filename": "arbitrum-514791024-failed-setcode.pb"
+    },
+    {
+      "block_number": 500001384,
+      "block_hash": "0x340673576253daf1bbbcc8740fc4fa364b56a6994edfca4e82bf8d09e8944989",
+      "producer_version": 3,
+      "transaction_index": 3,
+      "transaction_hash": "0x320cf8c8713ddde57ccee76905435a6291845932cc67f216f935a34138fbac8f",
+      "transaction_status": 1,
+      "rpc_receipt_status": "0x1",
+      "bytes": 7112,
+      "sha256": "4b45fe1b583196c3cada947547d7b2bb3c4e26cb7e8eef7f8b8d8ce86b2c2848",
+      "note": "succeeded; the authority is a new account, created before its nonce record",
+      "transaction_ordinals": [
+        122,
+        173
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 162,
+      "unrecorded_ordinal": 130,
+      "sender": "0x0440e61b3b648e59059d18e0c8ac71478b85808b",
+      "authorizations": [
+        {
+          "authority": "0x0a01def33fc763fb513a6dc2924af7503f878f91",
+          "address": "0x0000fb7702036ff9f76044a501ac1aa74cbab16b",
+          "nonce": 0,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [
+        {
+          "account": "0x0a01def33fc763fb513a6dc2924af7503f878f91",
+          "ordinal": 127
+        },
+        {
+          "account": "0x0a01def33fc763fb513a6dc2924af7503f878f91",
+          "ordinal": 127
+        }
+      ],
+      "root_nonces": [
+        {
+          "address": "0x0440e61b3b648e59059d18e0c8ac71478b85808b",
+          "old": 45718,
+          "new": 45719,
+          "ordinal": 126
+        },
+        {
+          "address": "0x0a01def33fc763fb513a6dc2924af7503f878f91",
+          "old": 0,
+          "new": 1,
+          "ordinal": 128
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0x0a01def33fc763fb513a6dc2924af7503f878f91",
+          "old_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+          "new_hash": "0xae84c77e5908e1e4cf980fe535cf1a94f5da5377c5260d9d92e32d303930948b",
+          "ordinal": 129
+        }
+      ],
+      "filename": "arbitrum-500001384-setcode-new-authority.pb"
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 367502338,
+ "hash": "5b9da12fdf53407f130c9a670d68f5fd518cd39aa0095d53348b75b67f660416",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "989680",
+ "contents": "transaction 8 whole: every call with its balance records, account creations, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 8,
+   "hash": "5ecb2e032b4eb3bc09a4ffd7d22ba3d22746137da0f0a8481cb980472bce5228",
+   "type": 0,
+   "begin_ordinal": 428,
+   "end_ordinal": 472,
+   "status": 1,
+   "gas_limit": 4000000,
+   "gas_used": 50191,
+   "gas_price": "02625a00",
+   "from": "62005500af4cfb0077ac0090002f630055ba001d",
+   "to": "62005500af4cfb0077ac0090002f630055ba001d",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "62005500af4cfb0077ac0090002f630055ba001d",
+     "address": "62005500af4cfb0077ac0090002f630055ba001d",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 466,
+     "balance_changes": [
+      {
+       "address": "62005500af4cfb0077ac0090002f630055ba001d",
+       "old_value": "60a43586e24ab3",
+       "new_value": "607fd44d17cab3",
+       "ordinal": 429,
+       "reason": 7
+      },
+      {
+       "address": "62005500af4cfb0077ac0090002f630055ba001d",
+       "old_value": "60846074511ab3",
+       "new_value": "60a84cd1f0c933",
+       "ordinal": 467,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "015fb81ca483dd5100",
+       "new_value": "015fb81d0fd30c9b80",
+       "ordinal": 468,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "30c5b5d739c2fb3e",
+       "new_value": "30c5b5e0c6be823e",
+       "ordinal": 469,
+       "reason": 5
+      }
+     ],
+     "account_creations": []
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 4,
+     "caller": "62005500af4cfb0077ac0090002f630055ba001d",
+     "address": "82af49447d8a07e3bd95bd0d56f35241523fbab1",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 436,
+     "end_ordinal": 444,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 3,
+     "caller": "82af49447d8a07e3bd95bd0d56f35241523fbab1",
+     "address": "8b194beae1d3e0788a1a35173978001acdfba668",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 440,
+     "end_ordinal": 441,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 4,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 1,
+     "caller": "62005500af4cfb0077ac0090002f630055ba001d",
+     "address": "6beb920bf8f42d753ee61d6a54a0ad219b5505fa",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 449,
+     "end_ordinal": 454,
+     "balance_changes": [
+      {
+       "address": "6beb920bf8f42d753ee61d6a54a0ad219b5505fa",
+       "old_value": "048c27395000",
+       "new_value": "",
+       "ordinal": 451,
+       "reason": 13
+      },
+      {
+       "address": "62005500af4cfb0077ac0090002f630055ba001d",
+       "old_value": "607fd44d17cab3",
+       "new_value": "60846074511ab3",
+       "ordinal": 452,
+       "reason": 11
+      },
+      {
+       "address": "6beb920bf8f42d753ee61d6a54a0ad219b5505fa",
+       "old_value": "048c27395000",
+       "new_value": "",
+       "ordinal": 453,
+       "reason": 13
+      }
+     ],
+     "account_creations": []
+    },
+    {
+     "index": 5,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 4,
+     "caller": "62005500af4cfb0077ac0090002f630055ba001d",
+     "address": "82af49447d8a07e3bd95bd0d56f35241523fbab1",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 457,
+     "end_ordinal": 464,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 6,
+     "parent_index": 5,
+     "depth": 2,
+     "call_type": 3,
+     "caller": "82af49447d8a07e3bd95bd0d56f35241523fbab1",
+     "address": "8b194beae1d3e0788a1a35173978001acdfba668",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 460,
+     "end_ordinal": 461,
+     "balance_changes": [],
+     "account_creations": []
+    }
+   ]
+  }
+ ]
+}

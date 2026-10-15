@@ -51,9 +51,10 @@ jobs:
       # The CLI behind the recorded module hashes; v1.23.0 computes the same.
       SUBSTREAMS_VERSION: v1.22.0
       SUBSTREAMS_SHA256: 6eef6182d8d9e3c0147a3d03f38fc2b9c0f96900d040132294a0b540e691ae67
-      # make -C <package> schema: the package's half of upstream's SQL, concatenated.
-      NATIVE_SCHEMA_SHA256: 0566d859451be7fad8eddd3b6003562d0304cdba418c7e55fa670247d0722efd
-      ERC20_SCHEMA_SHA256: ad4924062341e06387c0385367fcbba62a98bdfea3c95a1485285ade57a688f1
+      # make -C <package> schema: the package's half of upstream's SQL, concatenated,
+      # with historical views at 1h and up (owner, 2026-10-14).
+      NATIVE_SCHEMA_SHA256: c12a8613befe757a4fb7678d0e466d10384825ebd58be783b401f63187562e57
+      ERC20_SCHEMA_SHA256: 5ede93d93f52201dd65dc538765b61b69ea278b14b346f311eb26cffdfc80ed6
       PACKAGES: native/balances erc20/balances
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

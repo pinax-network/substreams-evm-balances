@@ -1,0 +1,168 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 176115455,
+ "hash": "1b4d96bae9c9b6d49c39857dd77667c35e207a7fd2af4df18f56f0ec40a05dd2",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "05f5e100",
+ "contents": "transaction 1 whole: every call with its balance records, account creations, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 1,
+   "hash": "bfc4af6736a142114ff3a7ebd0f670673a35687ed6d42343e2a8baaeb94711e0",
+   "type": 2,
+   "begin_ordinal": 5,
+   "end_ordinal": 58,
+   "status": 1,
+   "gas_limit": 2165931,
+   "gas_used": 1815929,
+   "gas_price": "05f5e100",
+   "from": "7374e5a0aa341f8b9c1df17bbd3ea156a5bfb927",
+   "to": "38e364277b16201e2d982101fddb975d4e778e4e",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "7374e5a0aa341f8b9c1df17bbd3ea156a5bfb927",
+     "address": "38e364277b16201e2d982101fddb975d4e778e4e",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 52,
+     "balance_changes": [
+      {
+       "address": "7374e5a0aa341f8b9c1df17bbd3ea156a5bfb927",
+       "old_value": "1ea3fea987c2f2",
+       "new_value": "1ddf0126be77f2",
+       "ordinal": 6,
+       "reason": 7
+      },
+      {
+       "address": "7374e5a0aa341f8b9c1df17bbd3ea156a5bfb927",
+       "old_value": "1ddf0126be77f2",
+       "new_value": "1dfed6453b69f2",
+       "ordinal": 53,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "25706ce687b9e73400",
+       "new_value": "25706cedcd9467d200",
+       "ordinal": 54,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "447783694d22f47a",
+       "new_value": "4478214bd6eeaf7a",
+       "ordinal": 55,
+       "reason": 5
+      }
+     ],
+     "account_creations": []
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 3,
+     "caller": "38e364277b16201e2d982101fddb975d4e778e4e",
+     "address": "3e5c63644e683549055b9be8653de26e0b4cd36e",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 14,
+     "end_ordinal": 49,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 4,
+     "caller": "38e364277b16201e2d982101fddb975d4e778e4e",
+     "address": "0000000000000000000000000000000000000001",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 22,
+     "end_ordinal": 24,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 4,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 1,
+     "caller": "38e364277b16201e2d982101fddb975d4e778e4e",
+     "address": "c881a48a5c90a751d53cfb0af82a5336b74a1389",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 29,
+     "end_ordinal": 45,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 5,
+     "parent_index": 4,
+     "depth": 3,
+     "call_type": 3,
+     "caller": "c881a48a5c90a751d53cfb0af82a5336b74a1389",
+     "address": "b34d14ba5940b19ae56a40e9aa90082ddb916c94",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 33,
+     "end_ordinal": 42,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 6,
+     "parent_index": 5,
+     "depth": 4,
+     "call_type": 1,
+     "caller": "c881a48a5c90a751d53cfb0af82a5336b74a1389",
+     "address": "9d4eb7189cd57693c3d01f35168715e1e589cea8",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 35,
+     "end_ordinal": 40,
+     "balance_changes": [
+      {
+       "address": "c881a48a5c90a751d53cfb0af82a5336b74a1389",
+       "old_value": "01",
+       "new_value": "3daa",
+       "ordinal": 37,
+       "reason": 11
+      },
+      {
+       "address": "9d4eb7189cd57693c3d01f35168715e1e589cea8",
+       "old_value": "3da9",
+       "new_value": "",
+       "ordinal": 38,
+       "reason": 13
+      },
+      {
+       "address": "9d4eb7189cd57693c3d01f35168715e1e589cea8",
+       "old_value": "3da9",
+       "new_value": "",
+       "ordinal": 39,
+       "reason": 13
+      }
+     ],
+     "account_creations": []
+    }
+   ]
+  }
+ ]
+}

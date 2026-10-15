@@ -1,0 +1,50 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 71044381,
+ "hash": "60d238b9b8817d29049c4881392dd6a57f1760f755a5efa7c9e972e2dce9db3e",
+ "ver": 3,
+ "coinbase": "26196e0245446ca06dbe2b4de9fc3ee160d51523",
+ "base_fee_per_gas": "05f5e100",
+ "contents": "transaction 1 (0x6afc76c4..., the ArbitrumSubmitRetryableTx of L1 message 632,385 from 0x26196e02..., with a deposit of 17,400,000,000,000 wei and a maximum submission fee of 70,000,000,000,000 wei) whole: it failed below its maximum submission fee and keeps the deposit's mint; every call with its balance records, self-destruct flag and ordinals, gas fields, value and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 1,
+   "hash": "6afc76c41431238283da9422ffd88fd589e3c0081d73740a4ffda91e7a82b086",
+   "type": 105,
+   "begin_ordinal": 5,
+   "end_ordinal": 9,
+   "status": 2,
+   "gas_limit": 120000,
+   "gas_used": 0,
+   "gas_price": "08a48640",
+   "from": "26196e0245446ca06dbe2b4de9fc3ee160d51523",
+   "to": "000000000000000000000000000000000000006e",
+   "value": "",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "26196e0245446ca06dbe2b4de9fc3ee160d51523",
+     "address": "000000000000000000000000000000000000006e",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 8,
+     "balance_changes": [
+      {
+       "address": "26196e0245446ca06dbe2b4de9fc3ee160d51523",
+       "old_value": "",
+       "new_value": "0fd340d1b000",
+       "ordinal": 7,
+       "reason": 5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

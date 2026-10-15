@@ -78,8 +78,11 @@ never prints them.
   every field also carries `update_op = UPDATE_OP_SET`; upstream's 3.0.0 has no
   such field, and the SQL sink reads only a CREATE field's name and value. Each
   package's `clickhouse/schema.*.sql` are upstream's files byte for byte,
-  except its half of `schema.1.table.balances.sql` (the two halves rejoin it);
-  its manifest's `sink:` section embeds their concatenation. Each package keeps
+  except its half of `schema.1.table.balances.sql` (the two halves rejoin it)
+  and its historical view, which keeps only the 1h, 4h, 1d and 1w intervals
+  the Token API serves (owner, 2026-10-14: schema changes that stay backward
+  compatible for the Token API may ship in v0.7.x); its manifest's `sink:`
+  section embeds their concatenation. Each package keeps
   its own copy of the row helpers. A `db_out` adds no store, params or RPC. Do
   not add other `db_out` or database-change modules, or custom sinks. The map
   outputs remain the contract for external native sinks; local sink state
@@ -91,17 +94,37 @@ never prints them.
   `map_events(block)` has no producer-version gate or manifest network allowlist.
   Keep its complete Extended-block, failed-transaction reason and persisted
   balance continuity checks. Its only continuity exceptions are recognized
-  producer shapes with a captured fixture: the self-transfer pair (v0.2.2),
-  the `Block.ver` 3 fee pool payout (v0.7.0, v0.7.1), the Ethereum
-  EIP-6780 self-destruct debit (v0.7.3), self-destruct to itself
-  (v0.7.5) and self-destruct credit of an account created in the
-  transaction (v0.7.6, v0.7.7). v0.7.2 also persists
-  a failed blob transaction's blob fee, which the shared rules drop (BNB
-  Chain pays it whatever the outcome; captured fixture). Since v0.7.0 block 0
-  emits the genesis allocations when every balance record in it is a
-  `GENESIS_BALANCE` from zero. Accepting a block is not network qualification; network-specific
-  persistence work remains separate. Both packages default to `network: bsc`
-  for routing.
+  producer shapes with a captured fixture: the self-transfer pair (BSC,
+  HyperEVM), the `Block.ver` 3 fee pool payout (BSC), the self-destruct
+  debit that a `Block.ver` 3 producer omits (Ethereum, Polygon),
+  self-destruct to itself (Ethereum), the self-destruct credit of an account
+  created in the transaction (Ethereum), the repeated self-destruct withdraw
+  (Arbitrum One) and the fee vault credit after a vault withdrawal (Base).
+  Reduce records by ordinal, except a recognized Polygon `Block.ver` 3
+  state-sync transaction: by depth-1 call, then ordinal. Of a failed
+  transaction, persist the shared rules' gas records and, each in its exact
+  shape with a captured fixture, what the chain keeps whatever the outcome:
+  a blob transaction's blob fee (BNB Chain); the base-fee `BURN` (Polygon);
+  the fee transfers and the ArbOS settlements of failed retries and retryable
+  submissions (Arbitrum One); a deposit's mint (OP stack). Fail the block on
+  any other balance move of a failed Arbitrum deposit, submission, retry or
+  internal transaction, on any other record of a failed transaction's root
+  call that moves a balance outside its execution, and on a self-destruct to
+  itself recorded as debit, refund and repeat (Arbitrum One's order), which
+  would chain to a wrong zero. A shape that chains with a wrong balance passes
+  every noop; only same-block RPC checks find it. The shared rules recover a
+  failed SetCode transaction's authorization boundary when its root call
+  records `begin_ordinal` 0 (Arbitrum One's `Block.ver` 3) only from the
+  exact shape of its authorization records. The versions, blocks and
+  fixtures of each rule are in the
+  [native README](native/balances/README.md#persistence-and-fail-closed-rules).
+  Since v0.7.0 block 0 emits the genesis allocations when every balance
+  record in it is a `GENESIS_BALANCE` from zero. Accepting a block is not
+  network qualification; network-specific persistence work remains separate.
+  Both packages default to `network: bsc` for routing. A production-mode
+  stream runs whole 1,000-block segments, so where a network's Extended
+  blocks begin after genesis, start it at the first whole segment of them
+  (Optimism 105,236,000, Arbitrum One 22,208,000).
 - Host-side qualification can use RPC. Production balance processing cannot.
 
 ## Evidence

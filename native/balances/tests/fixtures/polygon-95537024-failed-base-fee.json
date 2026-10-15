@@ -1,0 +1,382 @@
+{
+ "source": "Polygon Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 95537024,
+ "hash": "a4391b1cb9f371ad08db4cf6993923e3d29b3334676d9e99e9438fd1bf8d978c",
+ "ver": 5,
+ "coinbase": "0000000000000000000000000000000000000000",
+ "base_fee_per_gas": "39e251018a",
+ "contents": "transactions 3, 4 and 5 whole: every call with its balance records, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 3,
+   "hash": "a66fc0cb09a588b042db9bd19053fc49230674aeef0b8da664149c2dbf76907b",
+   "type": 2,
+   "begin_ordinal": 52,
+   "end_ordinal": 72,
+   "status": 1,
+   "gas_limit": 500000,
+   "gas_used": 81910,
+   "gas_price": "86168efde9",
+   "from": "995be1ca945174d5ba75410c1e658a41eb13a2fa",
+   "to": "362afce839057434da30433f7b0a5115717e0e91",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "995be1ca945174d5ba75410c1e658a41eb13a2fa",
+     "address": "362afce839057434da30433f7b0a5115717e0e91",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 55,
+     "end_ordinal": 67,
+     "balance_changes": [
+      {
+       "address": "995be1ca945174d5ba75410c1e658a41eb13a2fa",
+       "old_value": "014b3de41274c07ea2ae",
+       "new_value": "014b39e50f990f905c8e",
+       "ordinal": 53,
+       "reason": 7
+      },
+      {
+       "address": "995be1ca945174d5ba75410c1e658a41eb13a2fa",
+       "old_value": "014b39e50f990f905c8e",
+       "new_value": "014b3d3c7b7ee4b14dc8",
+       "ordinal": 68,
+       "reason": 9
+      },
+      {
+       "address": "3ef57def668054dd750bd260526105c4eeef104f",
+       "old_value": "33a4115100b863ae7f0117",
+       "new_value": "33a41151491106194171b3",
+       "ordinal": 69,
+       "reason": 15
+      },
+      {
+       "address": "7ee41d8a25641000661b1ef5e6ae8a00400466b0",
+       "old_value": "0b3a0d6a2681ecc06d98ef",
+       "new_value": "0b3a0d6a85c04031787d39",
+       "ordinal": 70,
+       "reason": 8
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 3,
+     "caller": "362afce839057434da30433f7b0a5115717e0e91",
+     "address": "cd73643062759468005b61543b85cd81b25a4092",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 56,
+     "end_ordinal": 66,
+     "balance_changes": []
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 1,
+     "caller": "362afce839057434da30433f7b0a5115717e0e91",
+     "address": "4b543e89351faa242cb0172b2da0cdb52db699b4",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 57,
+     "end_ordinal": 65,
+     "balance_changes": []
+    },
+    {
+     "index": 4,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 3,
+     "caller": "4b543e89351faa242cb0172b2da0cdb52db699b4",
+     "address": "206a7590626c2e84e3e2fff1f51efe02cd0dcea9",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 58,
+     "end_ordinal": 64,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 4,
+   "hash": "ad18a4f28d4fef97ff6ec6bb010616003e683dc3f7f97ff66a04307934191b03",
+   "type": 2,
+   "begin_ordinal": 73,
+   "end_ordinal": 114,
+   "status": 3,
+   "gas_limit": 5000000,
+   "gas_used": 429288,
+   "gas_price": "746a528800",
+   "from": "c27d2148c598eb3f560934cb0d55f2ab1bad6d6c",
+   "to": "05e913919fe520259272505169478ba050618874",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "c27d2148c598eb3f560934cb0d55f2ab1bad6d6c",
+     "address": "05e913919fe520259272505169478ba050618874",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 76,
+     "end_ordinal": 109,
+     "balance_changes": [
+      {
+       "address": "c27d2148c598eb3f560934cb0d55f2ab1bad6d6c",
+       "old_value": "17bccfd822982d331f",
+       "new_value": "179a1e0f6175b3331f",
+       "ordinal": 74,
+       "reason": 7
+      },
+      {
+       "address": "c27d2148c598eb3f560934cb0d55f2ab1bad6d6c",
+       "old_value": "179a1e0f6175b3331f",
+       "new_value": "17b9d5468deb01f31f",
+       "ordinal": 110,
+       "reason": 9
+      },
+      {
+       "address": "3ef57def668054dd750bd260526105c4eeef104f",
+       "old_value": "33a41151491106194171b3",
+       "new_value": "33a41152c43b2588be4ec3",
+       "ordinal": 111,
+       "reason": 15
+      },
+      {
+       "address": "7ee41d8a25641000661b1ef5e6ae8a00400466b0",
+       "old_value": "0b3a0d6a85c04031787d39",
+       "new_value": "0b3a0d6c0527b56f26e029",
+       "ordinal": 112,
+       "reason": 8
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 1,
+     "caller": "05e913919fe520259272505169478ba050618874",
+     "address": "f5b509bb0909a69b1c207e495f687a596c168e12",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 77,
+     "end_ordinal": 108,
+     "balance_changes": []
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 1,
+     "caller": "f5b509bb0909a69b1c207e495f687a596c168e12",
+     "address": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 78,
+     "end_ordinal": 107,
+     "balance_changes": []
+    },
+    {
+     "index": 4,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 1,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "9ddb85305d14d7b97bd8145d94d910ad0109bb5c",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 80,
+     "end_ordinal": 83,
+     "balance_changes": []
+    },
+    {
+     "index": 5,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 4,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "9ddb85305d14d7b97bd8145d94d910ad0109bb5c",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 84,
+     "end_ordinal": 85,
+     "balance_changes": []
+    },
+    {
+     "index": 6,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 4,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "9ddb85305d14d7b97bd8145d94d910ad0109bb5c",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 88,
+     "end_ordinal": 89,
+     "balance_changes": []
+    },
+    {
+     "index": 7,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 1,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 92,
+     "end_ordinal": 96,
+     "balance_changes": []
+    },
+    {
+     "index": 8,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 4,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "7fbc10850cae055b27039af31bd258430e714c62",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 97,
+     "end_ordinal": 100,
+     "balance_changes": []
+    },
+    {
+     "index": 9,
+     "parent_index": 8,
+     "depth": 4,
+     "call_type": 3,
+     "caller": "7fbc10850cae055b27039af31bd258430e714c62",
+     "address": "0e65501e6289bc49e3019aac232b27c9b1f61f84",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 98,
+     "end_ordinal": 99,
+     "balance_changes": []
+    },
+    {
+     "index": 10,
+     "parent_index": 3,
+     "depth": 3,
+     "call_type": 1,
+     "caller": "8cbf12fe7188472f2fff4bbd8a2cc4d5468fb158",
+     "address": "f5b509bb0909a69b1c207e495f687a596c168e12",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 101,
+     "end_ordinal": 106,
+     "balance_changes": []
+    },
+    {
+     "index": 11,
+     "parent_index": 10,
+     "depth": 4,
+     "call_type": 1,
+     "caller": "f5b509bb0909a69b1c207e495f687a596c168e12",
+     "address": "7fbc10850cae055b27039af31bd258430e714c62",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 102,
+     "end_ordinal": 105,
+     "balance_changes": []
+    },
+    {
+     "index": 12,
+     "parent_index": 11,
+     "depth": 5,
+     "call_type": 3,
+     "caller": "7fbc10850cae055b27039af31bd258430e714c62",
+     "address": "0e65501e6289bc49e3019aac232b27c9b1f61f84",
+     "value": "",
+     "state_reverted": true,
+     "suicide": false,
+     "begin_ordinal": 103,
+     "end_ordinal": 104,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 5,
+   "hash": "758d6a953e75935f793f9cc9f6f1fe3d3ee013c08bff540d05cc5bff3e8831a7",
+   "type": 2,
+   "begin_ordinal": 115,
+   "end_ordinal": 127,
+   "status": 1,
+   "gas_limit": 58294,
+   "gas_used": 56920,
+   "gas_price": "710b6b2dcd",
+   "from": "06fb7cde9986206a6c6918703325af6e7a012835",
+   "to": "e979926c0bf5af833a98a0c2e9818e8b637f6d0a",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "06fb7cde9986206a6c6918703325af6e7a012835",
+     "address": "e979926c0bf5af833a98a0c2e9818e8b637f6d0a",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 118,
+     "end_ordinal": 122,
+     "balance_changes": [
+      {
+       "address": "06fb7cde9986206a6c6918703325af6e7a012835",
+       "old_value": "b1f79b82e0ea02d0",
+       "new_value": "b1930e04b91aac12",
+       "ordinal": 116,
+       "reason": 7
+      },
+      {
+       "address": "06fb7cde9986206a6c6918703325af6e7a012835",
+       "old_value": "b1930e04b91aac12",
+       "new_value": "b1956cc0025a7e58",
+       "ordinal": 123,
+       "reason": 9
+      },
+      {
+       "address": "3ef57def668054dd750bd260526105c4eeef104f",
+       "old_value": "33a41152c43b2588be4ec3",
+       "new_value": "33a41152f6814d93ec8233",
+       "ordinal": 124,
+       "reason": 15
+      },
+      {
+       "address": "7ee41d8a25641000661b1ef5e6ae8a00400466b0",
+       "old_value": "0b3a0d6c0527b56f26e029",
+       "new_value": "0b3a0d6c35105042883131",
+       "ordinal": 125,
+       "reason": 8
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

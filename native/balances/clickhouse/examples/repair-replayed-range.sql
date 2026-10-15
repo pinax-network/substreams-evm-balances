@@ -18,8 +18,8 @@
 --   * `staging` is a fresh database set up from the same package
 --     (`substreams-sink-sql setup`), loaded by one run of the same package and
 --     sink, without a restart, over a block range that starts at least one
---     whole minute before the first replayed block and ends at least one whole
---     minute after the last one. Only 1-minute windows that `staging` covers
+--     whole hour before the first replayed block and ends at least one whole
+--     hour after the last one. Only 1-hour windows that `staging` covers
 --     entirely are repaired. A replay inside `staging` would be taken for the
 --     truth, hence one uninterrupted run.
 --   * Choosing the range: duplicated `blocks` rows show replayed blocks. A
@@ -76,7 +76,7 @@ FROM
      EXCEPT SELECT DISTINCT block_num, block_hash, timestamp FROM extended.blocks WHERE block_num BETWEEN p AND q)
 );
 
--- Covered 1-minute windows start after the first staged block's timestamp and
+-- Covered 1-hour windows start after the first staged block's timestamp and
 -- end at or before the last one's. Every duplicated block in the range must
 -- fall into one.
 WITH (SELECT min(block_num) FROM staging.blocks) AS p,
@@ -84,14 +84,14 @@ WITH (SELECT min(block_num) FROM staging.blocks) AS p,
      (SELECT min(timestamp) FROM staging.blocks) AS first_ts,
      (SELECT max(timestamp) FROM staging.blocks) AS last_ts
 SELECT throwIf(
-       countIf(toDateTime(intDiv(toUInt32(timestamp), 60) * 60, 'UTC') <= first_ts
-            OR toDateTime(intDiv(toUInt32(timestamp), 60) * 60, 'UTC') + 60 > last_ts) > 0,
-    'duplicated blocks lie in a minute that staging does not cover entirely: stage a wider range: nothing was changed')
+       countIf(toDateTime(intDiv(toUInt32(timestamp), 3600) * 3600, 'UTC') <= first_ts
+            OR toDateTime(intDiv(toUInt32(timestamp), 3600) * 3600, 'UTC') + 3600 > last_ts) > 0,
+    'duplicated blocks lie in an hour that staging does not cover entirely: stage a wider range: nothing was changed')
 FROM (SELECT block_num, any(timestamp) AS timestamp FROM extended.blocks
       WHERE block_num BETWEEN p AND q GROUP BY block_num HAVING count() > 1);
 
--- 1. Compare every covered minute per key, and build the corrections.
-CREATE TABLE staging.repair_minutes_native ENGINE = MergeTree ORDER BY (timestamp, address) AS
+-- 1. Compare every covered hour per key, and build the corrections.
+CREATE TABLE staging.repair_hours_native ENGINE = MergeTree ORDER BY (timestamp, address) AS
 WITH (SELECT min(timestamp) FROM staging.blocks) AS first_ts,
      (SELECT max(timestamp) FROM staging.blocks) AS last_ts
 SELECT timestamp, address,
@@ -105,7 +105,7 @@ FROM
            min(min_block_num) AS min_block_num, max(max_block_num) AS max_block_num,
            argMinMerge(open) AS open, max(high) AS high, min(low) AS low, argMaxMerge(close) AS close
     FROM extended.historical_native_balances_state
-    WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+    WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
     GROUP BY timestamp, address
 ) AS e
 FULL OUTER JOIN
@@ -114,7 +114,7 @@ FULL OUTER JOIN
            min(min_block_num) AS min_block_num, max(max_block_num) AS max_block_num,
            argMinMerge(open) AS open, max(high) AS high, min(low) AS low, argMaxMerge(close) AS close
     FROM staging.historical_native_balances_state
-    WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+    WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
     GROUP BY timestamp, address
 ) AS s
 USING (timestamp, address);
@@ -123,12 +123,12 @@ USING (timestamp, address);
 --    that differs, or fewer rows in `extended` than in `staging` is not a
 --    replay.
 SELECT throwIf(
-       (SELECT count() FROM staging.repair_minutes_native
+       (SELECT count() FROM staging.repair_hours_native
         WHERE NOT in_extended OR NOT in_staging OR NOT same_bar OR extended_transactions < staging_transactions) > 0,
-    'extended differs from staging by more than repeated rows in a covered minute: nothing was changed');
+    'extended differs from staging by more than repeated rows in a covered hour: nothing was changed');
 
 -- The corrections: every window of every interval that contains a covered
--- minute with excess rows gets one merged row whose `transactions` drops by
+-- hour with excess rows gets one merged row whose `transactions` drops by
 -- that excess; its other columns are merged unchanged.
 CREATE TABLE staging.repair_fix_native AS extended.historical_native_balances_state
 ENGINE = MergeTree ORDER BY (interval_min, address, timestamp);
@@ -144,8 +144,8 @@ INNER JOIN
     SELECT interval_min,
            toDateTime(intDiv(toUInt32(timestamp), interval_min * 60) * interval_min * 60, 'UTC') AS timestamp,
            address, sum(extended_transactions - staging_transactions) AS excess
-    FROM staging.repair_minutes_native
-    ARRAY JOIN [1, 5, 10, 30, 60, 240, 1440, 10080] AS interval_min
+    FROM staging.repair_hours_native
+    ARRAY JOIN [60, 240, 1440, 10080] AS interval_min
     WHERE extended_transactions > staging_transactions
     GROUP BY interval_min, timestamp, address
 ) AS x
@@ -166,7 +166,7 @@ SELECT
     (SELECT min(block_num) FROM staging.blocks) AS staged_from,
     (SELECT max(block_num) FROM staging.blocks) AS staged_to,
     (SELECT count() FROM staging.repair_blocks) AS duplicated_blocks,
-    (SELECT sum(extended_transactions - staging_transactions) FROM staging.repair_minutes_native) AS native_rows_replayed,
+    (SELECT sum(extended_transactions - staging_transactions) FROM staging.repair_hours_native) AS native_rows_replayed,
     (SELECT count() FROM staging.repair_fix_native) AS native_windows_corrected;
 
 -- 3. Replace. Each DELETE removes every row of the listed blocks or windows
@@ -186,7 +186,7 @@ INSERT INTO extended.historical_native_balances_state
 SELECT timestamp, interval_min, min_block_num, max_block_num, address, open, high, low, close, transactions
 FROM staging.repair_fix_native;
 
--- 4. Verify: no duplicate block in the range, and every covered minute of
+-- 4. Verify: no duplicate block in the range, and every covered hour of
 --    the history state equals `staging`, key by key.
 WITH (SELECT min(block_num) FROM staging.blocks) AS p,
      (SELECT max(block_num) FROM staging.blocks) AS q,
@@ -199,20 +199,20 @@ SELECT throwIf(
         (
             SELECT timestamp, address, min_block_num, max_block_num, open, high, low, close, transactions
             FROM extended.historical_native_balances
-            WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+            WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
             EXCEPT
             SELECT timestamp, address, min_block_num, max_block_num, open, high, low, close, transactions
             FROM staging.historical_native_balances
-            WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+            WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
         )) > 0
     OR (SELECT count() FROM
         (
             SELECT timestamp, address, min_block_num, max_block_num, open, high, low, close, transactions
             FROM staging.historical_native_balances
-            WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+            WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
             EXCEPT
             SELECT timestamp, address, min_block_num, max_block_num, open, high, low, close, transactions
             FROM extended.historical_native_balances
-            WHERE interval_min = 1 AND timestamp > first_ts AND timestamp + 60 <= last_ts
+            WHERE interval_min = 60 AND timestamp > first_ts AND timestamp + 3600 <= last_ts
         )) > 0,
     'the repair did not take: compare extended with staging');

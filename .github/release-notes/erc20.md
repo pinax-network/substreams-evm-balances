@@ -12,9 +12,9 @@ ERC-20 balances from Firehose **Extended** blocks, inferred per block from `Tran
 | --- | --- | --- |
 | `erc20_balances` | `(contract, address)` | ERC-20 balance after a block; the latest with `FINAL` |
 | `blocks` | `block_num` | Every block that wrote an ERC-20 balance row |
-| `historical_erc20_balances` | view | Open/high/low/close balance bars at 1m, 5m, 10m, 30m, 1h, 4h, 1d and 1w |
+| `historical_erc20_balances` | view | Open/high/low/close balance bars at 1h, 4h, 1d and 1w |
 
-Balances are raw `UInt256` amounts, with no token decimals applied. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history by partition](https://github.com/${REPO}/blob/${TAG}/erc20/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
+Balances are raw `UInt256` amounts, with no token decimals applied. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history](https://github.com/${REPO}/blob/${TAG}/erc20/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
 
 ## Token API live sink
 
@@ -56,4 +56,5 @@ substreams-sink-sql run "$SUBSTREAMS_SINK_DSN" "$PKG" <start-block>: \
 - **Reorgs.** The sink holds the newest 5 blocks back instead of waiting for finality. A fork deeper than that stops the sink; after a restart it continues on the canonical chain, but the rows it wrote for the orphaned blocks stay. This is an accepted risk ([reorgs](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#build-and-deploy)).
 - **Rows are measured, not qualified.** On five captured BSC intervals, the inference reproduced 58.5–62.8% of the RPC reference rows with 99.92–100% value precision ([measured](https://github.com/${REPO}/blob/${TAG}/erc20/balances/README.md#measured)). Pairs it does not emit keep their previous value, and computed balances (reward, reflection, rebasing) can be missed. [Monitor](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#monitoring) ERC-20 rows per block.
 - **Inference never fails a block.** A native refusal no longer stops these rows: native is its own sink.
+- **Start block.** A block that is not Extended stops the stream. Where a network's Extended blocks begin after genesis, start at the first whole 1,000-block segment of them: Optimism 105,236,000, Arbitrum One 22,208,000 ([start blocks](https://github.com/${REPO}/blob/${TAG}/native/balances/README.md#input-and-networks)).
 - **Cutover** from the RPC-era database: follow the [cutover steps](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#cutover-and-backfill) and the [cutover contract](https://github.com/${REPO}/blob/${TAG}/docs/initialization-and-completeness.md).

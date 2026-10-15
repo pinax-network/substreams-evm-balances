@@ -1,0 +1,79 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 514523401,
+ "hash": "c765c35184e72f85b6bea370f4774fd3c2230448e30d076d70bf17f32be7a0bc",
+ "ver": 3,
+ "coinbase": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+ "base_fee_per_gas": "01319290",
+ "contents": "transaction 1 (0x4c841c87..., an ArbitrumDepositTx of 0.0001 ETH from 0x3607a3f5... to 0x24f6a3f5...) whole: every call with its balance records, self-destruct flag and ordinals, gas fields, value and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 1,
+   "hash": "4c841c87f4cf938ef4dde8d381d871290cdff47ef560cf3eee55aea2373eea86",
+   "type": 100,
+   "begin_ordinal": 16,
+   "end_ordinal": 26,
+   "status": 1,
+   "gas_limit": 0,
+   "gas_used": 0,
+   "gas_price": "",
+   "from": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+   "to": "24f6a3f57549520cb3b2d1c691d2933aecfa62eb",
+   "value": "5af3107a4000",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+     "address": "24f6a3f57549520cb3b2d1c691d2933aecfa62eb",
+     "value": "5af3107a4000",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 25,
+     "balance_changes": [
+      {
+       "address": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+       "old_value": "",
+       "new_value": "5af3107a4000",
+       "ordinal": 19,
+       "reason": 5
+      }
+     ]
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 1,
+     "caller": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+     "address": "24f6a3f57549520cb3b2d1c691d2933aecfa62eb",
+     "value": "5af3107a4000",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 24,
+     "balance_changes": [
+      {
+       "address": "3607a3f57549520cb3b2d1c691d2933aecfa73fc",
+       "old_value": "5af3107a4000",
+       "new_value": "",
+       "ordinal": 21,
+       "reason": 5
+      },
+      {
+       "address": "24f6a3f57549520cb3b2d1c691d2933aecfa62eb",
+       "old_value": "",
+       "new_value": "5af3107a4000",
+       "ordinal": 23,
+       "reason": 5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

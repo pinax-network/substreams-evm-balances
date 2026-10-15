@@ -12,9 +12,9 @@ Native account balances from Firehose **Extended** blocks, written to ClickHouse
 | --- | --- | --- |
 | `native_balances` | `address` | Native balance after a block; the latest with `FINAL` |
 | `blocks` | `block_num` | Every block that wrote a native balance row |
-| `historical_native_balances` | view | Open/high/low/close balance bars at 1m, 5m, 10m, 30m, 1h, 4h, 1d and 1w |
+| `historical_native_balances` | view | Open/high/low/close balance bars at 1h, 4h, 1d and 1w |
 
-Balances are raw `UInt256` amounts in wei. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history by partition](https://github.com/${REPO}/blob/${TAG}/native/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
+Balances are raw `UInt256` amounts in wei. Addresses and block hashes are `0x` + lowercase hex. The tables and rows match the RPC-era database's, so a new database can [copy its history](https://github.com/${REPO}/blob/${TAG}/native/balances/clickhouse/examples/backfill-from-rpc-database.sql). No table stores a chain id: use one database per network.
 
 ## Token API live sink
 
@@ -54,6 +54,6 @@ substreams-sink-sql run "$SUBSTREAMS_SINK_DSN" "$PKG" <start-block>: \
 
 - **Not live-qualified.** No dated live evidence exists for this build yet ([#124](https://github.com/${REPO}/issues/124)).
 - **Reorgs.** The sink holds the newest 5 blocks back instead of waiting for finality. A fork deeper than that stops the sink; after a restart it continues on the canonical chain, but the rows it wrote for the orphaned blocks stay. This is an accepted risk ([reorgs](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#build-and-deploy)).
-- **Start block.** A sync can start at block 0: it writes the genesis allocations. A block with incomplete or ambiguous native data stops the stream instead of writing a guess; only this sink stops, not the ERC-20 one.
+- **Start block.** A sync can start at block 0: it writes the genesis allocations. Where a network's Extended blocks begin later, start at the first whole 1,000-block segment of them: Optimism 105,236,000, Arbitrum One 22,208,000 ([start blocks](https://github.com/${REPO}/blob/${TAG}/native/balances/README.md#input-and-networks)). A block with incomplete or ambiguous native data, or a shape no rule pins, stops the stream instead of writing a guess; only this sink stops, not the ERC-20 one.
 - **Native rows** cover only accounts with a persisted balance change. The RPC era also wrote unchanged accounts.
 - **Cutover** from the RPC-era database: follow the [cutover steps](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#cutover-and-backfill) and the [cutover contract](https://github.com/${REPO}/blob/${TAG}/docs/initialization-and-completeness.md).
