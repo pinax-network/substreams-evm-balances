@@ -1,0 +1,125 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 450028504,
+ "hash": "f876fbc496db0b076ef77639c33a71f61151908e57c0ea6b4b263acccb8d8e7f",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "01334040",
+ "contents": "transaction 5 whole: every call with its balance records, account creations, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 5,
+   "hash": "abef75c68e9de2d0c51566a65fc0e42c9f0bc87272b6ed67175d46f2eec7af14",
+   "type": 0,
+   "begin_ordinal": 176,
+   "end_ordinal": 205,
+   "status": 1,
+   "gas_limit": 70948,
+   "gas_used": 69764,
+   "gas_price": "01e38928",
+   "from": "2437806f75ba91e25230e8850ccaf95f4b87e48f",
+   "to": "c05da4ea416614af2e2a067efbca74f175c06e20",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 5,
+     "caller": "2437806f75ba91e25230e8850ccaf95f4b87e48f",
+     "address": "c05da4ea416614af2e2a067efbca74f175c06e20",
+     "value": "0e5b9a3bd5ea",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 0,
+     "end_ordinal": 193,
+     "balance_changes": [
+      {
+       "address": "2437806f75ba91e25230e8850ccaf95f4b87e48f",
+       "old_value": "085cf053d92466",
+       "new_value": "085ba3b41edb66",
+       "ordinal": 177,
+       "reason": 7
+      },
+      {
+       "address": "2437806f75ba91e25230e8850ccaf95f4b87e48f",
+       "old_value": "085ba3b41edb66",
+       "new_value": "084d4819e3057c",
+       "ordinal": 184,
+       "reason": 5
+      },
+      {
+       "address": "c05da4ea416614af2e2a067efbca74f175c06e20",
+       "old_value": "",
+       "new_value": "0e5b9a3bd5ea",
+       "ordinal": 185,
+       "reason": 5
+      },
+      {
+       "address": "c05da4ea416614af2e2a067efbca74f175c06e20",
+       "old_value": "0e5b9a3bd5ea",
+       "new_value": "",
+       "ordinal": 188,
+       "reason": 13
+      },
+      {
+       "address": "d211dbe903af354658238731b75354f522f11bee",
+       "old_value": "",
+       "new_value": "0e5b9a3bd5ea",
+       "ordinal": 189,
+       "reason": 11
+      },
+      {
+       "address": "c05da4ea416614af2e2a067efbca74f175c06e20",
+       "old_value": "",
+       "new_value": "",
+       "ordinal": 190,
+       "reason": 13
+      },
+      {
+       "address": "c05da4ea416614af2e2a067efbca74f175c06e20",
+       "old_value": "0e5b9a3bd5ea",
+       "new_value": "",
+       "ordinal": 191,
+       "reason": 13
+      },
+      {
+       "address": "2437806f75ba91e25230e8850ccaf95f4b87e48f",
+       "old_value": "084d4819e3057c",
+       "new_value": "084d4da6ec2d7c",
+       "ordinal": 194,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "01c70088914830d858",
+       "new_value": "01c70089ccf1c8b458",
+       "ordinal": 195,
+       "reason": 5
+      },
+      {
+       "address": "32e7af5a8151934f3787d0cd59eb6edd0a736b1d",
+       "old_value": "02ffa36fe19684d0",
+       "new_value": "02ffa3720717dbd0",
+       "ordinal": 196,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "30c5fcf82f32465e",
+       "new_value": "30c5fd0172ca345e",
+       "ordinal": 197,
+       "reason": 5
+      }
+     ],
+     "account_creations": [
+      {
+       "account": "c05da4ea416614af2e2a067efbca74f175c06e20",
+       "ordinal": 182
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

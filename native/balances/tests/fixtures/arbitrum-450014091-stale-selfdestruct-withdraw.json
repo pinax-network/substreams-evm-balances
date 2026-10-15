@@ -1,0 +1,145 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-14 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 450014091,
+ "hash": "367fed53e50e646d6d52e0ad191c59f5dcb094dfb84110fc1bc3877cbac7d0d4",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "01312d00",
+ "contents": "transaction 6 whole: every call with its balance records, account creations, self-destruct flag and ordinals, gas fields and the block's base fee; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 6,
+   "hash": "223ba1a0aa43eca62890dff2337e10774f63a28455c2db562ffecf7792a786a9",
+   "type": 2,
+   "begin_ordinal": 249,
+   "end_ordinal": 290,
+   "status": 1,
+   "gas_limit": 350000,
+   "gas_used": 73822,
+   "gas_price": "551e2df0",
+   "from": "22face80f43b857141e9752c3bae8c3309fcdd0f",
+   "to": "a1368d53a26b6f7aacf97575a94b286527f6cf6d",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "22face80f43b857141e9752c3bae8c3309fcdd0f",
+     "address": "a1368d53a26b6f7aacf97575a94b286527f6cf6d",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 279,
+     "balance_changes": [
+      {
+       "address": "22face80f43b857141e9752c3bae8c3309fcdd0f",
+       "old_value": "07141b17e464cef8",
+       "new_value": "071414ba13e15ef8",
+       "ordinal": 250,
+       "reason": 7
+      },
+      {
+       "address": "22face80f43b857141e9752c3bae8c3309fcdd0f",
+       "old_value": "07e27e5e79549ef8",
+       "new_value": "07e28364872988f8",
+       "ordinal": 280,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "01c287c34653873658",
+       "new_value": "01c287c49964948c58",
+       "ordinal": 281,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "30c5582223c1f3ee",
+       "new_value": "30c55826d56323ee",
+       "ordinal": 282,
+       "reason": 5
+      }
+     ],
+     "account_creations": []
+    },
+    {
+     "index": 2,
+     "parent_index": 1,
+     "depth": 1,
+     "call_type": 5,
+     "caller": "a1368d53a26b6f7aacf97575a94b286527f6cf6d",
+     "address": "19df9b676db4601ea38763ebe588364185f86a91",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 258,
+     "end_ordinal": 275,
+     "balance_changes": [
+      {
+       "address": "19df9b676db4601ea38763ebe588364185f86a91",
+       "old_value": "ce69a465734000",
+       "new_value": "",
+       "ordinal": 270,
+       "reason": 13
+      },
+      {
+       "address": "22face80f43b857141e9752c3bae8c3309fcdd0f",
+       "old_value": "071414ba13e15ef8",
+       "new_value": "07e27e5e79549ef8",
+       "ordinal": 271,
+       "reason": 11
+      },
+      {
+       "address": "19df9b676db4601ea38763ebe588364185f86a91",
+       "old_value": "",
+       "new_value": "",
+       "ordinal": 272,
+       "reason": 13
+      },
+      {
+       "address": "19df9b676db4601ea38763ebe588364185f86a91",
+       "old_value": "ce69a465734000",
+       "new_value": "",
+       "ordinal": 273,
+       "reason": 13
+      }
+     ],
+     "account_creations": []
+    },
+    {
+     "index": 3,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 4,
+     "caller": "19df9b676db4601ea38763ebe588364185f86a91",
+     "address": "a1368d53a26b6f7aacf97575a94b286527f6cf6d",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 262,
+     "end_ordinal": 263,
+     "balance_changes": [],
+     "account_creations": []
+    },
+    {
+     "index": 4,
+     "parent_index": 2,
+     "depth": 2,
+     "call_type": 4,
+     "caller": "19df9b676db4601ea38763ebe588364185f86a91",
+     "address": "a1368d53a26b6f7aacf97575a94b286527f6cf6d",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 266,
+     "end_ordinal": 267,
+     "balance_changes": [],
+     "account_creations": []
+    }
+   ]
+  }
+ ]
+}

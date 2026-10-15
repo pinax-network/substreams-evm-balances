@@ -11,6 +11,8 @@
 //! * EIP-7702 (`TRX_TYPE_SET_CODE`): nonce + code changes of every
 //!   non-discarded `authority` before root-call execution persist even when
 //!   the tx fails. Reverted execution can change the same authority again.
+//!   A root call recorded with `begin_ordinal` 0 (`Block.ver` 3) has its
+//!   boundary recovered from the exact shape of the authorization records.
 //! * `Block.system_calls`: calls with `state_reverted == false`.
 //! * `Block.balance_changes`, `Block.code_changes`: always.
 //! * No-op records (`old == new`) are dropped from changes. Storage no-ops have
@@ -128,6 +130,102 @@ fn emit_call_all(call: &Call, ctx: Ctx, out: &mut impl Sink) {
     }
 }
 
+/// Whether a record or a call boundary of `call` takes `ordinal`.
+fn takes_ordinal(call: &Call, ordinal: u64) -> bool {
+    call.begin_ordinal == ordinal
+        || call.end_ordinal == ordinal
+        || call.storage_changes.iter().any(|c| c.ordinal == ordinal)
+        || call.balance_changes.iter().any(|c| c.ordinal == ordinal)
+        || call.nonce_changes.iter().any(|c| c.ordinal == ordinal)
+        || call.logs.iter().any(|c| c.ordinal == ordinal)
+        || call.code_changes.iter().any(|c| c.ordinal == ordinal)
+        || call.gas_changes.iter().any(|c| c.ordinal == ordinal)
+        || call.account_creations.iter().any(|c| c.ordinal == ordinal)
+}
+
+/// The producer of `Block.ver` 3 records every root call's `begin_ordinal` as
+/// 0, although the root call's begin still takes an ordinal, one that no
+/// record carries. On Arbitrum One a SetCode transaction keeps the order of
+/// geth's state transition before that begin: the sender's `GAS_BUY`, the
+/// sender's nonce record and then, for each applied authorization in list
+/// order, the authority's nonce record from the authorization's nonce to the
+/// next and its code record installing the delegation `0xef0100 || address`
+/// (no code for the zero address), at consecutive ordinals, after the
+/// authority's creation when the account did not exist. In block 350,048,039
+/// the reverted transaction `0xfed9d2ec…` (tx 4) of `0xcd21f0d3…`, which
+/// authorizes itself, records `GAS_BUY` at 188, the sender's nonce 588 -> 589
+/// at 191, its authorization's nonce 589 -> 590 at 192 and its delegation to
+/// `0x63c0c19a…` at 193; no record takes 194, and the execution starts at 195
+/// (the first child call at 198). In block 500,001,384 the succeeded
+/// transaction `0x320cf8c8…` (tx 3) records the creation of the new authority
+/// `0x0a01def3…` at 127 (listed twice), before its nonce 0 -> 1 at 128 and its
+/// delegation at 129; no record takes 130. Arbitrum One was scanned in five
+/// windows, 350.00–350.02M, 400.00–400.02M, 450.00–450.08M, 500.00–500.08M and
+/// 514.791–514.813M (222,000 blocks): in each of their 8,778 SetCode
+/// transactions, succeeded or reverted, the ordinal after these records is the
+/// only one in the transaction that no record or call boundary takes.
+///
+/// Returns that ordinal, the boundary between the authorization records and
+/// the execution, of a failed SetCode transaction whose root call records
+/// `begin_ordinal` 0, only in this exact shape: from the ordinal after the
+/// sender's nonce record, every non-discarded authorization with an authority
+/// has, at consecutive ordinals, optionally the authority's creation (listed
+/// once or more, nothing else there, for nonce 0 only), then exactly one nonce
+/// record, of the authority from the authorization's nonce to the next, then
+/// exactly one code record, of the authority with the delegation as its new
+/// code (the authorization's address has 20 bytes); the root call holds no
+/// other nonce or code record of an authority before the returned ordinal; no
+/// record or call boundary of the transaction takes the returned ordinal; and
+/// the root call ends after it. Otherwise `None`, and the transaction fails its
+/// block.
+fn unrecorded_root_begin(trx: &TransactionTrace, root: &Call, sender_nonce: Option<&NonceChange>, auths: &HashSet<Vec<u8>>) -> Option<u64> {
+    let mut next = sender_nonce?.ordinal.checked_add(1)?;
+    let mut walked = 0;
+    for auth in trx.set_code_authorizations.iter().filter(|a| !a.discarded) {
+        // Geth cannot apply an authorization whose authority it cannot recover.
+        let Some(authority) = auth.authority.as_deref().filter(|a| !a.is_empty()) else {
+            continue;
+        };
+        let created: Vec<_> = root.account_creations.iter().filter(|c| c.ordinal == next).collect();
+        if !created.is_empty() {
+            if auth.nonce != 0 || created.iter().any(|c| c.account != authority) {
+                return None;
+            }
+            next += 1;
+        }
+        let nonces: Vec<_> = root.nonce_changes.iter().filter(|n| n.ordinal == next).collect();
+        let codes: Vec<_> = root.code_changes.iter().filter(|c| c.ordinal == next + 1).collect();
+        let ([nonce], [code]) = (nonces.as_slice(), codes.as_slice()) else {
+            return None;
+        };
+        let delegation = match auth.address.as_slice() {
+            address if address.len() != 20 => return None,
+            address if address.iter().all(|b| *b == 0) => Vec::new(),
+            address => [&[0xef, 0x01, 0x00][..], address].concat(),
+        };
+        if nonce.address != authority
+            || nonce.old_value != auth.nonce
+            || Some(nonce.new_value) != auth.nonce.checked_add(1)
+            || code.address != authority
+            || code.new_code != delegation
+        {
+            return None;
+        }
+        next += 2;
+        walked += 2;
+    }
+    let before = |ordinal: u64| ordinal > 0 && ordinal < next;
+    let authority_records = root
+        .nonce_changes
+        .iter()
+        .filter(|n| !sender_nonce.is_some_and(|sender| std::ptr::eq(*n, sender)))
+        .filter(|n| before(n.ordinal) && auths.contains(&n.address))
+        .count()
+        + root.code_changes.iter().filter(|c| before(c.ordinal) && auths.contains(&c.address)).count();
+    let taken = trx.begin_ordinal == next || trx.end_ordinal == next || trx.calls.iter().any(|c| takes_ordinal(c, next));
+    (authority_records == walked && !taken && next < root.end_ordinal).then_some(next)
+}
+
 pub fn collect_transaction(trx: &TransactionTrace, out: &mut impl Sink) -> Result<(), Error> {
     // As prost's `status()` accessor did, an unknown status reads as UNKNOWN (0).
     let status = trx.status.as_known().unwrap_or_default() as i32;
@@ -174,14 +272,18 @@ pub fn collect_transaction(trx: &TransactionTrace, out: &mut impl Sink) -> Resul
     // EIP-7702: authorization nonce/code changes persist for non-discarded authorities.
     let auths = authorities(trx);
     if !auths.is_empty() {
-        if root.begin_ordinal == 0 {
+        let begin = match root.begin_ordinal {
+            0 => unrecorded_root_begin(trx, root, sender_nonce, &auths),
+            begin => Some(begin),
+        };
+        let Some(begin) = begin else {
             return Err(Error::msg("failed SetCode transaction has no authorization/execution ordinal boundary"));
-        }
+        };
         let ctx7702 = base(Scope::Tx7702, root.index);
         // Geth and Reth emit the auth-list changes before the root call begins.
         // An authority can execute CREATE (nonce change), or other reverted code,
         // later in that same root call. Address membership is not persistence.
-        let before_execution = |ordinal| ordinal > 0 && ordinal < root.begin_ordinal;
+        let before_execution = |ordinal| ordinal > 0 && ordinal < begin;
         for nc in &root.nonce_changes {
             if sender_nonce.is_some_and(|sender| std::ptr::eq(nc, sender)) {
                 continue; // already emitted above
@@ -234,9 +336,9 @@ pub fn collect_block(block: &Block, out: &mut impl Sink) -> Result<(), Error> {
 mod tests {
     use super::*;
     use buffa::Message;
-    use substreams_ethereum::pb::eth::v2::{BigInt, SetCodeAuthorization};
+    use substreams_ethereum::pb::eth::v2::{AccountCreation, BigInt, GasChange, SetCodeAuthorization};
 
-    #[derive(Default)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     struct Rec {
         storage: Vec<(Vec<u8>, u64, Scope)>,
         balance: Vec<(Vec<u8>, i32, Scope)>,
@@ -543,6 +645,280 @@ mod tests {
             assert!(r.balance.iter().all(|(_, reason, scope)| *scope == Scope::TxFailedPersistent
                 && [Reason::GasBuy as i32, Reason::GasRefund as i32, Reason::RewardTransactionFee as i32].contains(reason)));
         }
+    }
+
+    // Unmodified TransactionTrace messages of Arbitrum One's `Block.ver` 3
+    // producer, whose root calls record `begin_ordinal` 0: four reverted
+    // SetCode transactions and a succeeded one with a new authority.
+    // Provenance, block/transaction hashes and checksums are in
+    // `arbitrum-setcode.json` next to the files.
+    const ARBITRUM_SELF_AUTHORIZATION: &[u8] = include_bytes!("../tests/fixtures/arbitrum-350048039-failed-setcode.pb");
+    const ARBITRUM_ROOT_ONLY: &[u8] = include_bytes!("../tests/fixtures/arbitrum-400015655-failed-setcode.pb");
+    const ARBITRUM_DISCARDED_FIRST: &[u8] = include_bytes!("../tests/fixtures/arbitrum-450003654-failed-setcode.pb");
+    const ARBITRUM_THREE_AUTHORIZATIONS: &[u8] = include_bytes!("../tests/fixtures/arbitrum-514791024-failed-setcode.pb");
+    const ARBITRUM_NEW_AUTHORITY: &[u8] = include_bytes!("../tests/fixtures/arbitrum-500001384-setcode-new-authority.pb");
+
+    fn account(hex: &str) -> Vec<u8> {
+        hex::decode(hex).unwrap()
+    }
+    fn collected(tx: &TransactionTrace) -> Result<Rec, Error> {
+        let mut r = Rec::default();
+        collect_transaction(tx, &mut r).map(|()| r)
+    }
+    /// `unrecorded_root_begin` with the sender's nonce record that
+    /// `collect_transaction` selects.
+    fn recovered_begin(tx: &TransactionTrace) -> Option<u64> {
+        let root = &tx.calls[0];
+        let sender = root
+            .nonce_changes
+            .iter()
+            .filter(|n| n.ordinal > 0 && n.address == tx.from && n.old_value == tx.nonce && n.new_value == tx.nonce + 1)
+            .min_by_key(|n| n.ordinal);
+        unrecorded_root_begin(tx, root, sender, &authorities(tx))
+    }
+
+    #[test]
+    fn captured_arbitrum_failed_setcode_transactions_keep_sender_and_authority_records() {
+        use Scope::{Tx7702 as Auth, TxFailedPersistent as Failed};
+        /// A captured transaction: the ordinal no record takes, the sender
+        /// and the authority with the nonces they persist, whether the
+        /// delegation changes the code, and the account of a tip.
+        struct Sample {
+            bytes: &'static [u8],
+            boundary: u64,
+            sender: &'static str,
+            sender_nonce: u64,
+            authority: &'static str,
+            authority_nonces: &'static [u64],
+            code_changed: bool,
+            tip: Option<&'static str>,
+        }
+        let samples = [
+            // 0xfed9d2ec…: the sender authorizes itself; its nonce 588 -> 589
+            // at 191, the authorization's 589 -> 590 at 192, code at 193.
+            Sample {
+                bytes: ARBITRUM_SELF_AUTHORIZATION,
+                boundary: 194,
+                sender: "cd21f0d3ad097308c39e2b7914779787d22e831c",
+                sender_nonce: 589,
+                authority: "cd21f0d3ad097308c39e2b7914779787d22e831c",
+                authority_nonces: &[590],
+                code_changed: true,
+                tip: None,
+            },
+            // 0xa777590e…: no child call; the delegation is renewed unchanged.
+            Sample {
+                bytes: ARBITRUM_ROOT_ONLY,
+                boundary: 253,
+                sender: "4cf609fc3fd878b34c7ea3d63f732248fd7a5b4c",
+                sender_nonce: 34866,
+                authority: "b9c0de368bece5e76b52545a8e377a4c118f597b",
+                authority_nonces: &[6420],
+                code_changed: false,
+                tip: None,
+            },
+            // 0x009b640c…: a discarded authorization (nonce 21), then four
+            // applied ones of the same authority, nonces 22 to 25.
+            Sample {
+                bytes: ARBITRUM_DISCARDED_FIRST,
+                boundary: 359,
+                sender: "bd43bd6b25e80310869a56d4e395026b8256dd2a",
+                sender_nonce: 157,
+                authority: "40bc59c8b9f16d8e58d9e13580e00b7386364ab5",
+                authority_nonces: &[23, 24, 25, 26],
+                code_changed: true,
+                tip: None,
+            },
+            // 0xdb5f4993…: three applied authorizations of one authority, and
+            // a tip to 0x32e7af5a….
+            Sample {
+                bytes: ARBITRUM_THREE_AUTHORIZATIONS,
+                boundary: 121,
+                sender: "1a222f9b072aed5e9e815849de5a11b0fe3958ab",
+                sender_nonce: 1279,
+                authority: "02579ad4af7eaee9d5319f946c2ca5cc831c87d9",
+                authority_nonces: &[11, 12, 13],
+                code_changed: false,
+                tip: Some("32e7af5a8151934f3787d0cd59eb6edd0a736b1d"),
+            },
+        ];
+        for sample in samples {
+            let tx = TransactionTrace::decode_from_slice(sample.bytes).unwrap();
+            assert_eq!(tx.status.as_known(), Some(TransactionTraceStatus::Reverted));
+            assert_eq!(tx.r#type, TxType::TrxTypeSetCode);
+            assert_eq!(tx.calls[0].begin_ordinal, 0);
+            assert_eq!(recovered_begin(&tx), Some(sample.boundary));
+            let (sender, authority) = (account(sample.sender), account(sample.authority));
+            let r = collected(&tx).unwrap();
+            let mut nonces = vec![(sender.clone(), sample.sender_nonce, Failed)];
+            nonces.extend(sample.authority_nonces.iter().map(|n| (authority.clone(), *n, Auth)));
+            assert_eq!(r.nonce, nonces);
+            assert_eq!(r.code, if sample.code_changed { vec![(authority.clone(), Auth)] } else { vec![] });
+            let mut gas = vec![(sender.clone(), Reason::GasBuy as i32, Failed), (sender, Reason::GasRefund as i32, Failed)];
+            gas.extend(sample.tip.map(|tip| (account(tip), Reason::RewardTransactionFee as i32, Failed)));
+            assert_eq!(r.balance, gas);
+            assert!(r.storage.is_empty());
+            // A producer that records the root call's begin there persists the same.
+            let mut recorded = tx.clone();
+            recorded.calls[0].begin_ordinal = sample.boundary;
+            assert_eq!(collected(&recorded).unwrap(), r);
+        }
+    }
+
+    #[test]
+    fn captured_arbitrum_new_authority_is_created_before_its_records() {
+        // 0x320cf8c8… succeeded: the new authority 0x0a01def3… is created at
+        // 127 (listed twice), its nonce 0 -> 1 at 128, its delegation at 129;
+        // no record takes 130. Its execution writes the authority's storage.
+        let mut tx = TransactionTrace::decode_from_slice(ARBITRUM_NEW_AUTHORITY).unwrap();
+        assert_eq!(tx.status.as_known(), Some(TransactionTraceStatus::Succeeded));
+        let authority = account("0a01def33fc763fb513a6dc2924af7503f878f91");
+        assert_eq!(tx.calls[0].account_creations.len(), 2);
+        assert!(tx.calls[0].storage_changes.iter().any(|c| c.address == authority && c.ordinal == 136));
+        // As if its execution had reverted; the records before it stay.
+        tx.status = TransactionTraceStatus::Reverted.into();
+        tx.calls.iter_mut().for_each(|c| c.state_reverted = true);
+        assert_eq!(recovered_begin(&tx), Some(130));
+        let r = collected(&tx).unwrap();
+        assert_eq!(
+            r.nonce,
+            vec![
+                (account("0440e61b3b648e59059d18e0c8ac71478b85808b"), 45719, Scope::TxFailedPersistent),
+                (authority.clone(), 1, Scope::Tx7702)
+            ]
+        );
+        assert_eq!(r.code, vec![(authority.clone(), Scope::Tx7702)]);
+        assert!(r.storage.is_empty());
+        // Only the authority's own creation...
+        let mut t = tx.clone();
+        t.calls[0].account_creations[1].account = vec![0x11; 20];
+        assert!(collected(&t).is_err());
+        // ...and only for nonce 0.
+        let mut t = tx.clone();
+        t.set_code_authorizations[0].nonce = 1;
+        let authorization = t.calls[0].nonce_changes.iter_mut().find(|n| n.address == authority).unwrap();
+        (authorization.old_value, authorization.new_value) = (1, 2);
+        assert!(collected(&t).is_err());
+    }
+
+    #[test]
+    fn the_unrecorded_root_begin_shape_is_exact() {
+        fn fails(tx: &TransactionTrace) -> bool {
+            collected(tx).is_err_and(|e| e.to_string().contains("no authorization/execution ordinal boundary"))
+        }
+        let tx = TransactionTrace::decode_from_slice(ARBITRUM_SELF_AUTHORIZATION).unwrap();
+        let authority = account("cd21f0d3ad097308c39e2b7914779787d22e831c");
+        let expected = collected(&tx).unwrap();
+        // Records of the root call: the sender's nonce (191), the authorization's
+        // nonce (192) and code (193).
+        assert_eq!(tx.calls[0].nonce_changes.iter().map(|n| n.ordinal).collect::<Vec<_>>(), [191, 192]);
+        assert_eq!(tx.calls[0].code_changes[0].ordinal, 193);
+        // No record takes the unrecorded ordinal 194...
+        let mut t = tx.clone();
+        t.calls[0].gas_changes.push(GasChange {
+            ordinal: 194,
+            ..Default::default()
+        });
+        assert!(fails(&t));
+        let mut t = tx.clone();
+        t.calls[2].storage_changes.push(storage(0xB, 194, 0, 1));
+        assert!(fails(&t));
+        // ...nor a call boundary.
+        let mut t = tx.clone();
+        t.calls[1].begin_ordinal = 194;
+        assert!(fails(&t));
+        // The authorization's nonce record follows the sender's directly.
+        let mut t = tx.clone();
+        t.calls[0].nonce_changes[1].ordinal = 190;
+        assert!(fails(&t));
+        // From the authorization's nonce to the next.
+        let mut t = tx.clone();
+        t.set_code_authorizations[0].nonce = 590;
+        assert!(fails(&t));
+        let mut t = tx.clone();
+        t.calls[0].nonce_changes[1].old_value = 588;
+        assert!(fails(&t));
+        let mut t = tx.clone();
+        t.calls[0].nonce_changes[1].new_value = 591;
+        assert!(fails(&t));
+        // Then its code record, installing the authorization's delegation.
+        let mut t = tx.clone();
+        t.set_code_authorizations[0].address = vec![0x11; 20];
+        assert!(fails(&t));
+        let mut t = tx.clone();
+        t.calls[0].code_changes.clear();
+        assert!(fails(&t));
+        // The authorization's address has 20 bytes: an empty one installs
+        // nothing, not even with an empty new code.
+        let mut t = tx.clone();
+        t.set_code_authorizations[0].address = vec![];
+        t.calls[0].code_changes[0].new_code = vec![];
+        assert!(fails(&t));
+        // The zero address clears the delegation: the code record's new code
+        // is empty, and it persists like any other.
+        let mut t = tx.clone();
+        t.set_code_authorizations[0].address = vec![0; 20];
+        let clearing = &mut t.calls[0].code_changes[0];
+        (clearing.old_hash, clearing.new_hash) = (clearing.new_hash.clone(), clearing.old_hash.clone());
+        (clearing.old_code, clearing.new_code) = (std::mem::take(&mut clearing.new_code), vec![]);
+        let r = collected(&t).unwrap();
+        assert_eq!(
+            r.nonce,
+            vec![(authority.clone(), 589, Scope::TxFailedPersistent), (authority.clone(), 590, Scope::Tx7702)]
+        );
+        assert_eq!(r.code, vec![(authority.clone(), Scope::Tx7702)]);
+        assert_eq!(r, expected);
+        // Exactly one record there, of any account.
+        let mut t = tx.clone();
+        t.calls[0].nonce_changes.push(nonce(0x11, 192, 0));
+        assert!(fails(&t));
+        let mut t = tx.clone();
+        t.calls[0].code_changes.push(code(0x11, 193));
+        assert!(fails(&t));
+        // No other nonce or code record of an authority before the boundary.
+        let mut t = tx.clone();
+        t.calls[0].code_changes.push(CodeChange {
+            address: authority.clone(),
+            ..code(0, 189)
+        });
+        assert!(fails(&t));
+        // A creation only for an authorization of nonce 0.
+        let mut t = tx.clone();
+        t.calls[0].account_creations.push(AccountCreation {
+            account: authority.clone(),
+            ordinal: 192,
+        });
+        assert!(fails(&t));
+        // The root call ends after the boundary.
+        let mut t = tx.clone();
+        t.calls[0].end_ordinal = 0;
+        assert!(fails(&t));
+        // The walk starts at the sender's nonce record.
+        let mut t = tx.clone();
+        t.calls[0].nonce_changes.remove(0);
+        assert!(fails(&t));
+        // Every non-discarded authorization with an authority has its records...
+        let other = SetCodeAuthorization {
+            authority: Some(vec![0x11; 20]),
+            address: vec![0x12; 20],
+            ..Default::default()
+        };
+        let mut t = tx.clone();
+        t.set_code_authorizations.push(other.clone());
+        assert!(fails(&t));
+        // ...while a discarded one and one without an authority have none.
+        let mut t = tx.clone();
+        t.set_code_authorizations.push(SetCodeAuthorization {
+            discarded: true,
+            ..other.clone()
+        });
+        t.set_code_authorizations.push(SetCodeAuthorization { authority: None, ..other });
+        assert_eq!(collected(&t).unwrap(), expected);
+        // With a recorded begin the shape is not consulted.
+        let mut t = tx.clone();
+        t.calls[0].code_changes.clear();
+        t.calls[0].begin_ordinal = 194;
+        assert!(collected(&t).is_ok());
     }
 
     #[test]

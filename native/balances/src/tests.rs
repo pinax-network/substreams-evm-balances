@@ -23,6 +23,19 @@ const ARBITRUM_FAILED_FEE_TIP: &str = include_str!("../tests/fixtures/arbitrum-5
 const POLYGON_SELFDESTRUCT_CREATED: &str = include_str!("../tests/fixtures/polygon-70000124-selfdestruct-created.json");
 const SELFDESTRUCT_CREATED_ROOT: &str = include_str!("../tests/fixtures/eth-19500178-selfdestruct-created-root.json");
 const HYPEREVM_SELF_TRANSFER: &str = include_str!("../tests/fixtures/hyperevm-44000001-self-transfer.json");
+const POLYGON_STATE_SYNC: &str = include_str!("../tests/fixtures/polygon-70044000-state-sync.json");
+const POLYGON_STATE_SYNC_DEPOSITS: &str = include_str!("../tests/fixtures/polygon-20007040-state-sync.json");
+const ARBITRUM_STALE_WITHDRAW: &str = include_str!("../tests/fixtures/arbitrum-250005039-stale-selfdestruct-withdraw.json");
+const ARBITRUM_STALE_WITHDRAW_NEW_BENEFICIARY: &str = include_str!("../tests/fixtures/arbitrum-200029376-stale-selfdestruct-withdraw.json");
+const ARBITRUM_STALE_WITHDRAW_NESTED: &str = include_str!("../tests/fixtures/arbitrum-450014091-stale-selfdestruct-withdraw.json");
+const ARBITRUM_STALE_WITHDRAW_BEFORE_CANCUN: &str = include_str!("../tests/fixtures/arbitrum-187009069-stale-selfdestruct-withdraw.json");
+const BASE_FAILED_DEPOSIT: &str = include_str!("../tests/fixtures/base-5044695-failed-deposit-mint.json");
+const BASE_FAILED_DEPOSIT_REVERTED_CALL: &str = include_str!("../tests/fixtures/base-7092606-failed-deposit-mint-reverted-call.json");
+const BASE_FEE_VAULT_CREDIT: &str = include_str!("../tests/fixtures/base-50024530-fee-vault-stale-credit.json");
+const BASE_FEE_VAULT_CREDITS: &str = include_str!("../tests/fixtures/base-50326929-fee-vault-stale-credits.json");
+const ARBITRUM_FAILED_RETRY: &str = include_str!("../tests/fixtures/arbitrum-52067707-failed-retry.json");
+const ARBITRUM_FAILED_RETRY_VALUE: &str = include_str!("../tests/fixtures/arbitrum-314259052-failed-retry-value.json");
+const ARBITRUM_FAILED_RETRY_OUT_OF_GAS: &str = include_str!("../tests/fixtures/arbitrum-511131266-failed-retry-out-of-gas.json");
 
 fn block() -> eth::Block {
     eth::Block {
@@ -469,10 +482,10 @@ fn failed_transactions_with_unpinned_reasons_fail_closed() {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].amount, "90");
     }
-    // A blob fee (17) outside a blob transaction, OP-stack mints (18), reverts
-    // (19), unknown future reasons and block-level reasons inside a failed root
-    // call have no fixture: the block is rejected rather than reduced without
-    // the record.
+    // A blob fee (17) outside a blob transaction, an INCREASE_MINT (18) outside
+    // a failed deposit's exact shape (here: no deposit), reverts (19), unknown
+    // future reasons and block-level reasons inside a failed root call have no
+    // fixture: the block is rejected rather than reduced without the record.
     for reason in [
         17,
         18,
@@ -493,8 +506,48 @@ fn failed_transactions_with_unpinned_reasons_fail_closed() {
     assert_eq!((row(&rows, 8).amount.as_str(), row(&rows, 9).amount.as_str()), ("90", "50"));
     // Other unpinned reasons still fail a blob transaction.
     blob.calls[0].balance_changes[1].reason = 18.into();
-    b.transaction_traces = vec![blob];
+    b.transaction_traces = vec![blob.clone()];
     assert!(changes(&b).unwrap_err().to_string().contains("pinned persistence"));
+    // A failed deposit's mint persists only in its exact shape (see
+    // `the_failed_deposit_mint_shape_is_exact`). Here the mint (ordinal 21) is
+    // a positive credit between the transaction's begin (19) and the
+    // execution's (30), and the gas purchase moves out of that interval to
+    // ordinal 31, during the execution, so only the credited account decides:
+    // account 9 is not the sender (account 8), and the block is refused...
+    let mut deposit = blob;
+    deposit.r#type = eth::transaction_trace::Type::TrxTypeOptimismDeposit.into();
+    (deposit.begin_ordinal, deposit.end_ordinal) = (19, 33);
+    (deposit.calls[0].begin_ordinal, deposit.calls[0].end_ordinal) = (30, 32);
+    deposit.calls[0].balance_changes[0].ordinal = 31;
+    b.transaction_traces = vec![deposit.clone()];
+    assert!(changes(&b).unwrap_err().to_string().contains("pinned persistence"));
+    // ...while the same mint of the sender, from 50 to 100 wei before its
+    // gas purchase from 100 to 90 wei, persists with it...
+    deposit.calls[0].balance_changes[1] = eth::BalanceChange {
+        reason: eth::balance_change::Reason::IncreaseMint.into(),
+        ..change(8, 21, Some(50), Some(100))
+    };
+    b.transaction_traces = vec![deposit.clone()];
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 1);
+    let sender = row(&rows, 8);
+    assert_eq!(
+        (
+            sender.old_amount.as_str(),
+            sender.amount.as_str(),
+            sender.first_ordinal,
+            sender.ordinal,
+            sender.records
+        ),
+        ("50", "90", 21, 31, 2)
+    );
+    // ...until the gas purchase moves into the interval, before or after the
+    // mint: a deposit buys no gas.
+    for ordinal in [20, 29] {
+        deposit.calls[0].balance_changes[0].ordinal = ordinal;
+        b.transaction_traces = vec![deposit.clone()];
+        assert!(changes(&b).unwrap_err().to_string().contains("pinned persistence"), "gas purchase at {ordinal}");
+    }
     // The same reasons in a successful transaction are ordinary persisted state.
     let mut ok = failed(17);
     ok.status = eth::TransactionTraceStatus::Succeeded.into();
@@ -603,6 +656,16 @@ fn captured_call(c: &Value) -> eth::Call {
         begin_ordinal: c["begin_ordinal"].as_u64().unwrap_or(0),
         end_ordinal: c["end_ordinal"].as_u64().unwrap_or(0),
         balance_changes: c["balance_changes"].as_array().unwrap().iter().map(captured_change).collect(),
+        // Only the fixtures that need them keep account creations.
+        account_creations: c["account_creations"].as_array().map_or_else(Vec::new, |creations| {
+            creations
+                .iter()
+                .map(|a| eth::AccountCreation {
+                    account: hex::decode(a["account"].as_str().unwrap()).unwrap(),
+                    ordinal: a["ordinal"].as_u64().unwrap(),
+                })
+                .collect()
+        }),
         ..Default::default()
     }
 }
@@ -753,8 +816,9 @@ fn captured_fee_pool_payouts() -> Vec<eth::Block> {
 }
 /// A captured block of a fixture: its number, `Block.ver`, coinbase,
 /// block-level records and transactions; a transaction without a `type` is
-/// legacy.
+/// legacy, and one without a `from`, `to` or `value` has none.
 fn captured_block(c: &Value) -> eth::Block {
+    let account = |v: &Value| v.as_str().map(|a| hex::decode(a).unwrap()).unwrap_or_default();
     let number = c["number"].as_u64().unwrap();
     let mut b = block();
     b.ver = c["ver"].as_i64().unwrap() as i32;
@@ -780,6 +844,9 @@ fn captured_block(c: &Value) -> eth::Block {
             gas_limit: t["gas_limit"].as_u64().unwrap_or(0),
             gas_used: t["gas_used"].as_u64().unwrap_or(0),
             gas_price: t["gas_price"].as_str().and_then(|_| hex_big(&t["gas_price"])).into(),
+            from: account(&t["from"]),
+            to: account(&t["to"]),
+            value: t["value"].as_str().and_then(|_| hex_big(&t["value"])).into(),
             calls: t["calls"].as_array().unwrap().iter().map(captured_call).collect(),
             ..Default::default()
         })
@@ -1788,20 +1855,22 @@ fn captured_arbitrum_failed_fee() -> eth::Block {
 fn captured_arbitrum_failed_fee_tip() -> eth::Block {
     captured_block(&serde_json::from_str(ARBITRUM_FAILED_FEE_TIP).unwrap())
 }
-const NETWORK_FEE: &str = "bf5041fc07e1c866d15c749156657b8eed0fb649";
+/// Arbitrum One's fee accounts, as `ArbOwnerPublic` reads them from block
+/// 97,021,351 on: the infrastructure and the network fee account.
+const INFRA_FEE: &str = "bf5041fc07e1c866d15c749156657b8eed0fb649";
 const L1_PRICER: &str = "a4b00000000000000000000000000000000000f6";
-const INFRA_FEE: &str = "32e7af5a8151934f3787d0cd59eb6edd0a736b1d";
+const NETWORK_FEE: &str = "32e7af5a8151934f3787d0cd59eb6edd0a736b1d";
 
 #[test]
 fn captured_arbitrum_failed_transactions_pay_their_fee_transfers() {
     let b = captured_arbitrum_failed_fee();
-    let (network, pricer) = (hex::decode(NETWORK_FEE).unwrap(), hex::decode(L1_PRICER).unwrap());
+    let (infra, pricer) = (hex::decode(INFRA_FEE).unwrap(), hex::decode(L1_PRICER).unwrap());
     assert!((1..=4).all(|i| b.transaction_traces[i].status.as_known() == Some(eth::TransactionTraceStatus::Reverted)));
     let failed: Vec<_> = records(&b)
         .unwrap()
         .into_iter()
         .filter(|r| r.scope == persist::Scope::TxFailedPersistent && r.reason == eth::balance_change::Reason::Transfer as i32)
-        .map(|r| (r.address == network, r.ordinal))
+        .map(|r| (r.address == infra, r.ordinal))
         .collect();
     let expected = [
         (true, 299),
@@ -1816,7 +1885,7 @@ fn captured_arbitrum_failed_transactions_pay_their_fee_transfers() {
     assert_eq!(failed, expected);
     // Both accounts chain through the reverted transactions' credits.
     let rows = changes(&b).unwrap();
-    let row = row_of(&rows, &network);
+    let row = row_of(&rows, &infra);
     assert_eq!(
         (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
         ("2866154671453100000000", "2866154732694200000000", 469, 6)
@@ -1834,8 +1903,8 @@ fn captured_arbitrum_failed_transaction_pays_its_tip_and_fee_transfers() {
     assert_eq!(b.transaction_traces[1].status.as_known(), Some(eth::TransactionTraceStatus::Reverted));
     let rows = changes(&b).unwrap();
     let expected = [
-        (INFRA_FEE, "2717795606989368354", "2717795707110810994", 2),
-        (NETWORK_FEE, "4338170651860007000", "4338174776900007000", 3),
+        (NETWORK_FEE, "2717795606989368354", "2717795707110810994", 2),
+        (INFRA_FEE, "4338170651860007000", "4338174776900007000", 3),
         (L1_PRICER, "3514566862128762270", "3514566930530355470", 3),
     ];
     for (account, old, new, records) in expected {
@@ -1890,6 +1959,911 @@ fn the_failed_fee_transfer_shape_is_exact() {
     let mut b = captured_arbitrum_failed_fee();
     root(&mut b).balance_changes[1].address = hex::decode(SENDER).unwrap();
     assert!(fails(&b));
+}
+
+/// Arbitrum One blocks 514,523,401, 514,497,707 and 514,709,255 (`Block.ver`
+/// 3) as captured from Firehose, each with its transaction 1 whole, which
+/// succeeded: the deposit `0x4c841c87…` (type 100) of 0.0001 ETH from
+/// `0x3607a3f5…` to `0x24f6a3f5…`, the retryable submission `0x9c77cfe9…`
+/// (type 105) of `0xb4b8b6f8…`, and the batch posting report `0x414a3691…`
+/// (type 106), which pays `0xe6ec2174…` from the L1 pricer pool.
+fn captured_arbitrum_arbos_transactions() -> [eth::Block; 3] {
+    [
+        include_str!("../tests/fixtures/arbitrum-514523401-deposit.json"),
+        include_str!("../tests/fixtures/arbitrum-514497707-submit-retryable.json"),
+        include_str!("../tests/fixtures/arbitrum-514709255-batch-posting-report.json"),
+    ]
+    .map(|f| captured_block(&serde_json::from_str(f).unwrap()))
+}
+/// Arbitrum One block 22,207,957 as captured from Firehose: transaction 1
+/// (`0xff56fb78…`) whole, the retryable submission of L1 message 1 from
+/// `0x84aac5e6…` with no deposit, which failed without a balance record.
+fn captured_arbitrum_failed_submission_without_records() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-22207957-failed-submit-retryable.json")).unwrap())
+}
+/// Arbitrum One block 71,044,381 as captured from Firehose: transaction 1
+/// (`0x6afc76c4…`) whole, the retryable submission of L1 message 632,385 from
+/// `0x26196e02…`, which failed below its maximum submission fee and keeps its
+/// deposit's mint of 17,400,000,000,000 wei.
+fn captured_arbitrum_failed_submission_mint() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-71044381-failed-submit-retryable-mint.json")).unwrap())
+}
+const SUBMISSION_SENDER: &str = "26196e0245446ca06dbe2b4de9fc3ee160d51523";
+/// Arbitrum One block 333,543,134 as captured from Firehose: transaction 1
+/// (`0x8113baed…`) whole, the retryable submission of L1 message 1,962,555
+/// from `0x06fe418a…` with a deposit of 60,000,000,000,000 wei, which failed
+/// on its call value of 0.05 ETH and keeps its deposit's mint, its submission
+/// fee to the network fee account and the fee's refund.
+fn captured_arbitrum_failed_submission_call_value() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-333543134-failed-submit-retryable-call-value.json")).unwrap())
+}
+const CALL_VALUE_SENDER: &str = "06fe418a9bde897f9720c1bd62a1115e7914c0fe";
+fn refused_as_kept_by_arbos(b: &eth::Block) -> bool {
+    changes(b).unwrap_err().to_string().contains("balance records that ArbOS keeps")
+}
+fn failed_first_transaction(mut b: eth::Block) -> eth::Block {
+    b.transaction_traces[0].status = eth::TransactionTraceStatus::Failed.into();
+    b
+}
+
+#[test]
+fn captured_failed_arbitrum_deposit_submission_and_internal_transaction_fail_the_block() {
+    use eth::transaction_trace::Type;
+    let [deposit, submission, report] = captured_arbitrum_arbos_transactions();
+    // Succeeded, every record persists, at depth 0 and 1: the deposit's mint
+    // to its sender and its transfer to the recipient...
+    assert_rows(
+        &changes(&deposit).unwrap(),
+        &[
+            ("3607a3f57549520cb3b2d1c691d2933aecfa73fc", "0", "0", 21, 2),
+            ("24f6a3f57549520cb3b2d1c691d2933aecfa62eb", "0", "100000000000000", 23, 1),
+        ],
+    );
+    // ...the submission's deposit mint, its fees and its refunds...
+    assert_rows(
+        &changes(&submission).unwrap(),
+        &[
+            (RETRY_SENDER, "1552251920881315441", "1552251920881315441", 74, 6),
+            (NETWORK_FEE, "24049424609291339035", "24049425312023696635", 71, 2),
+            (INFRA_FEE, "32657830598880007000", "32657832532860007000", 67, 1),
+            ("7cc207f46b30d03aad67871ade8f6333cf7a3731", "0", "11846753849120", 75, 2),
+        ],
+    );
+    // ...and the batch poster's payment from the L1 pricer pool.
+    assert_rows(
+        &changes(&report).unwrap(),
+        &[
+            (L1_PRICER, "3514546805402598569", "3514527727413777969", 26, 1),
+            ("e6ec2174539a849f9f3ec973c66b333ed08c0c18", "4323072961863150", "4342150950683750", 27, 1),
+        ],
+    );
+    // Failed, ArbOS would keep every move, which the shared rules drop.
+    let kinds = [
+        Type::TrxTypeArbitrumDeposit,
+        Type::TrxTypeArbitrumSubmitRetryable,
+        Type::TrxTypeArbitrumInternal,
+    ];
+    for (b, kind) in [deposit, submission, report].into_iter().zip(kinds) {
+        assert_eq!(b.transaction_traces[0].r#type.as_known(), Some(kind));
+        for status in [eth::TransactionTraceStatus::Failed, eth::TransactionTraceStatus::Reverted] {
+            let mut b = b.clone();
+            b.transaction_traces[0].status = status.into();
+            assert!(refused_as_kept_by_arbos(&b), "{kind:?} {status:?}");
+        }
+    }
+    // The submission `0x38b8e37a…` of block 52,067,707 records its moves in
+    // the root call.
+    let b = failed_first_transaction(captured_arbitrum_failed_retry());
+    assert_eq!(b.transaction_traces[0].r#type.as_known(), Some(Type::TrxTypeArbitrumSubmitRetryable));
+    assert!(refused_as_kept_by_arbos(&b));
+    // A failed submission without a balance record keeps nothing.
+    let b = captured_arbitrum_failed_submission_without_records();
+    assert_eq!(
+        (b.transaction_traces[0].r#type.as_known(), b.transaction_traces[0].status.as_known()),
+        (Some(Type::TrxTypeArbitrumSubmitRetryable), Some(eth::TransactionTraceStatus::Failed))
+    );
+    assert!(changes(&b).unwrap().is_empty());
+}
+
+#[test]
+fn the_failed_arbos_transaction_guard_is_exact() {
+    use eth::transaction_trace::Type;
+    let [deposit, submission, report] = captured_arbitrum_arbos_transactions().map(failed_first_transaction);
+    fn calls(b: &mut eth::Block) -> &mut Vec<eth::Call> {
+        &mut b.transaction_traces[0].calls
+    }
+    // A move in any call fails the block: the deposit's mint alone in the
+    // root call...
+    let mut b = deposit.clone();
+    calls(&mut b)[1].balance_changes.clear();
+    assert!(refused_as_kept_by_arbos(&b));
+    // ...its transfer alone in the depth-1 call...
+    let mut b = deposit.clone();
+    calls(&mut b)[0].balance_changes.clear();
+    assert!(refused_as_kept_by_arbos(&b));
+    // ...or one record in a depth-2 call.
+    let mut b = submission.clone();
+    let record = calls(&mut b)[1].balance_changes.remove(0);
+    calls(&mut b).iter_mut().for_each(|c| c.balance_changes.clear());
+    assert_eq!(calls(&mut b)[2].depth, 2);
+    calls(&mut b)[2].balance_changes.push(record);
+    assert!(refused_as_kept_by_arbos(&b));
+    // A gas record outside the root call fails too...
+    let mut b = report.clone();
+    calls(&mut b)[1].balance_changes.truncate(1);
+    calls(&mut b)[1].balance_changes[0].reason = eth::balance_change::Reason::GasBuy.into();
+    assert!(refused_as_kept_by_arbos(&b));
+    // ...as does a value past `uint256`.
+    let mut b = report.clone();
+    calls(&mut b)[1].balance_changes.truncate(1);
+    calls(&mut b)[1].balance_changes[0].new_value = Some(eth::BigInt { bytes: vec![1; 33] }).into();
+    assert!(refused_as_kept_by_arbos(&b));
+    // The shared rules persist a gas record of the root call.
+    let mut b = report.clone();
+    let mut gas = calls(&mut b)[1].balance_changes.remove(0);
+    gas.reason = eth::balance_change::Reason::GasBuy.into();
+    calls(&mut b).iter_mut().for_each(|c| c.balance_changes.clear());
+    calls(&mut b)[0].balance_changes.push(gas);
+    assert_rows(&changes(&b).unwrap(), &[(L1_PRICER, "3514546805402598569", "3514527727413777969", 26, 1)]);
+    // Records that move nothing keep nothing.
+    let mut b = deposit.clone();
+    for c in calls(&mut b).iter_mut().flat_map(|c| c.balance_changes.iter_mut()) {
+        c.new_value = c.old_value.clone();
+    }
+    assert!(changes(&b).unwrap().is_empty());
+    // A succeeded transaction of these types is not affected.
+    let mut b = submission.clone();
+    b.transaction_traces[0].status = eth::TransactionTraceStatus::Succeeded.into();
+    assert_eq!(changes(&b).unwrap().len(), 4);
+    // Failed transactions that run in the EVM are not affected either: the
+    // reverted type-2 transactions of block 150,000,072 pay the same fee
+    // transfers as `ArbitrumUnsignedTx`, `ArbitrumContractTx` or
+    // `ArbitrumLegacyTx`, but as a deposit, submission or internal
+    // transaction they fail the block.
+    let expected = changes(&captured_arbitrum_failed_fee()).unwrap();
+    for kind in [Type::TrxTypeArbitrumUnsigned, Type::TrxTypeArbitrumContract, Type::TrxTypeArbitrumLegacy] {
+        let mut b = captured_arbitrum_failed_fee();
+        b.transaction_traces.iter_mut().for_each(|t| t.r#type = kind.into());
+        assert_eq!(changes(&b).unwrap(), expected, "{kind:?}");
+    }
+    for kind in [
+        Type::TrxTypeArbitrumDeposit,
+        Type::TrxTypeArbitrumSubmitRetryable,
+        Type::TrxTypeArbitrumInternal,
+    ] {
+        let mut b = captured_arbitrum_failed_fee();
+        b.transaction_traces.iter_mut().for_each(|t| t.r#type = kind.into());
+        assert!(refused_as_kept_by_arbos(&b), "{kind:?}");
+    }
+}
+
+#[test]
+fn captured_arbitrum_failed_submission_keeps_its_deposit_mint() {
+    let b = captured_arbitrum_failed_submission_mint();
+    let tx = &b.transaction_traces[0];
+    assert_eq!(
+        (tx.r#type.as_known(), tx.status.as_known(), tx.gas_used),
+        (
+            Some(eth::transaction_trace::Type::TrxTypeArbitrumSubmitRetryable),
+            Some(eth::TransactionTraceStatus::Failed),
+            0
+        )
+    );
+    let kept: Vec<_> = records(&b).unwrap().into_iter().map(|r| (r.scope, r.ordinal)).collect();
+    assert_eq!(kept, [(persist::Scope::TxFailedPersistent, 7)]);
+    // eth_getBalance reads 0 before the block and the deposit after it.
+    assert_rows(&changes(&b).unwrap(), &[(SUBMISSION_SENDER, "0", "17400000000000", 7, 1)]);
+}
+
+#[test]
+fn the_failed_submission_settlement_shape_is_exact() {
+    fn mint(b: &mut eth::Block) -> &mut eth::BalanceChange {
+        &mut b.transaction_traces[0].calls[0].balance_changes[0]
+    }
+    let refused = |edit: &dyn Fn(&mut eth::Block)| {
+        let mut b = captured_arbitrum_failed_submission_mint();
+        edit(&mut b);
+        refused_as_kept_by_arbos(&b)
+    };
+    // A FAILED submission without gas used...
+    assert!(refused(&|b| b.transaction_traces[0].status = eth::TransactionTraceStatus::Reverted.into()));
+    assert!(refused(&|b| b.transaction_traces[0].gas_used = 1));
+    assert!(refused(
+        &|b| b.transaction_traces[0].r#type = eth::transaction_trace::Type::TrxTypeArbitrumDeposit.into()
+    ));
+    assert!(refused(
+        &|b| b.transaction_traces[0].r#type = eth::transaction_trace::Type::TrxTypeArbitrumInternal.into()
+    ));
+    // ...whose root call is its only call...
+    assert!(refused(&|b| b.transaction_traces[0].calls[0].depth = 1));
+    assert!(refused(&|b| {
+        let call = eth::Call {
+            depth: 1,
+            ..b.transaction_traces[0].calls[0].clone()
+        };
+        b.transaction_traces[0].calls[0].balance_changes.clear();
+        b.transaction_traces[0].calls.push(call);
+    }));
+    assert!(refused(&|b| {
+        let call = eth::Call {
+            depth: 1,
+            balance_changes: Vec::new(),
+            ..b.transaction_traces[0].calls[0].clone()
+        };
+        b.transaction_traces[0].calls.push(call);
+    }));
+    // ...holds a TRANSFER credit of the sender...
+    assert!(refused(&|b| mint(b).reason = eth::balance_change::Reason::Burn.into()));
+    assert!(refused(&|b| mint(b).address = vec![9; 20]));
+    assert!(refused(&|b| {
+        let m = mint(b);
+        (m.old_value, m.new_value) = (m.new_value.clone(), m.old_value.clone());
+    }));
+    // ...within the transaction...
+    assert!(refused(&|b| mint(b).ordinal = 5));
+    assert!(refused(&|b| mint(b).ordinal = 8));
+    // ...and no other record that moves a balance.
+    let other = change(9, 6, Some(1), Some(0));
+    assert!(refused(&|b| b.transaction_traces[0].calls[0].balance_changes.push(other.clone())));
+    // Not even a gas record of the root call, which a submission never buys.
+    assert!(refused(&|b| {
+        let gas = eth::BalanceChange {
+            address: hex::decode(SUBMISSION_SENDER).unwrap(),
+            reason: eth::balance_change::Reason::GasBuy.into(),
+            ..change(0, 8, Some(17_400_000_000_000), Some(0))
+        };
+        b.transaction_traces[0].calls[0].end_ordinal = 9;
+        b.transaction_traces[0].calls[0].balance_changes.push(gas);
+    }));
+    // A record that moves nothing does not count.
+    let mut b = captured_arbitrum_failed_submission_mint();
+    b.transaction_traces[0].calls[0].balance_changes.push(change(9, 6, Some(1), Some(1)));
+    assert_rows(&changes(&b).unwrap(), &[(SUBMISSION_SENDER, "0", "17400000000000", 7, 1)]);
+    // The captured shape itself, and nothing else, persists.
+    let mut b = captured_arbitrum_failed_submission_mint();
+    mint(&mut b).ordinal = 6;
+    assert_rows(&changes(&b).unwrap(), &[(SUBMISSION_SENDER, "0", "17400000000000", 6, 1)]);
+}
+
+#[test]
+fn captured_arbitrum_failed_submission_keeps_its_fee_refund() {
+    let b = captured_arbitrum_failed_submission_call_value();
+    let tx = &b.transaction_traces[0];
+    assert_eq!(
+        (tx.r#type.as_known(), tx.status.as_known(), tx.gas_used),
+        (
+            Some(eth::transaction_trace::Type::TrxTypeArbitrumSubmitRetryable),
+            Some(eth::TransactionTraceStatus::Failed),
+            0
+        )
+    );
+    // The mint, the submission fee and its refund.
+    let kept: Vec<_> = records(&b).unwrap().into_iter().map(|r| (r.scope, r.ordinal)).collect();
+    assert_eq!(kept, (8..=12).map(|o| (persist::Scope::TxFailedPersistent, o)).collect::<Vec<_>>());
+    // eth_getBalance reads 0 before the block and the deposit after it; the
+    // network fee account gives the fee back.
+    assert_rows(
+        &changes(&b).unwrap(),
+        &[
+            (CALL_VALUE_SENDER, "0", "60000000000000", 12, 3),
+            (NETWORK_FEE, "58032418371264867579", "58032418371264867579", 11, 2),
+        ],
+    );
+}
+
+#[test]
+fn the_failed_submission_fee_refund_shape_is_exact() {
+    fn record(b: &mut eth::Block, ordinal: u64) -> &mut eth::BalanceChange {
+        b.transaction_traces[0].calls[0]
+            .balance_changes
+            .iter_mut()
+            .find(|c| c.ordinal == ordinal)
+            .unwrap()
+    }
+    let refused = |edit: &dyn Fn(&mut eth::Block)| {
+        let mut b = captured_arbitrum_failed_submission_call_value();
+        edit(&mut b);
+        refused_as_kept_by_arbos(&b)
+    };
+    // Records 8 to 12: the mint, the fee from the sender to `0x32e7af5a…`,
+    // and back.
+    let network = hex::decode(NETWORK_FEE).unwrap();
+    assert_eq!(record(&mut captured_arbitrum_failed_submission_call_value(), 10).address, network);
+    // The fee goes to another account than the sender...
+    assert!(refused(&|b| {
+        let sender = hex::decode(CALL_VALUE_SENDER).unwrap();
+        let c = record(b, 10);
+        (c.address, c.old_value, c.new_value) = (sender.clone(), wei(57_995_630_662_928).into(), wei(60_000_000_000_000).into());
+        let c = record(b, 11);
+        (c.address, c.old_value, c.new_value) = (sender, wei(60_000_000_000_000).into(), wei(57_995_630_662_928).into());
+    }));
+    // ...which pays it back...
+    assert!(refused(&|b| record(b, 11).address = vec![9; 20]));
+    // ...to the sender...
+    assert!(refused(&|b| record(b, 12).address = vec![9; 20]));
+    // ...in the same amount...
+    assert!(refused(&|b| record(b, 10).new_value = wei(58_032_420_375_634_204_652).into()));
+    assert!(refused(&|b| record(b, 11).old_value = wei(58_032_420_375_634_204_652).into()));
+    assert!(refused(&|b| record(b, 12).new_value = wei(60_000_000_000_001).into()));
+    // ...in this order...
+    assert!(refused(&|b| {
+        record(b, 10).ordinal = 0;
+        record(b, 11).ordinal = 10;
+        record(b, 0).ordinal = 11;
+    }));
+    // ...a positive fee...
+    assert!(refused(&|b| {
+        for ordinal in 9..=12 {
+            let c = record(b, ordinal);
+            (c.old_value, c.new_value) = (c.new_value.clone(), c.old_value.clone());
+        }
+    }));
+    // ...as TRANSFER records...
+    assert!(refused(&|b| record(b, 11).reason = eth::balance_change::Reason::Burn.into()));
+    // ...after the mint, and nothing else: no excess refund.
+    assert!(refused(&|b| b.transaction_traces[0].calls[0].balance_changes.retain(|c| c.ordinal != 8)));
+    assert!(refused(&|b| b.transaction_traces[0].calls[0].balance_changes.retain(|c| c.ordinal != 12)));
+    assert!(refused(&|b| {
+        let root = &mut b.transaction_traces[0].calls[0];
+        root.end_ordinal = 15;
+        root.balance_changes.push(change(9, 13, Some(1), Some(0)));
+        root.balance_changes.push(change(8, 14, Some(0), Some(1)));
+    }));
+}
+
+/// Arbitrum One blocks 350,048,039 and 514,791,024 (`Block.ver` 3) with their
+/// reverted SetCode transactions `0xfed9d2ec…` (tx 4) and `0xdb5f4993…`
+/// (tx 2), unmodified TransactionTrace messages fetched from Firehose. Their
+/// root calls record `begin_ordinal` 0; the shared rules recover the boundary
+/// of the authorization records (`evm_persist`).
+fn captured_arbitrum_failed_setcode() -> [eth::Block; 2] {
+    let traces: [(u64, &[u8]); 2] = [
+        (
+            350_048_039,
+            include_bytes!("../../../erc20/balances/tests/fixtures/arbitrum-350048039-failed-setcode.pb"),
+        ),
+        (
+            514_791_024,
+            include_bytes!("../../../erc20/balances/tests/fixtures/arbitrum-514791024-failed-setcode.pb"),
+        ),
+    ];
+    traces.map(|(number, bytes)| {
+        let mut b = block();
+        b.ver = 3;
+        b.number = number;
+        if let Some(header) = b.header.as_option_mut() {
+            header.number = number;
+        }
+        b.transaction_traces = vec![eth::TransactionTrace::decode_from_slice(bytes).unwrap()];
+        b
+    })
+}
+
+#[test]
+fn captured_arbitrum_failed_setcode_transactions_pay_gas_tip_and_fee_transfers() {
+    let blocks = captured_arbitrum_failed_setcode();
+    // Per block: the payer's and the fee accounts' rows, as (account,
+    // old_amount, amount, ordinal, records).
+    type Row = (&'static str, &'static str, &'static str, u64, u32);
+    let expected: [&[Row]; 2] = [
+        &[
+            ("cd21f0d3ad097308c39e2b7914779787d22e831c", "8855685946491925", "8772934602543925", 316, 2),
+            (INFRA_FEE, "418556627570000000", "418558532470000000", 317, 1),
+            (NETWORK_FEE, "18584201982743401932", "18584277949774421932", 318, 1),
+            (L1_PRICER, "3521629320310242706", "3521634199723170706", 319, 1),
+        ],
+        &[
+            ("1a222f9b072aed5e9e815849de5a11b0fe3958ab", "5462582349527090", "5423721603338874", 134, 2),
+            (NETWORK_FEE, "2169864327467472140", "2169901324892989628", 137, 2),
+            (INFRA_FEE, "3241769450560007000", "3241771202400007000", 136, 1),
+            (L1_PRICER, "3515061104658630616", "3515061216139301344", 138, 1),
+        ],
+    ];
+    for (b, expected) in blocks.iter().zip(expected) {
+        let tx = &b.transaction_traces[0];
+        assert_eq!(tx.status.as_known(), Some(eth::TransactionTraceStatus::Reverted));
+        assert_eq!(
+            (tx.r#type.as_known(), tx.calls[0].begin_ordinal),
+            (Some(eth::transaction_trace::Type::TrxTypeSetCode), 0)
+        );
+        let rows = changes(b).unwrap();
+        assert_eq!(rows.len(), expected.len(), "block {}", b.number);
+        for (account, old, new, ordinal, records) in expected {
+            let row = row_of(&rows, &hex::decode(account).unwrap());
+            assert_eq!(
+                (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+                (*old, *new, *ordinal, *records),
+                "block {} account {account}",
+                b.number
+            );
+        }
+    }
+}
+
+#[test]
+fn the_failed_setcode_authorization_boundary_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("no authorization/execution ordinal boundary")
+    }
+    // Block 350,048,039: the authorization's nonce at 192, its delegation at
+    // 193; no record takes 194, the root call's unrecorded begin.
+    let [b, _] = captured_arbitrum_failed_setcode();
+    assert!(changes(&b).is_ok());
+    // A record at the boundary.
+    let mut t = b.clone();
+    t.transaction_traces[0].calls[0].gas_changes.push(eth::GasChange {
+        ordinal: 194,
+        ..Default::default()
+    });
+    assert!(fails(&t));
+    // Another delegation than the authorization's.
+    let mut t = b.clone();
+    t.transaction_traces[0].set_code_authorizations[0].address = vec![0x11; 20];
+    assert!(fails(&t));
+    // An authorization without its records.
+    let mut t = b.clone();
+    t.transaction_traces[0].calls[0].nonce_changes.truncate(1);
+    assert!(fails(&t));
+}
+
+/// Arbitrum One block 52,067,707 as captured from Firehose: transactions 1
+/// and 2 whole. Transaction 1 submits ticket `0x38b8e37a…` from
+/// `0xb4b8b6f8…`, the aliased L1 token gateway; transaction 2
+/// (`0x533a62f8…`), its auto-redeem, an `ArbitrumRetryTx`, reverted.
+fn captured_arbitrum_failed_retry() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_FAILED_RETRY).unwrap())
+}
+/// Arbitrum One block 314,259,052 as captured from Firehose: transactions 5
+/// and 6 whole. In transaction 5 `0x2cd28cda…` redeems ticket `0xfd623450…`;
+/// transaction 6 (`0xe0359a51…`), the `ArbitrumRetryTx` it schedules with
+/// 0.006025454 ETH of call value for `0x4996f81f…`, reverted.
+fn captured_arbitrum_failed_retry_value() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_FAILED_RETRY_VALUE).unwrap())
+}
+/// Arbitrum One block 511,131,266 (ArbOS 61) as captured from Firehose:
+/// transactions 1 and 2 whole. Transaction 2 (`0x52221587…`), the
+/// auto-redeem of ticket `0x7317cd66…` with 0.001855930887358923 ETH of
+/// call value, ran out of gas.
+fn captured_arbitrum_failed_retry_out_of_gas() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_FAILED_RETRY_OUT_OF_GAS).unwrap())
+}
+const RETRY_SENDER: &str = "b4b8b6f88361f48403514059f1f16c8e78d61ffd";
+const RETRY_VALUE_SENDER: &str = "4996f81fb2c72493b101ff3fd175861ccf036732";
+const RETRY_ESCROW: &str = "f1642a4cf33849dd84841bdbc919dc8e953396ca";
+fn assert_rows(rows: &[Change], expected: &[(&str, &str, &str, u64, u32)]) {
+    for (account, old, new, ordinal, records) in expected {
+        let row = row_of(rows, &hex::decode(account).unwrap());
+        assert_eq!(
+            (row.old_amount.as_str(), row.amount.as_str(), row.ordinal, row.records),
+            (*old, *new, *ordinal, *records),
+            "{account}"
+        );
+    }
+}
+
+#[test]
+fn captured_arbitrum_failed_retry_persists_its_settlement() {
+    let b = captured_arbitrum_failed_retry();
+    let retry = &b.transaction_traces[1];
+    assert_eq!(
+        (retry.r#type.as_known(), retry.status.as_known()),
+        (
+            Some(eth::transaction_trace::Type::TrxTypeArbitrumRetry),
+            Some(eth::TransactionTraceStatus::Reverted)
+        )
+    );
+    // The prepaid gas before the GAS_BUY, then the refund's burn and its
+    // payment from the network fee account after the execution.
+    let settled: Vec<_> = records(&b)
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.scope == persist::Scope::TxFailedPersistent && r.reason == eth::balance_change::Reason::Transfer as i32)
+        .map(|r| r.ordinal)
+        .collect();
+    assert_eq!(settled, [51, 104, 105, 106]);
+    // The sender, the network fee account `0xd345e41a…` and the refund address
+    // chain through it; eth_getBalance after this block reads each amount.
+    assert_rows(
+        &changes(&b).unwrap(),
+        &[
+            (RETRY_SENDER, "1144742593324624", "1144742593324624", 104, 9),
+            (
+                "d345e41ae2cb00311956aa7109fc801ae8c81a52",
+                "919240114772524704088",
+                "919240220428078778328",
+                105,
+                3,
+            ),
+            ("65a8f07bd9a8598e1b5b6c0a88f4779dbc077675", "145742716882252577", "146044608097841377", 106, 3),
+        ],
+    );
+}
+
+#[test]
+fn captured_arbitrum_failed_manual_redeem_returns_its_call_value_to_the_escrow() {
+    let b = captured_arbitrum_failed_retry_value();
+    let rows = changes(&b).unwrap();
+    // eth_getBalance after this block reads each amount: the sender ends
+    // empty, the escrow keeps the call value, and the infrastructure and
+    // network fee accounts pay the refund address, the redeemer.
+    assert_rows(
+        &rows,
+        &[
+            (RETRY_VALUE_SENDER, "0", "0", 286, 6),
+            (RETRY_ESCROW, "6025454000000000", "6025454000000000", 287, 2),
+            ("2cd28cda6825c4967372478e87d004637b73f996", "14042830579263631", "14024644507731631", 285, 3),
+            (INFRA_FEE, "19115353805570000000", "19115355012940000000", 282, 2),
+            (NETWORK_FEE, "54091162600531997824", "54091174746432723824", 284, 2),
+        ],
+    );
+    // The reverted call value transfer to `0x2eaf07a9…` (ordinals 270 and 271)
+    // does not persist.
+    assert!(!rows.iter().any(|r| hex::encode(&r.address) == "2eaf07a964c6601c4faefd6d8969df0b84f65e55"));
+    // Without the settlement every account still chains, but the sender keeps
+    // the call value and the refund, as native v0.7.8 reported.
+    let mut other = b.clone();
+    other.transaction_traces[1].r#type = eth::transaction_trace::Type::TrxTypeDynamicFee.into();
+    let rows = changes(&other).unwrap();
+    assert_eq!(row_of(&rows, &hex::decode(RETRY_VALUE_SENDER).unwrap()).amount, "6035201444132000");
+    assert!(!rows.iter().any(|r| hex::encode(&r.address) == RETRY_ESCROW));
+}
+
+#[test]
+fn captured_arbitrum_retry_out_of_gas_returns_its_call_value_to_the_escrow() {
+    let b = captured_arbitrum_failed_retry_out_of_gas();
+    let retry = &b.transaction_traces[1];
+    assert_eq!(retry.status.as_known(), Some(eth::TransactionTraceStatus::Failed));
+    assert_eq!(retry.gas_used, retry.gas_limit);
+    // No gas is left to refund. eth_getBalance after this block reads each
+    // amount: the sender ends where it started, the escrow keeps the call
+    // value, and the reverted transfer of it to `0xfec0017a…` does not
+    // persist.
+    assert_rows(
+        &changes(&b).unwrap(),
+        &[
+            ("2342deb6f5749ef6ce6943a275a1d3e7486f5fbf", "6055862479220798", "6055862479220798", 74, 11),
+            ("e7b383691b3490dd587632c66f49ace20ad54402", "0", "1855930887358923", 75, 3),
+            ("fec0017a3a2362426316cffb3d8fae13c85996b0", "0", "2522032520000", 54, 2),
+        ],
+    );
+}
+
+#[test]
+fn the_failed_retry_settlement_shape_is_exact() {
+    fn refused(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("exact ArbOS settlement")
+    }
+    fn record(b: &mut eth::Block, ordinal: u64) -> &mut eth::BalanceChange {
+        b.transaction_traces[1].calls[0]
+            .balance_changes
+            .iter_mut()
+            .find(|c| c.ordinal == ordinal)
+            .unwrap()
+    }
+    fn set(b: &mut eth::Block, ordinal: u64, old: u128, new: u128) {
+        let c = record(b, ordinal);
+        (c.old_value, c.new_value) = (wei(old).into(), wei(new).into());
+    }
+    let sender = hex::decode(RETRY_SENDER).unwrap();
+    let other = vec![9; 20];
+    // Block 52,067,707: the sender's balance before the retry, the prepaid gas
+    // `g * b`, the refund `l * b`, and the network fee account's and the
+    // refund address's balances around the payment at ordinals 105 and 106.
+    // Where a mutation below moves an amount or an account, it keeps every
+    // account chaining, so only the shape refuses it.
+    let (start, prepaid, refund) = (1_144_742_593_324_624_u128, 7_892_600_000_000_u128, 115_400_000_000_u128);
+    let (fee_before, fee_after) = (919_240_220_543_478_778_328_u128, 919_240_220_428_078_778_328_u128);
+    let (paid_before, paid_after) = (146_044_492_697_841_377_u128, 146_044_608_097_841_377_u128);
+    // The prepaid gas is the gas limit at the block's base fee.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].gas_limit += 1;
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    b.header.as_option_mut().unwrap().base_fee_per_gas = wei(100_000_001).into();
+    assert!(refused(&b));
+    // It is minted to the sender before the GAS_BUY, as a TRANSFER.
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 51).ordinal = 53;
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 51).reason = eth::balance_change::Reason::Burn.into();
+    assert!(refused(&b));
+    // Not to another account, nor of another amount.
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 51).address = other.clone();
+    set(&mut b, 51, 0, prepaid);
+    set(&mut b, 52, start, start - prepaid);
+    set(&mut b, 103, start - prepaid, start - prepaid + refund);
+    set(&mut b, 104, start - prepaid + refund, start - prepaid);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    set(&mut b, 51, start, start + prepaid + 1);
+    set(&mut b, 52, start + prepaid + 1, start + 1);
+    set(&mut b, 103, start + 1, start + 1 + refund);
+    set(&mut b, 104, start + 1 + refund, start + 1);
+    assert!(refused(&b));
+    // Exactly one GAS_BUY, the sender's, of the prepaid gas: not of another
+    // account...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 52).address = other.clone();
+    set(&mut b, 52, prepaid, 0);
+    set(&mut b, 103, start + prepaid, start + prepaid + refund);
+    set(&mut b, 104, start + prepaid + refund, start + prepaid);
+    assert!(refused(&b));
+    // ...nor at another gas price than the base fee.
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 52).new_value = wei(1_144_742_593_324_625).into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    let buy = record(&mut b, 52).clone();
+    b.transaction_traces[1].calls[0].balance_changes.push(eth::BalanceChange {
+        ordinal: 60,
+        old_value: wei(1).into(),
+        new_value: None.into(),
+        ..buy
+    });
+    assert!(refused(&b));
+    // The gas left is refunded and burnt: the refund of another gas left...
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].gas_used -= 1;
+    assert!(refused(&b));
+    // ...a GAS_REFUND of another account, a TRANSFER in its place, or a
+    // GAS_REFUND of another amount than the burn...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 103).address = other.clone();
+    set(&mut b, 103, 0, refund);
+    set(&mut b, 104, start, start - refund);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 103).reason = eth::balance_change::Reason::Transfer.into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    set(&mut b, 103, start, start + refund + 1);
+    set(&mut b, 104, start + refund + 1, start + 1);
+    assert!(refused(&b));
+    // ...a GAS_REFUND at the root call's end ordinal, not after the
+    // execution...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 103).ordinal = 102;
+    assert!(refused(&b));
+    // ...a burn of another reason, of another account or of another amount...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 104).reason = eth::balance_change::Reason::Burn.into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 104).address = other.clone();
+    set(&mut b, 104, refund, 0);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    set(&mut b, 104, start + refund, start - 1);
+    assert!(refused(&b));
+    // ...a payment of another amount than the debit of the fee account, or a
+    // debit of another amount than the payment...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 106).new_value = wei(146_044_608_097_841_378).into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    set(&mut b, 105, fee_before, fee_after - 1);
+    assert!(refused(&b));
+    // ...a debit or a payment of another reason...
+    for ordinal in [105, 106] {
+        let mut b = captured_arbitrum_failed_retry();
+        record(&mut b, ordinal).reason = eth::balance_change::Reason::Burn.into();
+        assert!(refused(&b));
+    }
+    // ...a fee account paying itself...
+    let mut b = captured_arbitrum_failed_retry();
+    let fee = record(&mut b, 105).address.clone();
+    record(&mut b, 106).address = fee;
+    set(&mut b, 106, fee_after, fee_before);
+    assert!(refused(&b));
+    // ...a reversed pair, a credit of the fee account and a debit of the
+    // refund address, even when a larger payment makes up for it...
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].end_ordinal = 110;
+    set(&mut b, 105, fee_before, fee_after - 1_000);
+    set(&mut b, 106, paid_before, paid_after + 1_000);
+    let (debit, credit) = (record(&mut b, 105).clone(), record(&mut b, 106).clone());
+    b.transaction_traces[1].calls[0].balance_changes.extend([
+        eth::BalanceChange {
+            old_value: wei(fee_after - 1_000).into(),
+            new_value: wei(fee_after).into(),
+            ordinal: 107,
+            ..debit
+        },
+        eth::BalanceChange {
+            old_value: wei(paid_after + 1_000).into(),
+            new_value: wei(paid_after).into(),
+            ordinal: 108,
+            ..credit
+        },
+    ]);
+    assert!(refused(&b));
+    // ...a multi-dimensional gas refund, one more payment of the network fee
+    // account to the refund address after its refund of the gas left (see
+    // `failed_retry_settlements`)...
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].end_ordinal = 110;
+    let (debit, credit) = (record(&mut b, 105).clone(), record(&mut b, 106).clone());
+    b.transaction_traces[1].calls[0].balance_changes.extend([
+        eth::BalanceChange {
+            old_value: wei(fee_after).into(),
+            new_value: wei(fee_after - 1_000).into(),
+            ordinal: 107,
+            ..debit
+        },
+        eth::BalanceChange {
+            old_value: wei(paid_after).into(),
+            new_value: wei(paid_after + 1_000).into(),
+            ordinal: 108,
+            ..credit
+        },
+    ]);
+    assert!(refused(&b));
+    // ...payments that add up to another amount than the refund...
+    let mut b = captured_arbitrum_failed_retry();
+    record(&mut b, 105).new_value = wei(919_240_220_428_078_778_327).into();
+    record(&mut b, 106).new_value = wei(146_044_608_097_841_378).into();
+    assert!(refused(&b));
+    // ...or another record after the execution fails the block.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes.push(eth::BalanceChange {
+        address: vec![9; 20],
+        old_value: None.into(),
+        new_value: wei(1).into(),
+        ordinal: 107,
+        reason: eth::balance_change::Reason::RewardTransactionFee.into(),
+    });
+    assert!(refused(&b));
+    // A payment to the sender, past the ticket's maximum refund, settles too.
+    let mut b = captured_arbitrum_failed_retry();
+    let payment = record(&mut b, 106);
+    payment.address = sender.clone();
+    payment.old_value = wei(1_144_742_593_324_624).into();
+    payment.new_value = wei(1_144_857_993_324_624).into();
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        (row_of(&rows, &sender).amount.as_str(), row_of(&rows, &sender).records),
+        ("1144857993324624", 10)
+    );
+    // A failed retry without balance records settles nothing.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes.clear();
+    assert_eq!(row_of(&changes(&b).unwrap(), &sender).ordinal, 44);
+    // A succeeded retry persists every record anyway, here the same ones.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].status = eth::TransactionTraceStatus::Succeeded.into();
+    b.transaction_traces[1].calls.iter_mut().for_each(|c| c.state_reverted = false);
+    assert_eq!(changes(&b).unwrap(), changes(&captured_arbitrum_failed_retry()).unwrap());
+    // No-op records are left out of the shape: a no-op TRANSFER of the sender
+    // after the payment settles the same rows.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes.push(eth::BalanceChange {
+        address: sender.clone(),
+        old_value: wei(start).into(),
+        new_value: wei(start).into(),
+        ordinal: 107,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    });
+    assert_eq!(changes(&b).unwrap(), changes(&captured_arbitrum_failed_retry()).unwrap());
+    // A value past uint256 fails the block, beside the settlement (here in the
+    // reverted execution) or as the retry's only record.
+    let oversize = eth::BalanceChange {
+        address: other.clone(),
+        old_value: None.into(),
+        new_value: Some(eth::BigInt { bytes: vec![1; 33] }).into(),
+        ordinal: 60,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    };
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes.push(oversize.clone());
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].calls[0].balance_changes = vec![oversize];
+    assert!(refused(&b));
+    // A call value without the escrow's moves fails the block.
+    let mut b = captured_arbitrum_failed_retry();
+    b.transaction_traces[1].value = wei(1).into();
+    assert!(refused(&b));
+
+    // With call value (block 314,259,052): the sender's balance moves from 0
+    // to `v` and back, and the escrow's from `v` to 0 and back. From the
+    // escrow to the sender before the prepaid gas...
+    let value = 6_025_454_000_000_000_u128;
+    let value_sender = hex::decode(RETRY_VALUE_SENDER).unwrap();
+    let mut b = captured_arbitrum_failed_retry_value();
+    b.transaction_traces[1].value = wei(6_025_454_000_000_001).into();
+    assert!(refused(&b));
+    // ...as TRANSFER records: a debit of `v` of another account than the
+    // sender, which is not its own escrow...
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 263).reason = eth::balance_change::Reason::Burn.into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    set(&mut b, 263, value + 1, 0);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 263).address = value_sender.clone();
+    record(&mut b, 287).address = value_sender.clone();
+    assert!(refused(&b));
+    // ...and a credit of `v` of the sender...
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 264).reason = eth::balance_change::Reason::Burn.into();
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 264).address = other.clone();
+    assert!(refused(&b));
+    let (value_prepaid, value_refund) = (14_105_668_920_000_u128, 9_747_444_132_000_u128);
+    let mut b = captured_arbitrum_failed_retry_value();
+    set(&mut b, 264, 0, value + 1);
+    set(&mut b, 265, value + 1, value + 1 + value_prepaid);
+    set(&mut b, 266, value + 1 + value_prepaid, value + 1);
+    set(&mut b, 280, value + 1, value + 1 + value_refund);
+    set(&mut b, 281, value + 1 + value_refund, value + 1);
+    set(&mut b, 286, value + 1, 1);
+    assert!(refused(&b));
+    // ...before the prepaid gas...
+    let mut b = captured_arbitrum_failed_retry_value();
+    let moves = &mut b.transaction_traces[1].calls[0].balance_changes;
+    let at = |moves: &[eth::BalanceChange], ordinal| moves.iter().position(|c| c.ordinal == ordinal).unwrap();
+    let (credit, mint) = (at(moves, 264), at(moves, 265));
+    (moves[credit].ordinal, moves[mint].ordinal) = (265, 264);
+    assert!(refused(&b));
+    // ...one refund address for both fee accounts' payments...
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 285).address = vec![9; 20];
+    assert!(refused(&b));
+    // ...which the sender never counts as. Past the ticket's maximum refund the
+    // network fee account pays the sender after the infrastructure fee account
+    // paid the refund address. Nitro pays the sender last, but the shape does
+    // not order the payments, so the reverse order settles too.
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 285).address = value_sender.clone();
+    set(&mut b, 285, value, value + 8_866_104_132_000);
+    set(&mut b, 286, value + 8_866_104_132_000, 8_866_104_132_000);
+    assert_eq!(row_of(&changes(&b).unwrap(), &value_sender).amount, "8866104132000");
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 283).address = value_sender.clone();
+    set(&mut b, 283, value, value + 881_340_000_000);
+    set(&mut b, 285, 14_014_897_063_599_631, 14_023_763_167_731_631);
+    set(&mut b, 286, value + 881_340_000_000, 881_340_000_000);
+    assert_eq!(row_of(&changes(&b).unwrap(), &value_sender).amount, "881340000000");
+    // ...and back to the escrow at the end...
+    let mut b = captured_arbitrum_failed_retry_value();
+    record(&mut b, 287).address = vec![9; 20];
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    b.transaction_traces[1].calls[0].balance_changes.retain(|c| c.ordinal < 286);
+    assert!(refused(&b));
+    // ...as TRANSFER records of `v`, with nothing after them.
+    for ordinal in [286, 287] {
+        let mut b = captured_arbitrum_failed_retry_value();
+        record(&mut b, ordinal).reason = eth::balance_change::Reason::Burn.into();
+        assert!(refused(&b));
+    }
+    let mut b = captured_arbitrum_failed_retry_value();
+    set(&mut b, 286, value, 1);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    set(&mut b, 287, 0, value + 1);
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_value();
+    b.transaction_traces[1].calls[0].balance_changes.push(eth::BalanceChange {
+        address: other.clone(),
+        old_value: None.into(),
+        new_value: wei(1).into(),
+        ordinal: 288,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    });
+    assert!(refused(&b));
+    // Without gas left (block 511,131,266) there is no refund to burn, and a
+    // gas use past the gas limit fails the block.
+    let mut b = captured_arbitrum_failed_retry_out_of_gas();
+    b.transaction_traces[1].gas_used -= 1;
+    assert!(refused(&b));
+    let mut b = captured_arbitrum_failed_retry_out_of_gas();
+    b.transaction_traces[1].gas_used += 1;
+    assert!(refused(&b));
 }
 
 /// Polygon block 70,000,124 (`Block.ver` 3) as captured from Firehose:
@@ -1969,6 +2943,1603 @@ fn the_selfdestruct_debit_with_other_records_is_exact() {
     let refund = record(SENDER, 16, 0, 1, eth::balance_change::Reason::SuicideRefund);
     root(&mut b).balance_changes.insert(4, refund);
     assert_eq!(destroyed(&b), D.to_string());
+}
+
+/// Arbitrum One block 250,005,039 (`Block.ver` 3) as captured from Firehose:
+/// transaction 2 (`0xe293fa3a…`) whole. Its CREATE root call creates
+/// `0x06ef189a…` with 1,955,820,000,000 wei, which its constructor
+/// self-destructs to `0x0f0cb393…`.
+fn captured_arbitrum_stale_withdraw() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_STALE_WITHDRAW).unwrap())
+}
+const STALE_DESTROYED: &str = "06ef189a6a359d4ff01a3b27f09ebaca3b150148";
+const STALE_BENEFICIARY: &str = "0f0cb39319129ba867227e5aae1abe9e7dd5f861";
+
+#[test]
+fn captured_arbitrum_stale_selfdestruct_withdraw_is_dropped_and_the_account_chains_across_it() {
+    use eth::balance_change::Reason;
+    // The producer's records of the destroyed account in block 250,005,039:
+    // the CREATE's value, the debit, a no-op and the debit again from the
+    // balance before the first one.
+    let b = captured_arbitrum_stale_withdraw();
+    let destroyed = hex::decode(STALE_DESTROYED).unwrap();
+    let own: Vec<_> = b.transaction_traces[0].calls[0]
+        .balance_changes
+        .iter()
+        .filter(|c| c.address == destroyed)
+        .map(|c| {
+            let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+            (c.ordinal, old, new, c.reason.to_i32())
+        })
+        .collect();
+    let d = "1955820000000".to_string();
+    let zero = "0".to_string();
+    assert_eq!(
+        own,
+        [
+            (127, zero.clone(), d.clone(), Reason::Transfer as i32),
+            (132, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (134, zero.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (135, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+        ]
+    );
+    // Per block and account: (old amount, amount, first ordinal, ordinal,
+    // records). The chain reads each old amount at the block before and each
+    // amount after the block. Without the self-destruct flag, each block
+    // breaks continuity.
+    let cases = [
+        (
+            ARBITRUM_STALE_WITHDRAW,
+            [
+                (STALE_DESTROYED, "0", "0", 127, 132, 2),
+                (STALE_BENEFICIARY, "131468500000", "2087288500000", 133, 133, 1),
+            ],
+        ),
+        // The credit creates the beneficiary's account at ordinal 18, between
+        // the debit (17) and the credit (19).
+        (
+            ARBITRUM_STALE_WITHDRAW_NEW_BENEFICIARY,
+            [
+                ("8bedff2953789a02a032c1d6372f78a3932da692", "0", "0", 14, 17, 2),
+                ("60657119fa7d2c64862db12b4afd812b70b899e7", "0", "1073210000000", 19, 19, 1),
+            ],
+        ),
+        // A nested CREATE of an account that already holds 0.0581 ETH, to the
+        // sender, whose gas refund starts from the credited balance.
+        (
+            ARBITRUM_STALE_WITHDRAW_NESTED,
+            [
+                ("19df9b676db4601ea38763ebe588364185f86a91", "58100000000000000", "0", 270, 270, 1),
+                (
+                    "22face80f43b857141e9752c3bae8c3309fcdd0f",
+                    "510062447229718264",
+                    "568160970789718264",
+                    250,
+                    280,
+                    3,
+                ),
+            ],
+        ),
+        // Before Cancun: the refund (516), the debit (517) and the repeat (518).
+        (
+            ARBITRUM_STALE_WITHDRAW_BEFORE_CANCUN,
+            [
+                ("88e6002626290b4c244f239327e58d9235f0f4d6", "0", "0", 513, 517, 2),
+                ("b244f017e0a662bba2ba100bc5dec2e8ad52ddd9", "24878000000000", "774878000000000", 516, 516, 1),
+            ],
+        ),
+        // Block 450,028,504, transaction 5 (`0xabef75c6…`): the CREATE root
+        // call credits `0xc05da4ea…` 15,786,592,425,450 wei, which its
+        // constructor self-destructs to `0xd211dbe9…`, credited from zero.
+        (
+            include_str!("../tests/fixtures/arbitrum-450028504-stale-selfdestruct-withdraw.json"),
+            [
+                ("c05da4ea416614af2e2a067efbca74f175c06e20", "0", "0", 185, 188, 2),
+                ("d211dbe903af354658238731b75354f522f11bee", "0", "15786592425450", 189, 189, 1),
+            ],
+        ),
+    ];
+    for (fixture, expected) in cases {
+        let b = captured_block(&serde_json::from_str(fixture).unwrap());
+        assert!(changes(&{
+            let mut kept = b.clone();
+            kept.transaction_traces[0].calls.iter_mut().for_each(|c| c.suicide = false);
+            kept
+        })
+        .unwrap_err()
+        .to_string()
+        .contains("discontinuous"));
+        let rows = changes(&b).unwrap();
+        for (account, old, new, first_ordinal, ordinal, records) in expected {
+            let row = row_of(&rows, &hex::decode(account).unwrap());
+            assert_eq!(
+                (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+                (old, new, first_ordinal, ordinal, records),
+                "block {} account {account}",
+                b.number
+            );
+        }
+    }
+}
+
+#[test]
+fn the_stale_selfdestruct_withdraw_shape_is_exact() {
+    use eth::balance_change::Reason;
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Block 250,005,039's root call: records 3 to 6 are the debit (132), the
+    // credit (133), the no-op (134) and the repeated debit (135).
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn record(address: &str, ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    const D: u64 = 1_955_820_000_000;
+    let destroyed = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(STALE_DESTROYED).unwrap());
+        (row.amount.clone(), row.ordinal, row.records)
+    };
+    assert_eq!(destroyed(&captured_arbitrum_stale_withdraw()), ("0".to_string(), 132, 2));
+    // Only a self-destructing call.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).suicide = false;
+    assert!(fails(&b));
+    // The order with a no-op only of an account created in the transaction.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).call_type = eth::CallType::CALL.into();
+    assert!(fails(&b));
+    // Only a credit of exactly the debited amount.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[4].new_value = big(131_468_500_000 + D + 1).into();
+    assert!(fails(&b));
+    // A refund to the account itself is not this shape: its records chain as
+    // recorded, and the repeated debit is kept.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[4] = record(STALE_DESTROYED, 133, 0, D, Reason::SuicideRefund);
+    assert_eq!(destroyed(&b), ("0".to_string(), 135, 4));
+    // Only three withdraws: the no-op must be one, of the account.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[5].reason = Reason::Transfer.into();
+    assert!(fails(&b));
+    root(&mut b).balance_changes.push(record(STALE_DESTROYED, 141, 0, 0, Reason::SuicideWithdraw));
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[5].address = hex::decode(SENDER).unwrap();
+    assert!(fails(&b));
+    // No fourth withdraw, and no second refund, in the call.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes.push(record(STALE_DESTROYED, 141, 0, 0, Reason::SuicideWithdraw));
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes.push(record(SENDER, 141, 0, 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+    // The debit, the no-op and the repeated debit are to zero, the no-op from
+    // zero.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[3].new_value = big(1).into();
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[5] = record(STALE_DESTROYED, 134, D, D, Reason::SuicideWithdraw);
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[6].new_value = big(1).into();
+    assert!(fails(&b));
+    // The repeated debit repeats the first one's old value.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[6].old_value = big(D - 1).into();
+    assert!(fails(&b));
+    // At consecutive ordinals: the refund right after the debit, the no-op
+    // and the repeated debit right after the refund.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[3].ordinal = 131;
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[6].ordinal = 136;
+    assert!(fails(&b));
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[5].ordinal = 135;
+    root(&mut b).balance_changes[6].ordinal = 136;
+    assert!(fails(&b));
+    // The record between the debits is the refund, not another credit.
+    let mut b = captured_arbitrum_stale_withdraw();
+    root(&mut b).balance_changes[4].reason = Reason::Transfer.into();
+    root(&mut b).balance_changes.push(record(SENDER, 141, 0, 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+    // Two ordinals apart only when the call creates the beneficiary's account
+    // between them (block 200,029,376).
+    let new_beneficiary = || captured_block(&serde_json::from_str(ARBITRUM_STALE_WITHDRAW_NEW_BENEFICIARY).unwrap());
+    let mut b = new_beneficiary();
+    let creation = root(&mut b).account_creations.iter_mut().find(|a| a.ordinal == 18).unwrap();
+    creation.account = hex::decode(SENDER).unwrap();
+    assert!(fails(&b));
+    let mut b = new_beneficiary();
+    root(&mut b).account_creations.retain(|a| a.ordinal != 18);
+    assert!(fails(&b));
+    // A balance between the debit and the repeated debit makes the latter a
+    // real debit, which must chain and is kept: the account ends at zero.
+    let mut b = captured_arbitrum_stale_withdraw();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        balance_changes: vec![record(STALE_DESTROYED, 134, 0, D, Reason::Transfer)],
+        ..Default::default()
+    });
+    assert_eq!(destroyed(&b), ("0".to_string(), 135, 4));
+    // Any other balance there breaks continuity.
+    b.transaction_traces[0].calls[1].balance_changes[0].new_value = big(D - 1).into();
+    assert!(fails(&b));
+    // The repeated debit is the account's only record at its ordinal: a
+    // duplicate there, here a credit in a child call, is not dropped with
+    // it, and the block fails.
+    let child = |ordinal: u64, new: u64| eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        balance_changes: vec![record(STALE_DESTROYED, ordinal, 0, new, Reason::Transfer)],
+        ..Default::default()
+    };
+    let mut b = captured_arbitrum_stale_withdraw();
+    b.transaction_traces[0].calls.push(child(135, 7));
+    assert!(fails(&b));
+    // No record of the account follows the repeated debit in the
+    // transaction: a later credit keeps the repeat, which breaks continuity.
+    let mut b = captured_arbitrum_stale_withdraw();
+    b.transaction_traces[0].calls.push(child(136, 5));
+    assert!(fails(&b));
+    // A record of the account in a later transaction is not part of the
+    // shape: it chains from zero.
+    let mut b = captured_arbitrum_stale_withdraw();
+    b.transaction_traces.push(eth::TransactionTrace {
+        index: 3,
+        begin_ordinal: 144,
+        end_ordinal: 160,
+        ..tx(eth::Call {
+            index: 1,
+            balance_changes: vec![record(STALE_DESTROYED, 150, 0, 5, Reason::Transfer)],
+            ..Default::default()
+        })
+    });
+    assert_eq!(destroyed(&b), ("5".to_string(), 150, 3));
+
+    // Before Cancun (block 187,009,069): records 3 to 5 are the refund (516),
+    // the debit (517) and the repeat (518).
+    let before_cancun = || captured_block(&serde_json::from_str(ARBITRUM_STALE_WITHDRAW_BEFORE_CANCUN).unwrap());
+    let account = hex::decode("88e6002626290b4c244f239327e58d9235f0f4d6").unwrap();
+    let row = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &account);
+        (row.amount.clone(), row.ordinal, row.records)
+    };
+    assert_eq!(row(&before_cancun()), ("0".to_string(), 517, 2));
+    // The debit right after the refund, the repeat right after the debit.
+    let mut b = before_cancun();
+    root(&mut b).balance_changes[3].ordinal = 515;
+    assert!(fails(&b));
+    let mut b = before_cancun();
+    root(&mut b).balance_changes[5].ordinal = 519;
+    assert!(fails(&b));
+    // The refund first.
+    let mut b = before_cancun();
+    root(&mut b).balance_changes[3].ordinal = 517;
+    root(&mut b).balance_changes[4].ordinal = 516;
+    assert!(fails(&b));
+    // No other withdraw.
+    let withdraw = |ordinal| record("88e6002626290b4c244f239327e58d9235f0f4d6", ordinal, 0, 0, Reason::SuicideWithdraw);
+    let mut b = before_cancun();
+    root(&mut b).balance_changes.push(withdraw(519));
+    assert!(fails(&b));
+    root(&mut b).balance_changes.push(withdraw(520));
+    assert!(fails(&b));
+    // The debit is a withdraw.
+    let mut b = before_cancun();
+    root(&mut b).balance_changes[4].reason = Reason::Transfer.into();
+    root(&mut b).balance_changes.push(withdraw(519));
+    assert!(fails(&b));
+}
+
+/// Arbitrum One block 514,819,388 (`Block.ver` 3) as captured from Firehose:
+/// transaction 4 (`0xae385f2d…`) whole. Its root call sends
+/// 3,495,043,890,571 wei to `0x06bba4e1…`, a contract not created in the
+/// transaction (code `0x600035ff`), which self-destructs it to
+/// `0xf3359221…` and survives (EIP-6780).
+fn captured_arbitrum_stale_withdraw_existing() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-514819388-stale-selfdestruct-withdraw-existing.json")).unwrap())
+}
+const STALE_EXISTING: &str = "06bba4e1619ae7ed8332978643399de6cf7de80b";
+const STALE_EXISTING_BENEFICIARY: &str = "f33592213d255d01ac35176d18e0bba676a5e9b6";
+/// Arbitrum One block 176,115,455 (`Block.ver` 3, before Cancun) as captured
+/// from Firehose: transaction 1 (`0xbfc4af67…`) whole. Its call 6 (depth 4)
+/// self-destructs `0x9d4eb718…`, which holds 15,785 wei and code before the
+/// block and is not created in the transaction, to `0xc881a48a…`.
+fn captured_arbitrum_stale_withdraw_existing_before_cancun() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-176115455-stale-selfdestruct-withdraw-existing.json")).unwrap())
+}
+const STALE_EXISTING_BEFORE_CANCUN: &str = "9d4eb7189cd57693c3d01f35168715e1e589cea8";
+
+#[test]
+fn captured_arbitrum_stale_selfdestruct_withdraws_of_existing_accounts_are_dropped() {
+    use eth::balance_change::Reason;
+    // Per block: the self-destructing call; the account and the
+    // beneficiary; their records in the call as (ordinal, of the account,
+    // old, new, reason); the repeat's ordinal; and every row as (account, old
+    // amount, amount, first ordinal, ordinal, records). The chain reads the
+    // account's, the beneficiary's and the sender's old amounts at the block
+    // before and their amounts at the block.
+    type Own<'a> = [(u64, bool, &'a str, &'a str, Reason)];
+    type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u64, u32)];
+    let check = |b: &eth::Block, call: usize, accounts: [&str; 2], own: &Own, repeat: u64, expected: &Rows| {
+        // No call of the transaction is a CREATE.
+        let calls = &b.transaction_traces[0].calls;
+        assert!(calls.iter().all(|c| c.call_type.as_known() != Some(eth::CallType::CREATE)));
+        let [destroyed, beneficiary] = accounts.map(|a| hex::decode(a).unwrap());
+        let recorded: Vec<_> = calls[call]
+            .balance_changes
+            .iter()
+            .filter(|c| c.address == destroyed || c.address == beneficiary)
+            .map(|c| {
+                let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+                (c.ordinal, c.address == destroyed, old, new, c.reason.to_i32())
+            })
+            .collect();
+        let own: Vec<_> = own
+            .iter()
+            .map(|&(o, d, old, new, reason)| (o, d, old.to_string(), new.to_string(), reason as i32))
+            .collect();
+        assert_eq!(recorded, own, "block {}", b.number);
+        // Without the self-destruct flag the repeat breaks continuity.
+        let mut kept = b.clone();
+        kept.transaction_traces[0].calls[call].suicide = false;
+        assert!(changes(&kept).unwrap_err().to_string().contains("discontinuous"));
+        // Only the repeat is dropped; the other self-destruct rules do not
+        // apply.
+        let persisted = records(b).unwrap();
+        assert_eq!(stale_selfdestruct_withdraws(b, &persisted), HashSet::from([(destroyed, repeat)]));
+        assert!(selfdestruct_debits(b).is_empty());
+        assert!(selfdestruct_to_self_pairs(b).is_empty());
+        assert!(selfdestruct_credit_shifts(b, &persisted).is_empty());
+        let rows = changes(b).unwrap();
+        assert_eq!(rows.len(), expected.len());
+        for &(account, old, new, first_ordinal, ordinal, records) in expected {
+            let row = row_of(&rows, &hex::decode(account).unwrap());
+            assert_eq!(
+                (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+                (old, new, first_ordinal, ordinal, records),
+                "block {} account {account}",
+                b.number
+            );
+        }
+    };
+    // Since Cancun (block 514,819,388): the call's value, the debit, the
+    // refund and the debit again from the balance before the first one.
+    let d = "3495043890571";
+    check(
+        &captured_arbitrum_stale_withdraw_existing(),
+        0,
+        [STALE_EXISTING, STALE_EXISTING_BENEFICIARY],
+        &[
+            (170, true, "0", d, Reason::Transfer),
+            (172, true, d, "0", Reason::SuicideWithdraw),
+            (173, false, "110368952201", "3605412842772", Reason::SuicideRefund),
+            (174, true, d, "0", Reason::SuicideWithdraw),
+        ],
+        174,
+        &[
+            (STALE_EXISTING, "0", "0", 170, 172, 2),
+            (STALE_EXISTING_BENEFICIARY, "110368952201", "3605412842772", 173, 173, 1),
+            (
+                "49f55da8050ed4b938da68fb1fabf487fe60dead",
+                "22744118335173678",
+                "22740026651253275",
+                164,
+                176,
+                3,
+            ),
+            (
+                "32e7af5a8151934f3787d0cd59eb6edd0a736b1d",
+                "2370381355647832615",
+                "2370381355647861589",
+                177,
+                177,
+                1,
+            ),
+            (
+                "bf5041fc07e1c866d15c749156657b8eed0fb649",
+                "3733095255360007000",
+                "3733095834840007000",
+                178,
+                178,
+                1,
+            ),
+            (
+                "a4b00000000000000000000000000000000000f6",
+                "3514730428826339127",
+                "3514730445986339985",
+                179,
+                179,
+                1,
+            ),
+        ],
+    );
+    // Block 367,502,338, transaction 8 (`0x5ecb2e03…`): a call (depth 1) of
+    // `0x6beb920b…`, which holds 5,000,000,000,000 wei and code before the
+    // block and keeps its code, self-destructs it to the sender
+    // `0x62005500…`, whose gas refund then starts from the credited balance.
+    check(
+        &captured_block(&serde_json::from_str(include_str!("../tests/fixtures/arbitrum-367502338-stale-selfdestruct-withdraw-existing.json")).unwrap()),
+        3,
+        ["6beb920bf8f42d753ee61d6a54a0ad219b5505fa", "62005500af4cfb0077ac0090002f630055ba001d"],
+        &[
+            (451, true, "5000000000000", "0", Reason::SuicideWithdraw),
+            (452, false, "27162147567422131", "27167147567422131", Reason::SuicideRefund),
+            (453, true, "5000000000000", "0", Reason::SuicideWithdraw),
+        ],
+        453,
+        &[
+            ("6beb920bf8f42d753ee61d6a54a0ad219b5505fa", "5000000000000", "0", 451, 451, 1),
+            (
+                "62005500af4cfb0077ac0090002f630055ba001d",
+                "27202147567422131",
+                "27206645657422131",
+                429,
+                467,
+                3,
+            ),
+            (
+                "bf5041fc07e1c866d15c749156657b8eed0fb649",
+                "25344038395940000000",
+                "25344038856830000000",
+                468,
+                468,
+                1,
+            ),
+            (
+                "a4b00000000000000000000000000000000000f6",
+                "3514415020224215870",
+                "3514415061244215870",
+                469,
+                469,
+                1,
+            ),
+        ],
+    );
+    // Before Cancun (block 176,115,455): the refund, the debit and the
+    // repeat, as for an account created in the transaction.
+    check(
+        &captured_arbitrum_stale_withdraw_existing_before_cancun(),
+        5,
+        [STALE_EXISTING_BEFORE_CANCUN, "c881a48a5c90a751d53cfb0af82a5336b74a1389"],
+        &[
+            (37, false, "1", "15786", Reason::SuicideRefund),
+            (38, true, "15785", "0", Reason::SuicideWithdraw),
+            (39, true, "15785", "0", Reason::SuicideWithdraw),
+        ],
+        39,
+        &[
+            (STALE_EXISTING_BEFORE_CANCUN, "15785", "0", 38, 38, 1),
+            ("c881a48a5c90a751d53cfb0af82a5336b74a1389", "1", "15786", 37, 37, 1),
+            ("7374e5a0aa341f8b9c1df17bbd3ea156a5bfb927", "8624563462587122", "8442970562587122", 6, 53, 2),
+            (
+                "bf5041fc07e1c866d15c749156657b8eed0fb649",
+                "690630634027600000000",
+                "690630642024200000000",
+                54,
+                54,
+                1,
+            ),
+            (
+                "a4b00000000000000000000000000000000000f6",
+                "4933556405096608890",
+                "4933730001396608890",
+                55,
+                55,
+                1,
+            ),
+        ],
+    );
+}
+
+#[test]
+fn the_stale_selfdestruct_withdraw_of_an_existing_account_is_exact() {
+    use eth::balance_change::Reason;
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Block 514,819,388's root call: records 2 to 5 are the call's value
+    // (170), the debit (172), the refund (173) and the repeat (174).
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn record(address: &str, ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    fn child(index: u32, balance_changes: Vec<eth::BalanceChange>) -> eth::Call {
+        eth::Call {
+            index,
+            parent_index: 1,
+            depth: 1,
+            balance_changes,
+            ..Default::default()
+        }
+    }
+    const D: u64 = 3_495_043_890_571;
+    const B: u64 = 110_368_952_201;
+    let destroyed = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(STALE_EXISTING).unwrap());
+        (row.amount.clone(), row.ordinal, row.records)
+    };
+    let dropped = |b: &eth::Block| stale_selfdestruct_withdraws(b, &records(b).unwrap());
+    let captured = captured_arbitrum_stale_withdraw_existing;
+    assert_eq!(destroyed(&captured()), ("0".to_string(), 172, 2));
+    // The debit first without a no-op only of an account not created in the
+    // transaction: a CREATE of it calls for the other two orders.
+    let mut b = captured();
+    b.transaction_traces[0].calls.push(eth::Call {
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(STALE_EXISTING).unwrap(),
+        ..child(2, vec![])
+    });
+    assert!(fails(&b));
+    // Only of the account the call self-destructs: for a DELEGATECALL, its
+    // caller.
+    let mut b = captured();
+    root(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(fails(&b));
+    // Only a credit of exactly the debited amount.
+    let mut b = captured();
+    root(&mut b).balance_changes[4].new_value = big(B + D + 1).into();
+    assert!(fails(&b));
+    // A refund to the account itself is not this shape: the repeat is not
+    // dropped.
+    let mut b = captured();
+    root(&mut b).balance_changes[4] = record(STALE_EXISTING, 173, 0, D, Reason::SuicideRefund);
+    assert!(dropped(&b).is_empty());
+    // Exactly two withdraws, both of the account, and one refund in the call.
+    let mut b = captured();
+    root(&mut b).balance_changes.push(record(STALE_EXISTING, 175, 0, 0, Reason::SuicideWithdraw));
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[5].address = hex::decode(STALE_EXISTING_BENEFICIARY).unwrap();
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b)
+        .balance_changes
+        .push(record(STALE_EXISTING_BENEFICIARY, 175, B + D, B + D + 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+    // The record between the debits is the refund, not another credit.
+    let mut b = captured();
+    root(&mut b).balance_changes[4].reason = Reason::Transfer.into();
+    root(&mut b)
+        .balance_changes
+        .push(record(STALE_EXISTING_BENEFICIARY, 175, B + D, B + D + 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+    // The created account's no-op between the refund and the repeat is not
+    // part of this shape.
+    let mut b = captured();
+    root(&mut b).balance_changes[5].ordinal = 175;
+    root(&mut b).balance_changes.push(record(STALE_EXISTING, 174, 0, 0, Reason::SuicideWithdraw));
+    assert!(fails(&b));
+    // The debit and the repeat are to zero, the repeat from the debited
+    // amount.
+    let mut b = captured();
+    root(&mut b).balance_changes[3].new_value = big(1).into();
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[5].new_value = big(1).into();
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[5].old_value = big(D - 1).into();
+    assert!(fails(&b));
+    // At consecutive ordinals, the debit first: the refund right after the
+    // debit, also when the call creates the beneficiary's account between
+    // them, and the repeat right after the refund.
+    let mut b = captured();
+    root(&mut b).balance_changes[3].ordinal = 171;
+    assert!(fails(&b));
+    root(&mut b).account_creations.push(eth::AccountCreation {
+        account: hex::decode(STALE_EXISTING_BENEFICIARY).unwrap(),
+        ordinal: 172,
+    });
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[5].ordinal = 175;
+    assert!(fails(&b));
+    // With the refund first, the records are in the order before Cancun,
+    // which is recognized too.
+    let mut b = captured();
+    root(&mut b).balance_changes[3].ordinal = 173;
+    root(&mut b).balance_changes[4].ordinal = 172;
+    assert_eq!(destroyed(&b), ("0".to_string(), 173, 2));
+    // A balance between the debit and the repeat makes the latter a real
+    // debit, which must chain and is kept: the account ends at zero.
+    let mut b = captured();
+    b.transaction_traces[0]
+        .calls
+        .push(child(2, vec![record(STALE_EXISTING, 173, 0, D, Reason::Transfer)]));
+    assert_eq!(destroyed(&b), ("0".to_string(), 174, 4));
+    b.transaction_traces[0].calls[1].balance_changes[0].new_value = big(D - 1).into();
+    assert!(fails(&b));
+    // The repeat is the account's only record at its ordinal, and its last
+    // in the transaction.
+    let mut b = captured();
+    b.transaction_traces[0]
+        .calls
+        .push(child(2, vec![record(STALE_EXISTING, 174, 0, 7, Reason::Transfer)]));
+    assert!(fails(&b));
+    let mut b = captured();
+    b.transaction_traces[0]
+        .calls
+        .push(child(2, vec![record(STALE_EXISTING, 175, 0, 5, Reason::Transfer)]));
+    assert!(fails(&b));
+    // A record of the account in a later transaction chains from zero.
+    let mut b = captured();
+    b.transaction_traces.push(eth::TransactionTrace {
+        index: 5,
+        begin_ordinal: 188,
+        end_ordinal: 200,
+        ..tx(eth::Call {
+            index: 1,
+            balance_changes: vec![record(STALE_EXISTING, 190, 0, 5, Reason::Transfer)],
+            ..Default::default()
+        })
+    });
+    assert_eq!(destroyed(&b), ("5".to_string(), 190, 3));
+
+    // Before Cancun (block 176,115,455): call 6 holds the refund (37), the
+    // debit (38) and the repeat (39).
+    let before_cancun = captured_arbitrum_stale_withdraw_existing_before_cancun;
+    fn call(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[5]
+    }
+    let account = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(STALE_EXISTING_BEFORE_CANCUN).unwrap());
+        (row.amount.clone(), row.ordinal, row.records)
+    };
+    assert_eq!(account(&before_cancun()), ("0".to_string(), 38, 1));
+    // The debit right after the refund, the repeat right after the debit.
+    let mut b = before_cancun();
+    call(&mut b).balance_changes[0].ordinal = 36;
+    assert!(fails(&b));
+    let mut b = before_cancun();
+    call(&mut b).balance_changes[2].ordinal = 40;
+    assert!(fails(&b));
+    // Only a credit of exactly the debited amount, of another account.
+    let mut b = before_cancun();
+    call(&mut b).balance_changes[0].new_value = big(15_787).into();
+    assert!(fails(&b));
+    let mut b = before_cancun();
+    call(&mut b).balance_changes[0] = record(STALE_EXISTING_BEFORE_CANCUN, 37, 0, 15_785, Reason::SuicideRefund);
+    assert!(dropped(&b).is_empty());
+    // No other withdraw, and no other refund, in the call.
+    let mut b = before_cancun();
+    call(&mut b)
+        .balance_changes
+        .push(record(STALE_EXISTING_BEFORE_CANCUN, 40, 0, 0, Reason::SuicideWithdraw));
+    assert!(fails(&b));
+    let mut b = before_cancun();
+    call(&mut b).balance_changes.push(record(SENDER, 40, 0, 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+}
+
+/// Base block 5,044,695 (`Block.ver` 4) as captured from Firehose:
+/// transaction 1 (`0xe707514e…`) whole, a deposit from and to `0x82c8c1fb…`
+/// that fails outside the EVM; its root call holds only the mint.
+fn captured_base_failed_deposit() -> eth::Block {
+    captured_block(&serde_json::from_str(BASE_FAILED_DEPOSIT).unwrap())
+}
+/// Base block 7,092,606 (`Block.ver` 4) as captured from Firehose:
+/// transaction 1 (`0x3869ca9e…`) whole, a deposit from `0x8117a188…` whose
+/// call to `0x00008453…` reverts; its root call holds the mint and the
+/// reverted value transfer.
+fn captured_base_failed_deposit_reverted_call() -> eth::Block {
+    captured_block(&serde_json::from_str(BASE_FAILED_DEPOSIT_REVERTED_CALL).unwrap())
+}
+const DEPOSIT_SENDER: &str = "82c8c1fb820029bb0cf8337c4248ef45b7ae6927";
+const REVERTED_DEPOSIT_SENDER: &str = "8117a1888cd0cbf5c294f3ff179c5d243ee573a5";
+const REVERTED_DEPOSIT_RECIPIENT: &str = "00008453e27e8e88f305f13cf27c30d724fdd055";
+
+#[test]
+fn captured_failed_deposits_keep_their_mint() {
+    use eth::balance_change::Reason;
+    let b = captured_base_failed_deposit();
+    let tx = &b.transaction_traces[0];
+    assert_eq!(
+        (tx.r#type.as_known(), tx.status.as_known()),
+        (
+            Some(eth::transaction_trace::Type::TrxTypeOptimismDeposit),
+            Some(eth::TransactionTraceStatus::Failed)
+        )
+    );
+    // The mint persists like a failed transaction's gas.
+    let sender = hex::decode(DEPOSIT_SENDER).unwrap();
+    let persisted: Vec<_> = records(&b).unwrap().into_iter().map(|r| (r.address, r.ordinal, r.reason, r.scope)).collect();
+    assert_eq!(
+        persisted,
+        [(sender.clone(), 25, Reason::IncreaseMint as i32, persist::Scope::TxFailedPersistent)]
+    );
+    // The sender is credited the deposit's mint, 2,966,081,819,000,000 wei: the
+    // chain reads 18,387,682,604,898 wei before the block and
+    // 2,984,469,501,604,898 wei after it.
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 1);
+    let row = row_of(&rows, &sender);
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+        ("18387682604898", "2984469501604898", 25, 25, 1)
+    );
+
+    // A deposit whose call reverts keeps the mint and loses the transfer: the
+    // chain reads 5,634,192,705,691,195 wei for the sender before the block and
+    // 6,634,192,705,691,195 wei after it, and zero for the recipient.
+    let b = captured_base_failed_deposit_reverted_call();
+    assert_eq!(b.transaction_traces[0].calls[0].balance_changes.len(), 3);
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 1);
+    let row = row_of(&rows, &hex::decode(REVERTED_DEPOSIT_SENDER).unwrap());
+    assert_eq!(
+        (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+        ("5634192705691195", "6634192705691195", 25, 25, 1)
+    );
+    let recipient = hex::decode(REVERTED_DEPOSIT_RECIPIENT).unwrap();
+    assert!(!rows.iter().any(|r| r.address == recipient));
+}
+
+#[test]
+fn the_failed_deposit_mint_shape_is_exact() {
+    use eth::balance_change::Reason;
+    fn refused(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("pinned persistence")
+    }
+    fn tx(b: &mut eth::Block) -> &mut eth::TransactionTrace {
+        &mut b.transaction_traces[0]
+    }
+    fn mint(b: &mut eth::Block) -> &mut eth::BalanceChange {
+        &mut b.transaction_traces[0].calls[0].balance_changes[0]
+    }
+    // Only a deposit.
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).r#type = eth::transaction_trace::Type::TrxTypeDynamicFee.into();
+    assert!(refused(&b));
+    // Only a credit of the transaction's sender.
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).from = hex::decode(REVERTED_DEPOSIT_SENDER).unwrap();
+    assert!(refused(&b));
+    let mut b = captured_base_failed_deposit();
+    mint(&mut b).address = hex::decode(REVERTED_DEPOSIT_RECIPIENT).unwrap();
+    assert!(refused(&b));
+    // Only a positive credit.
+    let mut b = captured_base_failed_deposit();
+    let record = mint(&mut b);
+    std::mem::swap(&mut record.old_value, &mut record.new_value);
+    assert!(refused(&b));
+    // Only before the execution (root call from ordinal 28)...
+    let mut b = captured_base_failed_deposit();
+    mint(&mut b).ordinal = 28;
+    assert!(refused(&b));
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).calls[0].begin_ordinal = 25;
+    assert!(refused(&b));
+    // ...and after the transaction begins (ordinal 24).
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).begin_ordinal = 25;
+    assert!(refused(&b));
+    // Only in a root call at depth 0.
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).calls[0].depth = 1;
+    assert!(refused(&b));
+    // Only one mint in the root call, before the execution or during it.
+    for ordinal in [26, 29] {
+        let mut b = captured_base_failed_deposit();
+        let second = eth::BalanceChange {
+            ordinal,
+            old_value: wei(2_984_469_501_604_898).into(),
+            new_value: wei(2_984_469_501_604_899).into(),
+            ..mint(&mut b).clone()
+        };
+        tx(&mut b).calls[0].balance_changes.push(second);
+        assert!(refused(&b), "second mint at {ordinal}");
+    }
+    // Only with no other record before the execution, even a pinned one: a
+    // deposit buys no gas.
+    let mut b = captured_base_failed_deposit();
+    let buy = eth::BalanceChange {
+        reason: Reason::GasBuy.into(),
+        ordinal: 26,
+        old_value: wei(2_984_469_501_604_898).into(),
+        new_value: wei(2_984_469_501_604_897).into(),
+        ..mint(&mut b).clone()
+    };
+    tx(&mut b).calls[0].balance_changes.push(buy);
+    assert!(refused(&b));
+    let mut b = captured_base_failed_deposit_reverted_call();
+    tx(&mut b).calls[0].balance_changes[1].ordinal = 26;
+    assert!(refused(&b));
+    // A mint during the execution, with another record before it, is not it.
+    let mut b = captured_base_failed_deposit_reverted_call();
+    tx(&mut b).calls[0].balance_changes[0].ordinal = 29;
+    tx(&mut b).calls[0].balance_changes[1].ordinal = 26;
+    assert!(refused(&b));
+    // The reverted call's transfers are not part of the shape: they revert.
+    let mut b = captured_base_failed_deposit_reverted_call();
+    tx(&mut b).calls[0].balance_changes.truncate(1);
+    assert_eq!(changes(&b).unwrap(), changes(&captured_base_failed_deposit_reverted_call()).unwrap());
+    // A succeeded deposit's mint is ordinary persisted state.
+    let mut b = captured_base_failed_deposit();
+    tx(&mut b).status = eth::TransactionTraceStatus::Succeeded.into();
+    tx(&mut b).calls[0].state_reverted = false;
+    assert_eq!(changes(&b).unwrap(), changes(&captured_base_failed_deposit()).unwrap());
+}
+
+/// Optimism block 107,494,341 (`Block.ver` 4) as captured from Firehose:
+/// transaction 1 (`0xfcefb0a0…`) whole, a deposit from `0x333601a8…` whose
+/// call to `0x04ba6cf3…` reverts; its root call holds the mint and the
+/// reverted value transfer.
+const OPTIMISM_FAILED_DEPOSIT_REVERTED_CALL: &str = include_str!("../tests/fixtures/optimism-107494341-failed-deposit-mint-reverted-call.json");
+/// Optimism block 106,973,772 (`Block.ver` 4) as captured from Firehose:
+/// transaction 1 (`0x99ba9cf4…`) whole, a deposit from and to `0xbc339e62…`
+/// that fails outside the EVM; its root call holds only the mint.
+const OPTIMISM_FAILED_DEPOSIT: &str = include_str!("../tests/fixtures/optimism-106973772-failed-deposit-mint.json");
+/// Optimism block 156,295,824 (`Block.ver` 5) as captured from Firehose:
+/// transaction 1 (`0xcb154738…`) whole, a deposit from and to `0x95a7da8a…`
+/// that fails outside the EVM ("insufficient balance for transfer"); its
+/// root call holds only the mint.
+const OPTIMISM_V5_FAILED_DEPOSIT: &str = include_str!("../tests/fixtures/optimism-156295824-failed-deposit-mint.json");
+/// Unichain block 744,856 (`Block.ver` 4) as captured from Firehose:
+/// transaction 1 (`0xeff18402…`) whole, a deposit from `0x9c5a151f…` whose
+/// call to `0x0b929b80…` reverts; its root call holds the mint and the
+/// reverted value transfer.
+const UNICHAIN_FAILED_DEPOSIT_REVERTED_CALL: &str = include_str!("../tests/fixtures/unichain-744856-failed-deposit-mint-reverted-call.json");
+
+#[test]
+fn captured_optimism_and_unichain_failed_deposits_keep_their_mint() {
+    use eth::balance_change::Reason;
+    // Per fixture: `Block.ver`, the sender, the reverted call's recipient, the
+    // sender's balance as the chain reads it before and after the block (the
+    // deposit's `mint` apart), and the mint's ordinal. The chain reads each
+    // recipient's balance unchanged: 76,098,960,000,000,000,000 wei for
+    // `0x04ba6cf3…` and zero for `0x0b929b80…`.
+    let cases = [
+        (
+            OPTIMISM_FAILED_DEPOSIT_REVERTED_CALL,
+            4,
+            "333601a803cac32b7d17a38d32c9728a93b422f4",
+            Some("04ba6cf3c5aa6d4946f5b7f7adf111012a9fac65"),
+            ("36783112587824055", "37473112587824055"),
+            25,
+        ),
+        (OPTIMISM_FAILED_DEPOSIT, 4, "bc339e628e6fe32c39e84392d087567b2743ea35", None, ("0", "1"), 25),
+        (
+            OPTIMISM_V5_FAILED_DEPOSIT,
+            5,
+            "95a7da8a1d3026d1afb8c94f001532b34648e595",
+            None,
+            ("40000000012", "1000040000000012"),
+            21,
+        ),
+        (
+            UNICHAIN_FAILED_DEPOSIT_REVERTED_CALL,
+            4,
+            "9c5a151f8c390a554dc6822c5dc3724208c7c69d",
+            Some("0b929b809c5485baa13aebb491e31af1f0aa4228"),
+            ("0", "100000000000000"),
+            31,
+        ),
+    ];
+    for (fixture, ver, sender, recipient, (old, new), ordinal) in cases {
+        let b = captured_block(&serde_json::from_str(fixture).unwrap());
+        let tx = &b.transaction_traces[0];
+        assert_eq!(
+            (b.ver, tx.r#type.as_known(), tx.status.as_known()),
+            (
+                ver,
+                Some(eth::transaction_trace::Type::TrxTypeOptimismDeposit),
+                Some(eth::TransactionTraceStatus::Failed)
+            ),
+            "block {}",
+            b.number
+        );
+        // The mint persists like a failed transaction's gas, and nothing else.
+        let sender = hex::decode(sender).unwrap();
+        let persisted: Vec<_> = records(&b).unwrap().into_iter().map(|r| (r.address, r.ordinal, r.reason, r.scope)).collect();
+        assert_eq!(
+            persisted,
+            [(sender.clone(), ordinal, Reason::IncreaseMint as i32, persist::Scope::TxFailedPersistent)],
+            "block {}",
+            b.number
+        );
+        let rows = changes(&b).unwrap();
+        assert_eq!(rows.len(), 1, "block {}", b.number);
+        let row = row_of(&rows, &sender);
+        assert_eq!(
+            (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+            (old, new, ordinal, ordinal, 1),
+            "block {}",
+            b.number
+        );
+        // The root call records the reverted transfer's credit of the
+        // recipient, which has no row: the one row is the sender's.
+        if let Some(recipient) = recipient {
+            let recipient = hex::decode(recipient).unwrap();
+            assert!(tx.calls[0]
+                .balance_changes
+                .iter()
+                .any(|c| c.address == recipient && c.reason == Reason::Transfer));
+        }
+    }
+}
+
+/// Base block 50,024,530 (`Block.ver` 5) as captured from Firehose:
+/// transaction 30 (`0xbae6554e…`) whole. It withdraws the SequencerFeeVault
+/// `0x4200…0011` (the coinbase) and the BaseFeeVault `0x4200…0019` to zero
+/// during its execution.
+fn captured_fee_vault_credit() -> eth::Block {
+    captured_block(&serde_json::from_str(BASE_FEE_VAULT_CREDIT).unwrap())
+}
+/// Base block 50,326,929 (`Block.ver` 5) as captured from Firehose:
+/// transactions 237 (`0x39a5e05e…`) and 238 (`0x3c98767c…`) whole.
+/// Transaction 237 withdraws the SequencerFeeVault, the BaseFeeVault and the
+/// L1FeeVault `0x4200…001a` to zero during its execution; transaction 238
+/// pays each its fee.
+fn captured_fee_vault_credits() -> eth::Block {
+    captured_block(&serde_json::from_str(BASE_FEE_VAULT_CREDITS).unwrap())
+}
+const SEQUENCER_FEE_VAULT: &str = "4200000000000000000000000000000000000011";
+const BASE_FEE_VAULT: &str = "4200000000000000000000000000000000000019";
+const L1_FEE_VAULT: &str = "420000000000000000000000000000000000001a";
+/// The captured record at `ordinal`, in any call.
+fn record_at(b: &mut eth::Block, ordinal: u64) -> &mut eth::BalanceChange {
+    b.transaction_traces
+        .iter_mut()
+        .flat_map(|t| t.calls.iter_mut())
+        .flat_map(|c| c.balance_changes.iter_mut())
+        .find(|c| c.ordinal == ordinal)
+        .unwrap()
+}
+fn row_values(rows: &[Change], address: &str) -> (String, String, u64, u64, u32) {
+    let row = row_of(rows, &hex::decode(address).unwrap());
+    (row.old_amount.clone(), row.amount.clone(), row.first_ordinal, row.ordinal, row.records)
+}
+fn values(rows: &[(&str, &str, u64, u64, u32)]) -> Vec<(String, String, u64, u64, u32)> {
+    rows.iter()
+        .map(|&(old, new, first, last, n)| (old.to_string(), new.to_string(), first, last, n))
+        .collect()
+}
+
+#[test]
+fn captured_base_fee_vault_credit_after_its_withdrawal_starts_from_zero() {
+    let b = captured_fee_vault_credit();
+    let vault = hex::decode(BASE_FEE_VAULT).unwrap();
+    // The producer records the credit after the execution from the vault's
+    // balance before the transaction, which the withdrawal sent away.
+    let mut recorded: Vec<_> = records(&b)
+        .unwrap()
+        .iter()
+        .filter(|r| r.address == vault)
+        .map(|r| {
+            (
+                r.ordinal,
+                amount(&value(r.old_value.as_deref()).unwrap()),
+                amount(&value(r.new_value.as_deref()).unwrap()),
+            )
+        })
+        .collect();
+    recorded.sort();
+    assert_eq!(
+        recorded,
+        [
+            (850, "43588704197761546823".to_string(), "0".to_string()),
+            (902, "43588704197761546823".to_string(), "43588705214861546823".to_string()),
+        ]
+    );
+    // The vault keeps only the base fee, 203,420 gas at 5,000,000 wei; the
+    // coinbase's credit started from zero and is unchanged, as is the L1
+    // FeeVault's, which was not withdrawn.
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        [BASE_FEE_VAULT, SEQUENCER_FEE_VAULT, L1_FEE_VAULT].map(|a| row_values(&rows, a)).to_vec(),
+        values(&[
+            ("43588704197761546823", "1017100000000", 850, 902, 2),
+            ("112792299560060744846", "244104000000", 824, 901, 2),
+            ("1740655652242675644", "1740655652612839391", 903, 903, 1),
+        ])
+    );
+}
+
+#[test]
+fn captured_fee_vault_credits_chain_into_the_next_transaction() {
+    let b = captured_fee_vault_credits();
+    // Transaction 238's credits start from the fees that transaction 237
+    // credited after withdrawing the vaults: 221,737 gas at the 5,000,000 wei
+    // base fee, and the L1 fee the gas purchase holds beyond 230,958 gas at
+    // 6,200,000 wei.
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        [BASE_FEE_VAULT, L1_FEE_VAULT, SEQUENCER_FEE_VAULT].map(|a| row_values(&rows, a)).to_vec(),
+        values(&[
+            ("79578610751248996038", "1246980000000", 14265, 14344, 3),
+            ("2292096308957288419", "1494163156", 14291, 14345, 3),
+            ("428970258075516994778", "298929490159", 14239, 14343, 3),
+        ])
+    );
+}
+
+#[test]
+fn the_fee_vault_credit_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Transaction 237: the GAS_BUY at 14,217, the BaseFeeVault's withdrawal
+    // at 14,265 and credit at 14,331, the L1FeeVault's credit at 14,332.
+    const BEFORE: u128 = 79_578_610_751_248_996_038;
+    const FEE: u128 = 1_108_685_000_000;
+    // Only the base fee: one wei more is not rewritten.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14331).new_value = wei(BEFORE + FEE + 1).into();
+    assert!(fails(&b));
+    let mut b = captured_fee_vault_credits();
+    if let Some(header) = b.header.as_option_mut() {
+        header.base_fee_per_gas = wei(5_000_001).into();
+    }
+    assert!(fails(&b));
+    // Only the L1 fee that the gas purchase holds.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14332).new_value = wei(2_292_096_308_957_288_419 + 747_081_578 + 1).into();
+    assert!(fails(&b));
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14217).old_value = wei(196_481_595_811_357_960).into();
+    assert!(fails(&b));
+    // Only one gas purchase.
+    let mut b = captured_fee_vault_credits();
+    let sender = record_at(&mut b, 14217).address.clone();
+    let second = eth::BalanceChange {
+        address: sender,
+        reason: eth::balance_change::Reason::GasBuy.into(),
+        ..change(0, 14218, Some(1), Some(1))
+    };
+    b.transaction_traces[0].calls[0].balance_changes.insert(1, second);
+    assert!(fails(&b));
+    // Only from the vault's balance before the transaction.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14331).old_value = wei(BEFORE - 1).into();
+    record_at(&mut b, 14331).new_value = wei(BEFORE - 1 + FEE).into();
+    assert!(fails(&b));
+    // Only a REWARD_TRANSACTION_FEE credit.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14331).reason = eth::balance_change::Reason::Transfer.into();
+    assert!(fails(&b));
+    // Only the one record after the execution: with a second credit at
+    // 14,333 (room made by moving transaction 237's end ordinal to 14,334)
+    // that would chain after the rewrite, and the next record adjusted to
+    // chain from it, the credit is not rewritten.
+    let mut b = captured_fee_vault_credits();
+    b.transaction_traces[0].end_ordinal = 14334;
+    let second = eth::BalanceChange {
+        address: hex::decode(BASE_FEE_VAULT).unwrap(),
+        old_value: wei(FEE).into(),
+        new_value: wei(FEE + 1).into(),
+        ordinal: 14333,
+        reason: eth::balance_change::Reason::RewardTransactionFee.into(),
+    };
+    b.transaction_traces[0].calls[0].balance_changes.push(second);
+    record_at(&mut b, 14344).old_value = wei(FEE + 1).into();
+    record_at(&mut b, 14344).new_value = wei(1_246_980_000_001).into();
+    assert!(fails(&b));
+    // Only after a TRANSFER to zero during the execution: a withdrawal that
+    // leaves 1 wei is not rewritten, even when the next record would chain.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14265).new_value = wei(1).into();
+    record_at(&mut b, 14344).old_value = wei(FEE + 1).into();
+    record_at(&mut b, 14344).new_value = wei(1_246_980_000_001).into();
+    assert!(fails(&b));
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14265).reason = eth::balance_change::Reason::CallBalanceOverride.into();
+    assert!(fails(&b));
+    let mut b = captured_fee_vault_credits();
+    b.transaction_traces[0].calls[0].begin_ordinal = 14266;
+    assert!(fails(&b));
+    // Only the BaseFeeVault and the L1FeeVault.
+    let mut b = captured_fee_vault_credits();
+    for ordinal in [14265, 14331, 14344] {
+        record_at(&mut b, ordinal).address = hex::decode("420000000000000000000000000000000000001b").unwrap();
+    }
+    assert!(fails(&b));
+    // A credit that already starts from zero, as the Optimism and Unichain
+    // producers record it, chains and is not rewritten.
+    let mut b = captured_fee_vault_credits();
+    record_at(&mut b, 14331).old_value = None.into();
+    record_at(&mut b, 14331).new_value = wei(FEE).into();
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        row_values(&rows, BASE_FEE_VAULT),
+        values(&[("79578610751248996038", "1246980000000", 14265, 14344, 3)])[0]
+    );
+    // The positive `b` and the succeeded transaction are defensive checks
+    // that no mutation reaches: with `b` zero the credit already chains and
+    // the rewrite would be the identity, and a failed transaction persists no
+    // vault `TRANSFER` during the execution.
+}
+
+/// Polygon block 70,044,000 (`Block.ver` 3) as captured from Firehose:
+/// transaction 46 (`0x60891cc1…`), the block's last, whole. It is the Bor
+/// state-sync transaction: its root call holds four `commitState` calls (2,
+/// 33, 64 and 69) from `0xffff…fffe` to `0x…1001`. In three of them
+/// `0x884d1aa1…` unwraps WPOL `0x0d500b1d…` (calls 31, 62 and 98) and pays the
+/// POL on (calls 32, 63 and 99).
+fn captured_polygon_state_sync() -> eth::Block {
+    captured_block(&serde_json::from_str(POLYGON_STATE_SYNC).unwrap())
+}
+const WPOL: &str = "0d500b1d8e8ef31e21c99d1db9a6444d3adf1270";
+const STATE_SYNC_RELAY: &str = "884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3";
+fn state_sync_call(b: &mut eth::Block, index: u32) -> &mut eth::Call {
+    b.transaction_traces.last_mut().unwrap().calls.iter_mut().find(|c| c.index == index).unwrap()
+}
+/// `(account, old amount, amount, first ordinal, ordinal, records)` of every
+/// row.
+fn all_rows(b: &eth::Block) -> Vec<(String, String, String, u64, u64, u32)> {
+    changes(b)
+        .unwrap()
+        .into_iter()
+        .map(|r| (hex::encode(&r.address), r.old_amount, r.amount, r.first_ordinal, r.ordinal, r.records))
+        .collect()
+}
+fn expected_rows(rows: &[(&str, &str, &str, u64, u64, u32)]) -> Vec<(String, String, String, u64, u64, u32)> {
+    rows.iter()
+        .map(|&(a, o, n, f, l, r)| (a.to_string(), o.to_string(), n.to_string(), f, l, r))
+        .collect()
+}
+
+#[test]
+fn captured_polygon_state_sync_records_chain_in_call_order() {
+    let b = captured_polygon_state_sync();
+    let wpol = hex::decode(WPOL).unwrap();
+    // Each commitState call restarts the ordinals: WPOL's three records, in
+    // call order, are at 3,409, 3,408 and 3,408, in the first, second and
+    // fourth commitState call.
+    let placed: Vec<_> = records(&b)
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.address == wpol)
+        .map(|r| (r.ordinal, r.state_sync_call))
+        .collect();
+    assert_eq!(placed, [(3409, Some((3250, 0))), (3408, Some((3250, 1))), (3408, Some((3250, 3)))]);
+    // In call order every account chains. eth_getBalance at block 70,044,000
+    // reads each amount: the transaction is the block's last.
+    assert_eq!(
+        all_rows(&b),
+        expected_rows(&[
+            (WPOL, "188932933086870388198045211", "188932721355625264913504122", 3409, 3408, 3),
+            (
+                "18640bf13d3148597e1df6b8111486411d7efe67",
+                "44717731008732551352",
+                "198635573344347696641",
+                3421,
+                3421,
+                1
+            ),
+            ("8645ad9bdf232d9235f8914603c8f120aa3f5f80", "0", "16189983039435773921", 3423, 3423, 1),
+            (STATE_SYNC_RELAY, "7901000000000000000", "7901000000000000000", 3410, 3420, 6),
+            ("886b317b6ab2a5a6df46c27f445de858a22f678b", "0", "41623419748233621879", 3422, 3422, 1),
+        ])
+    );
+}
+
+/// Polygon block 20,007,040 (`Block.ver` 3) as captured from Firehose: its
+/// only transaction, the Bor state-sync transaction `0xa44f1b27…`, whole. Of
+/// its ten `commitState` calls, two are POL deposits: the MRC20 contract
+/// `0x…1010` pays `0x22df4f7e…` (call 37) and `0x7becdea5…` (call 41), each at
+/// ordinal 13.
+#[test]
+fn captured_polygon_state_sync_deposits_debit_the_mrc20_contract_in_call_order() {
+    let b = captured_block(&serde_json::from_str(POLYGON_STATE_SYNC_DEPOSITS).unwrap());
+    // eth_getBalance at block 20,007,040 reads each amount.
+    assert_eq!(
+        all_rows(&b),
+        expected_rows(&[
+            (
+                "0000000000000000000000000000000000001010",
+                "9360194501496243214683032494",
+                "9360193673399443124683032494",
+                13,
+                13,
+                2
+            ),
+            (
+                "22df4f7e056b43cd5f5d1bbccb03257196d4dd86",
+                "60329268490000000000",
+                "150609268490000000000",
+                14,
+                14,
+                1
+            ),
+            (
+                "7becdea52e793ac45c2040c2caaab38ace99c13a",
+                "50000000000000000",
+                "737866800090000000000",
+                14,
+                14,
+                1
+            ),
+        ])
+    );
+}
+
+#[test]
+fn the_polygon_state_sync_shape_is_exact() {
+    // By ordinal, WPOL's records in calls 62 and 98 tie at 3,408.
+    fn by_ordinal(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("ambiguous")
+    }
+    // With the state-sync signature but outside the shape, the overlapping
+    // subtrees fail the block.
+    fn unrecognized(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("unrecognized Bor state-sync ordinal layout")
+    }
+    fn trx(b: &mut eth::Block) -> &mut eth::TransactionTrace {
+        b.transaction_traces.last_mut().unwrap()
+    }
+    let fresh = captured_polygon_state_sync;
+    // From and to the zero address (the signature), succeeded, with no gas
+    // used and a positive begin ordinal.
+    let mut b = fresh();
+    trx(&mut b).from = vec![1; 20];
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    trx(&mut b).to = vec![1; 20];
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    trx(&mut b).status = eth::TransactionTraceStatus::Failed.into();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    trx(&mut b).gas_used = 21_000;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    trx(&mut b).begin_ordinal = 0;
+    assert!(unrecognized(&b));
+    // The block's last transaction, whose index no other transaction has,
+    // after every other transaction's end ordinal.
+    let other = |index: u32, begin: u64| eth::TransactionTrace {
+        index,
+        begin_ordinal: begin,
+        end_ordinal: begin + 2,
+        calls: vec![eth::Call {
+            index: 1,
+            ..Default::default()
+        }],
+        ..tx(eth::Call::default())
+    };
+    let mut b = fresh();
+    b.transaction_traces.push(other(47, 3444));
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    b.transaction_traces.insert(0, other(46, 3100));
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    b.transaction_traces.insert(
+        0,
+        eth::TransactionTrace {
+            end_ordinal: 3250,
+            ..other(45, 3100)
+        },
+    );
+    assert!(unrecognized(&b));
+    // Only the state-sync transaction's records are placed by call: an earlier
+    // transaction's WPOL record in a call with index 98 keeps its ordinal, and
+    // WPOL chains from it into the state sync.
+    let mut b = fresh();
+    let mut earlier = other(45, 3100);
+    earlier.calls[0].index = 98;
+    earlier.calls[0].balance_changes.push(eth::BalanceChange {
+        address: hex::decode(WPOL).unwrap(),
+        old_value: big(1).into(),
+        new_value: wei(188932933086870388198045211).into(),
+        ordinal: 3101,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    });
+    b.transaction_traces.insert(0, earlier);
+    let rows = all_rows(&b);
+    assert_eq!(
+        rows.iter().find(|r| r.0 == WPOL),
+        expected_rows(&[(WPOL, "1", "188932721355625264913504122", 3101, 3408, 4)]).first()
+    );
+    // The root call: a CALL at depth 0 from and to the zero address with begin
+    // ordinal 0 (the producer of `Block.ver` 4 records one), without value or
+    // records, not reverted and not self-destructing.
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).caller = vec![1; 20];
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).address = vec![1; 20];
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).begin_ordinal = 3251;
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).call_type = eth::CallType::DELEGATE.into();
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).depth = 1;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).value = big(1).into();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).balance_changes.push(change(4, 3251, Some(0), Some(1)));
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).state_reverted = true;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 1).suicide = true;
+    assert!(unrecognized(&b));
+    // Every depth-1 call: a CALL of the StateReceiver by the system address,
+    // with begin ordinal 0, of the root call. Without any depth-1 call by the
+    // system address with begin ordinal 0 there is no signature.
+    let mut b = fresh();
+    state_sync_call(&mut b, 64).begin_ordinal = 3253;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 64).caller = vec![1; 20];
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 64).address = hex::decode("0000000000000000000000000000000000001010").unwrap();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 64).call_type = eth::CallType::DELEGATE.into();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 64).parent_index = 2;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    for index in [2, 33, 64, 69] {
+        state_sync_call(&mut b, index).caller = vec![1; 20];
+    }
+    assert!(by_ordinal(&b));
+    // Nor does a deeper call by the system address with begin ordinal 0 give
+    // the signature.
+    let call = state_sync_call(&mut b, 3);
+    call.caller = BOR_SYSTEM_ADDRESS.to_vec();
+    call.begin_ordinal = 0;
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    for index in [2, 33, 64, 69] {
+        state_sync_call(&mut b, index).begin_ordinal = 3251;
+    }
+    assert!(by_ordinal(&b));
+    // Every deeper call one level below its parent, in increasing call index,
+    // in the subtree of the latest depth-1 call (call 70 is the first call of
+    // call 69's), after the call before it in its subtree (call 31 begins at
+    // 3,408) and holding its records between its begin and end ordinals (call
+    // 31's are at 3,409 and 3,410).
+    let mut b = fresh();
+    state_sync_call(&mut b, 98).depth = 8;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 98).parent_index = 200;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 99).index = 98;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 70).parent_index = 64;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 32).begin_ordinal = 3408;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 31).begin_ordinal = 3410;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 31).end_ordinal = 3409;
+    assert!(unrecognized(&b));
+    // No call self-destructs or moves value to itself.
+    let mut b = fresh();
+    state_sync_call(&mut b, 68).suicide = true;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    let call = state_sync_call(&mut b, 67);
+    call.address = call.caller.clone();
+    call.value = big(1).into();
+    assert!(unrecognized(&b));
+    // Every record of the transaction lies strictly within its ordinals (3,250
+    // to 3,443), and every other record of the block outside them.
+    let mut b = fresh();
+    state_sync_call(&mut b, 32).balance_changes[1].ordinal = 3443;
+    assert!(unrecognized(&b));
+    for ordinal in [3250, 3443] {
+        let mut b = fresh();
+        state_sync_call(&mut b, 64).balance_changes.push(change(4, ordinal, Some(0), Some(1)));
+        assert!(unrecognized(&b));
+    }
+    let mut b = fresh();
+    b.balance_changes.push(change(4, 3300, Some(0), Some(1)));
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    b.system_calls.push(eth::Call {
+        index: 1,
+        balance_changes: vec![change(4, 3300, Some(0), Some(1))],
+        ..Default::default()
+    });
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    let mut earlier = other(45, 3100);
+    earlier.calls[0].balance_changes.push(change(4, 3250, Some(0), Some(1)));
+    b.transaction_traces.insert(0, earlier);
+    assert!(unrecognized(&b));
+    // Within one subtree a tie still fails the block, and the records must
+    // still chain: `0x884d1aa1…` at 3,410 in calls 31 and 32.
+    let mut b = fresh();
+    state_sync_call(&mut b, 32).begin_ordinal = 3409;
+    state_sync_call(&mut b, 32).balance_changes[0].ordinal = 3410;
+    assert!(by_ordinal(&b));
+    let mut b = fresh();
+    state_sync_call(&mut b, 62).balance_changes[0].old_value = big(1).into();
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+}
+
+#[test]
+fn a_state_sync_outside_the_shape_fails_unless_its_subtrees_follow_call_order() {
+    fn unrecognized(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("unrecognized Bor state-sync ordinal layout")
+    }
+    // Outside the shape (gas used), with records only in some calls.
+    let outside = |cleared: &[u32]| {
+        let mut b = captured_polygon_state_sync();
+        b.transaction_traces.last_mut().unwrap().gas_used = 21_000;
+        for &index in cleared {
+            state_sync_call(&mut b, index).balance_changes.clear();
+        }
+        b
+    };
+    // With records only in the subtree of call 2, whose ordinals follow its
+    // execution, the ordinal order stands.
+    let rows = all_rows(&outside(&[62, 63, 98, 99]));
+    assert_eq!(
+        rows.iter().map(|r| (r.0.as_str(), r.5)).collect::<Vec<_>>(),
+        [(WPOL, 1), ("8645ad9bdf232d9235f8914603c8f120aa3f5f80", 1), (STATE_SYNC_RELAY, 2)]
+    );
+    // Subtrees whose records share an ordinal: call 32's at 3,422 and 3,423,
+    // and one at 3,423 in call 63.
+    let mut b = outside(&[31, 62, 63, 98, 99]);
+    state_sync_call(&mut b, 63).balance_changes.push(change(4, 3423, Some(0), Some(1)));
+    assert!(unrecognized(&b));
+    // Subtrees whose records run backwards, across subtrees without records:
+    // call 98's at 3,408 and 3,409 after call 32's.
+    assert!(unrecognized(&outside(&[31, 62, 63, 99])));
+}
+
+/// Polygon block 20,025,792 (`Block.ver` 3) as captured from Firehose: the
+/// state-sync transaction `0xa0991514…` (transaction 119) and the span commit
+/// `0xb39c139e…` (transaction 120), the block's last, whole, with the span
+/// commit's call input: `commitSpan` of span 3,130, blocks 20,025,856 to
+/// 20,032,255. Two of the eight `commitState` calls (2 and 6) are POL
+/// deposits: the MRC20 contract `0x…1010` pays `0x1ad528be…` (call 5) and
+/// `0xb102e324…` (call 9), each at ordinal 11,969.
+const POLYGON_STATE_SYNC_SPAN_COMMIT: &str = include_str!("../tests/fixtures/polygon-20025792-state-sync-span-commit.json");
+fn captured_polygon_state_sync_span_commit() -> eth::Block {
+    let f: Value = serde_json::from_str(POLYGON_STATE_SYNC_SPAN_COMMIT).unwrap();
+    let mut b = captured_block(&f);
+    // `captured_block` reads no call input.
+    b.transaction_traces[1].calls[0].input = hex::decode(f["transactions"][1]["calls"][0]["input"].as_str().unwrap()).unwrap();
+    b
+}
+fn span_commit_rows() -> Vec<(String, String, String, u64, u64, u32)> {
+    // eth_getBalance at block 20,025,792 reads each amount, and at block
+    // 20,025,791 each old amount.
+    expected_rows(&[
+        (
+            "0000000000000000000000000000000000001010",
+            "9360100171229661770329494204",
+            "9360100141477570300329494204",
+            11969,
+            11969,
+            2,
+        ),
+        ("1ad528be51f6bcee12d621981d4b3c4aff753482", "0", "10000000000000000000", 11970, 11970, 1),
+        ("b102e324e429ed7bbeb746b4e9e1589e66c5975b", "0", "19752091470000000000", 11970, 11970, 1),
+    ])
+}
+
+#[test]
+fn captured_polygon_state_sync_before_a_span_commit_chains_in_call_order() {
+    let b = captured_polygon_state_sync_span_commit();
+    assert_eq!(all_rows(&b), span_commit_rows());
+    // Without the span commit the state sync is the block's last transaction.
+    let mut b = captured_polygon_state_sync_span_commit();
+    b.transaction_traces.pop();
+    assert_eq!(all_rows(&b), span_commit_rows());
+}
+
+#[test]
+fn the_polygon_span_commit_shape_is_exact() {
+    // The MRC20 contract's records in calls 5 and 9 tie at 11,969, so with the
+    // span commit outside its shape the state sync fails the block.
+    fn unrecognized(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("unrecognized Bor state-sync ordinal layout")
+    }
+    fn span(b: &mut eth::Block) -> &mut eth::TransactionTrace {
+        b.transaction_traces.last_mut().unwrap()
+    }
+    fn call(b: &mut eth::Block) -> &mut eth::Call {
+        &mut span(b).calls[0]
+    }
+    let fresh = captured_polygon_state_sync_span_commit;
+    // Succeeded, from the system address to the ValidatorSet, the block's last
+    // transaction, after the state sync's end ordinal and with another index.
+    let mut b = fresh();
+    span(&mut b).status = eth::TransactionTraceStatus::Failed.into();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    span(&mut b).from = vec![1; 20];
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    span(&mut b).to = vec![1; 20];
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    b.transaction_traces.push(eth::TransactionTrace {
+        index: 121,
+        begin_ordinal: 12634,
+        end_ordinal: 12636,
+        ..tx(eth::Call {
+            index: 1,
+            ..Default::default()
+        })
+    });
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    span(&mut b).begin_ordinal = 12153;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    span(&mut b).index = 119;
+    assert!(unrecognized(&b));
+    // One call: a CALL at depth 0 from the system address to the ValidatorSet
+    // with begin ordinal 0 and the selector of `commitSpan`, not reverted and
+    // without balance records.
+    let mut b = fresh();
+    let second = eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        ..call(&mut b).clone()
+    };
+    span(&mut b).calls.push(second);
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).depth = 1;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).caller = vec![1; 20];
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).address = vec![1; 20];
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).begin_ordinal = 12155;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).input[3] ^= 1;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).state_reverted = true;
+    assert!(unrecognized(&b));
+    let mut b = fresh();
+    call(&mut b).balance_changes.push(change(4, 12200, Some(0), Some(1)));
+    assert!(unrecognized(&b));
 }
 
 #[test]
