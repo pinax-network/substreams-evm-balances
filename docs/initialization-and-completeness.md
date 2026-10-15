@@ -80,7 +80,7 @@ package's rows.
   row per key and block, so the history states see every row. Windows a and b
   give the same FINAL keys, view bars and 1-minute `transactions` at flush
   interval 1 and 1000 (PR #142, with the 1-minute bars that the schema had
-  until native v0.7.8 and ERC-20 v0.7.2).
+  until native v0.7.8 and ERC-20 v0.7.3).
 - **Raw rows.** ClickHouse's default `optimize_on_insert` can collapse a key
   repeated within one INSERT in the raw `ReplacingMergeTree` rows; the history
   states and FINAL are unaffected. Read balances with FINAL.
@@ -180,7 +180,7 @@ touches only the database of the sink that replayed.
   [ERC-20](../erc20/balances/clickhouse/examples/check-replays-and-completeness.sql)):
   duplicate `blocks` rows, and `transactions` per 1-hour window against the
   rows the stream emitted. It found exactly the cases above (then per 1-minute
-  window; since native v0.7.8 and ERC-20 v0.7.2 the history keeps no window
+  window; since native v0.7.8 and ERC-20 v0.7.3 the history keeps no window
   shorter than an hour, and a clickhouse-local replay of 10 blocks in a
   400-block load is detected and repaired with 1-hour windows).
 - **Repair** with the package's `repair-replayed-range.sql`
@@ -191,7 +191,7 @@ touches only the database of the sink that replayed.
   replayed rows from `transactions` and keeps one `blocks` row per block. It
   refuses any difference other than repeated rows. After it, all five
   databases above equal an un-replayed load: `blocks` rows with their copies,
-  FINAL, and every bar of all 8 intervals.
+  FINAL, and every bar of all 8 intervals the schema then had.
 - **Or accept** `transactions` as approximate for the range: record the range
   and its excess rows, and remove the duplicate `blocks` rows with the
   package's `dedupe-blocks.sql`
@@ -225,7 +225,7 @@ the same package or from an offline replay. Offline at flush interval 1 without
 a replay, the stored rows equal the emitted rows in every covered window:
 102,845 ERC-20 and 69,863 native rows in the 7 whole minutes of window a, and
 306,693 and 152,484 in those of window b (measured with 1-minute windows, before
-native v0.7.8 and ERC-20 v0.7.2).
+native v0.7.8 and ERC-20 v0.7.3).
 
 ## 7. Initialization
 
@@ -261,8 +261,21 @@ taking the RPC-era history; whether native passes the whole BSC history is for
 its noop to show (#124). For ERC-20, a pair the inference never emits then has
 no row, where the backfill keeps its RPC-era value. Which path each BSC
 database takes is an owner decision (#124 B1). `db_out` fails on a block 0
-whose clock has no timestamp (Ethereum, Arbitrum and Boba;
-[provenance](clickhouse.md#provenance)).
+whose clock has no timestamp; Pinax's Ethereum endpoint gives block 0 the
+timestamp 0, so Ethereum starts at block 0 ([provenance](clickhouse.md#provenance)).
+
+**From the first whole segment of Extended blocks.** Where a network's Extended
+blocks begin after its genesis, its databases start no earlier, and earlier
+state is in no block's records. Optimism's Extended blocks begin at
+105,235,064, after Bedrock, and Arbitrum One's at 22,207,818, after Nitro. A
+production-mode stream processes whole 1,000-block segments, and a block before
+the first Extended one fails it, so both packages start at the first whole
+1,000-block segment of Extended blocks, 105,236,000 and 22,208,000. The
+balances the legacy chain carried into Bedrock or Nitro, and the changes of the
+936 and 182 Extended blocks before those starts, are in no row: an account gets
+its first row at its first balance change after the start, and an ERC-20 pair
+at its first inferred row. Where no RPC-era database covers the earlier
+history, this is the cold start below.
 
 **Networks without an RPC-era database** (Arc, Robinhood, Ink, Soneium, Zora
 and Linea;

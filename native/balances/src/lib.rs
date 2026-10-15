@@ -47,7 +47,7 @@ pub struct Change {
     /// The producer's ordinals of the first and the last persisted change in
     /// execution order. Only where a Bor state-sync transaction restarts the
     /// ordinals in each depth-1 call (`bor_state_sync`; observed in blocks
-    /// 10,076,416 to 70,044,000) can `ordinal` be lower than `first_ordinal`,
+    /// 3,206,592 to 70,044,000) can `ordinal` be lower than `first_ordinal`,
     /// and two records of an account share an ordinal in different depth-1
     /// calls.
     pub first_ordinal: u64,
@@ -425,8 +425,8 @@ fn failed_blob_fees(block: &eth::Block) -> Vec<Record> {
 /// next record starts from the credited balance. The shared rules persist
 /// only the three gas reasons of a failed transaction's root call. Returns the
 /// `BURN` records of failed transactions' root calls that move exactly
-/// `gas_used * base_fee` (base fee positive); any other `BURN` there still
-/// reverts. Like every record, they must chain.
+/// `gas_used * base_fee` (base fee positive). Any other `BURN` there reverts
+/// during the execution and fails the block after it; every record chains.
 fn failed_base_fee_burns(block: &eth::Block) -> Vec<Record> {
     let big = |v: Option<&eth::BigInt>| v.map_or_else(|| BigInt::from(0), |v| BigInt::from_unsigned_bytes_be(&v.bytes));
     let base_fee = big(block.header.as_option().and_then(|h| h.base_fee_per_gas.as_option()));
@@ -482,8 +482,8 @@ fn failed_base_fee_burns(block: &eth::Block) -> Vec<Record> {
 /// `GAS_BUY`, a debit `g` of the payer, and at most one `GAS_REFUND`, a
 /// credit `r` of the payer, and every other record after the execution is a
 /// positive `TRANSFER` or `REWARD_TRANSACTION_FEE` credit of another account,
-/// at least one a `TRANSFER`, adding up to `g - r`. Any other shape still
-/// reverts. Like every record, they must chain.
+/// at least one a `TRANSFER`, adding up to `g - r`. Any other record after
+/// the execution fails the block; like every record, these must chain.
 fn failed_fee_transfers(block: &eth::Block) -> Vec<Record> {
     use eth::balance_change::Reason;
     let words = |c: &eth::BalanceChange| -> Option<(BigInt, BigInt)> {
@@ -1690,7 +1690,7 @@ struct StateSync {
 /// a CALL from and to the zero address with begin ordinal 0, holds one depth-1
 /// call per event: a CALL from the system address `0xffff…fffe` to the
 /// StateReceiver `0x…1001` (`commitState`), also with begin ordinal 0. In
-/// blocks 10,076,416 to 70,044,000 the subtree of each depth-1 call restarts
+/// blocks 3,206,592 to 70,044,000 the subtree of each depth-1 call restarts
 /// the ordinals just after the transaction's begin ordinal, so the subtrees'
 /// ordinals overlap: each subtree's ordinals follow its execution, and the
 /// subtrees execute in call order. In block 70,044,000, transaction

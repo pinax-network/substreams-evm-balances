@@ -49,6 +49,10 @@ Neither package is live-qualified yet. BSC comes first
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)),
 then the other Extended EVM networks
 ([#8](https://github.com/pinax-network/substreams-evm-balances/issues/8)).
+From native v0.7.8 and ERC-20 v0.7.3, both packages support Ethereum, BSC,
+Polygon, Arbitrum One, Base, Optimism, Unichain and HyperEVM; Optimism and
+Arbitrum One start at the first whole 1,000-block segment of their Extended
+blocks ([start blocks](native/balances/README.md#input-and-networks)).
 ERC-20 balances are inferred: their coverage and precision are
 [measured](erc20/balances/README.md#measured), not guaranteed. The current
 state is in [docs/handoff.md](docs/handoff.md), and the plan in the
@@ -90,7 +94,9 @@ bun scripts/check-live-balances.ts --chain bsc --package spkg/evm-balances-nativ
 ```
 
 It prints the contracts whose balances differ, with an example each, and
-exits 1 if any does.
+exits 1 if any does. Rate-limited calls are retried in up to three slower
+passes. Rows the RPC still cannot answer are reported as RPC errors, with the
+package's value in the `--out` report, and do not change the exit code.
 
 [AGENTS.md](AGENTS.md) has the repository rules, and
 [docs/migration.md](docs/migration.md) the provenance of the packages.

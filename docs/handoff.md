@@ -1,6 +1,6 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-14, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-15, for whoever picks it up next. Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -19,14 +19,35 @@ authorizes a live step.
 Since v0.7.0 (owner, 2026-10-13) each balance package ships its `map_events`
 and its own `db_out` in one spkg, is released by its own tag and writes its
 own ClickHouse database; [ClickHouse](clickhouse.md) has the tables, the
-deployment and the reasons. Full-history noops of both packages run on BSC
-and Ethereum. Since 2026-10-14 (owner) backfills write the ranges whose noops
-passed, from genesis: `bsc:evm-balances-native@v0.7.5`,
-`bsc:evm-balances-erc20@v0.7.1` and `mainnet:evm-balances-erc20@v0.7.0`. No
-live sink runs yet. The owner decided on 2026-10-14 to resync BSC and
-Ethereum into new databases with native v0.7.8 and ERC-20 v0.7.2, whose
-historical views keep only the intervals the Token API serves (1h, 4h, 1d,
-1w), after their noops pass.
+deployment and the reasons. Full-history noops ran on BSC and Ethereum, and
+since 2026-10-14 (owner) backfills wrote ranges whose noops passed:
+`bsc:evm-balances-native@v0.7.5` [0, 62M) and [76.5M, 127.5M),
+`bsc:evm-balances-erc20@v0.7.1` [0, 23.5M) and [76.5M, 113.8M), and
+`mainnet:evm-balances-erc20@v0.7.0` [0, 26.2M). The last of them ended on
+2026-10-15, and all are superseded: the owner decided on 2026-10-14 to resync BSC and Ethereum into
+new databases with native v0.7.8 and ERC-20 v0.7.3, whose historical views
+keep only the intervals the Token API serves (1h, 4h, 1d, 1w), after their
+noops pass, and wants one release for every supported chain, each
+spot-checked and nooped before the tag. Ethereum native passed its full-history noop
+at v0.7.7 but was never backfilled; v0.7.7 keeps a wrong balance for an
+account created and self-destructed in one transaction (Ethereum `Block.ver` 3
+after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet;
+the BSC shadow of the retired v0.6.1 still does until k8s-token-api-services
+#44 is merged.
+
+**Unreleased: native v0.7.8 and ERC-20 v0.7.3**
+([PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166)).
+They support eight EVM networks: Ethereum, BSC, Polygon, Arbitrum One, Base,
+Optimism, Unichain and HyperEVM (Avalanche's endpoint serves no Extended
+blocks). Optimism starts at block 105,236,000 and Arbitrum One at 22,208,000,
+the first whole 1,000-block segments of their Extended blocks
+([start blocks](../native/balances/README.md#input-and-networks)). The
+committed `spkg/evm-balances-native-v0.7.8.spkg` is the CI package of the
+first v0.7.8 build (committed in `c07f06d`, `map_events` `e44375c0…`), which
+has four of the v0.7.8 rules, and ERC-20 v0.7.3 has no spkg yet: both come
+from CI's `packages` artifact of the final source before the merge. ERC-20
+v0.7.2 (#165) was never released; its committed spkg keeps the earlier
+history schema.
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -42,47 +63,61 @@ hashes" job's `packages` artifact. Identify a build by its module hash
 - **`native/balances`** v0.7.0 adds `db_out` and emits `NativeEvents`,
   `Events` without the contract, which native amounts never have (field 1
   reserved, the same bytes). It restores the BSC `Block.ver` 3 fee pool
-  payout, on which native v0.2.2 refused blocks 363, 12,700,000 and
-  25,401,003 (v0.7.1 also accepts the payout credit after a skipped ordinal,
-  as in blocks 958 and 4104), and accepts block 0, where it emits the genesis
-  allocations ([README](../native/balances/README.md#genesis-v070)). v0.7.2
-  persists a failed blob transaction's blob fee, on which v0.7.0 refused
-  block 42,357,369, and v0.7.3 restores the Ethereum EIP-6780 self-destruct
-  debit, on which v0.7.2 refused Ethereum block 20,249,174
+  payout, on which native v0.2.2 refused blocks 363, 12,700,000 and 25,401,003
+  (v0.7.1 also accepts the payout credit after a skipped ordinal, as in blocks
+  958 and 4104), and accepts block 0, where it emits the genesis allocations
+  ([README](../native/balances/README.md#genesis-v070)). v0.7.2 persists a
+  failed blob transaction's blob fee, on which v0.7.0 refused block
+  42,357,369, and v0.7.3 restores the Ethereum EIP-6780 self-destruct debit,
+  on which v0.7.2 refused Ethereum block 20,249,174
   ([matrix](../native/balances/docs/persisted-effects.md#reason-matrix)).
-  v0.7.4 decodes the block with a 1 GiB element budget instead of buffa's
-  32 MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed, and
-  v0.7.5 keeps the balance of an account that self-destructs to itself after
-  Cancun, on which v0.7.3 refused Ethereum block 19,481,732, and v0.7.6
-  carries a self-destruct credit from an account created in the transaction
-  into the beneficiary's later records in it, on which v0.7.5 refused
-  Ethereum block 25,741,008, and v0.7.7 adds the sum of such credits to the
-  beneficiary's records after the execution only, on which v0.7.6 refused
-  Ethereum block 25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused
-  blocks 25,750,184, 25,869,452 and 25,920,498 in its pre-release noop.
-  v0.7.8 restores a self-destruct debit also in a call with other records
-  (Polygon's and Ethereum's `Block.ver` 3 producers omit it for an account
-  created in the transaction: a wrong balance, not a refusal, so the noops
-  passed; v0.7.7 keeps 0.000386 ETH for `0x727f6fc6…` after Ethereum block
-  19,500,178), drops HyperEVM's self-transfer pair, and persists a failed
-  transaction's base-fee `BURN` (Polygon) and fee transfers (Arbitrum). Not
-  qualified. The
-  last qualified build is historical: the prost build was live-qualified on
-  BSC on 2026-09-23 (WASM `48d89d28…`, module `5a2a2e0c…`), for the accounts
-  it emitted in the stated windows
+  v0.7.4 decodes the block with a 1 GiB element budget instead of buffa's 32
+  MiB default, which BSC block 43,772,003 (29.9 MB encoded) failed, and v0.7.5
+  keeps the balance of an account that self-destructs to itself after Cancun,
+  on which v0.7.3 refused Ethereum block 19,481,732, and v0.7.6 carries a
+  self-destruct credit from an account created in the transaction into the
+  beneficiary's later records in it, on which v0.7.5 refused Ethereum block
+  25,741,008, and v0.7.7 adds the sum of such credits to the beneficiary's
+  records after the execution only, on which v0.7.6 refused Ethereum block
+  25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused blocks
+  25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. v0.7.8
+  (unreleased, above) handles the producer shapes the 2026-10-14 checks found
+  on each chain
+  ([rules](../native/balances/README.md#persistence-and-fail-closed-rules)):
+  on Ethereum and Polygon a self-destruct debit that the `Block.ver` 3
+  producers omit in a call with other records (a wrong balance, not a refusal,
+  so the noops passed: v0.7.7 keeps 0.000386 ETH for `0x727f6fc6…` after
+  Ethereum block 19,500,178); on Polygon a failed transaction's base-fee
+  `BURN` and the `Block.ver` 3 state-sync order; on Arbitrum One a failed
+  transaction's fee transfers, the settlements of failed retries and retryable
+  submissions (which earlier builds also got wrong without a refusal), a
+  refusal of other failed ArbOS transactions that move a balance, the repeated
+  self-destruct withdraw and the shared rules' SetCode boundary; on Base,
+  Optimism and Unichain a failed deposit's mint, and on Base the fee vault
+  credit after a vault withdrawal; on HyperEVM its self-transfer pair. On
+  every chain it refuses a failed transaction's record outside its execution
+  that moves a balance and persists by no rule, and a self-destruct to itself
+  recorded as debit, refund and repeat (Arbitrum One's order, not observed),
+  which would chain to a wrong zero. Not qualified. The last qualified build
+  is historical: the prost build was live-qualified on BSC on 2026-09-23 (WASM
+  `48d89d28…`, module `5a2a2e0c…`), for the accounts it emitted in the stated
+  windows
   ([evidence](../native/balances/README.md#live-qualification-bsc-2026-09-23)).
   No build since then is qualified.
-- **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's.
-  v0.7.1 decodes the block with the same 1 GiB element budget as native
-  v0.7.4; the ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003.
-  v0.7.2 drops a contract's rows for the block when a word it chose as a
-  balance reaches 2^128 (packed or computed slots). Not qualified. Offline, on five captured BSC intervals scored against every row
+- **`erc20/balances`** v0.7.0 adds `db_out`; its inference is v0.4.0's. v0.7.1
+  decodes the block with the same 1 GiB element budget as native v0.7.4; the
+  ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. v0.7.2 drops a
+  contract's rows for the block when a word it chose as a balance reaches
+  2^128 (packed or computed slots); it was not released. v0.7.3 (unreleased,
+  above) takes the shared rules' SetCode boundary, on which v0.7.2 refused
+  Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows on every block
+  v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. Not
+  qualified. Offline, on five captured BSC intervals scored against every row
   the RPC reference package emitted for them, it reproduces 58.5–62.8% of
   those rows with 99.92–100% value precision
   ([measured](../erc20/balances/README.md#measured) gives each interval and
-  its scored holders). v0.4.0 runs in the BSC shadow below. The earlier
-  layout package v0.1.0, another source, was checked on live BSC on
-  2026-09-23
+  its scored holders). v0.4.0 runs in the BSC shadow below. The earlier layout
+  package v0.1.0, another source, was checked on live BSC on 2026-09-23
   ([report at `9b41c7f`](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/live-package-bsc-2026-09-23.md)).
 
 The combined `evm-balances` package (v0.4.0 to v0.6.1: one `db_out` for both
@@ -118,8 +153,8 @@ Its first FINAL comparison with the RPC-era database
 over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
 balances among 10,223,501 same-block pairs (precision 0.999844)
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
-That is shadow evidence for v0.6.1, not live qualification. The two v0.7.0
-sinks replace this shadow after their noops pass.
+That is shadow evidence for v0.6.1, not live qualification. The sinks of
+native v0.7.8 and ERC-20 v0.7.3 replace this shadow after their noops pass.
 
 A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
 below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had
@@ -151,59 +186,73 @@ their sum. The released v0.7.7 shifts only those records, by exactly the
 gas refund or fee amount the transaction implies, and its pre-release noop
 passes.
 
-## Spot checks (2026-10-14)
+## Spot checks and noops (2026-10-14 and 15)
 
-Before the release, both packages (native v0.7.8, ERC-20 v0.7.2) streamed
-100 to 300 blocks at the head and at two to five historical heights of each
-supported EVM network, and every emitted balance was compared with
-`eth_getBalance` or `balanceOf` at the same block (`scripts/check-live-balances.ts`).
-Native matched every emitted balance on Ethereum, BSC, Base, Polygon,
-Arbitrum One, Unichain, HyperEVM and Optimism, apart from the zero address
-on HyperEVM (an RPC history anomaly around block 30,000,000) and on Optimism
-(block 110,000,181, unexplained;
+Before the release, both packages streamed 100 to 300 blocks at the head and
+at two to eleven historical heights of each supported EVM network, and every
+emitted balance was compared with `eth_getBalance` or `balanceOf` at the same
+block (`scripts/check-live-balances.ts`, which now retries rate-limited calls
+and accepts a bare reply to a one-call batch). Local builds of the first
+v0.7.8 source (`cfc2923`, with four of its rules) matched every emitted native
+balance on Ethereum, BSC, Base, Polygon, Arbitrum One, Unichain, HyperEVM and
+Optimism, apart from the zero address on HyperEVM (an RPC history anomaly from
+about block 29,999,900 to 30,000,500) and on Optimism (block 110,000,181,
+where `eth_getBalance` answers inconsistently;
 [matrix](../native/balances/docs/persisted-effects.md#chain--producer--fork-matrix)).
 Native v0.7.7 had refused every Arbitrum One window and HyperEVM block
-44,000,001 and kept wrong balances on Polygon and Ethereum, which v0.7.8
-fixes. ERC-20 differs on a few computed-balance tokens per window (BSC, Base,
-Ethereum head). Avalanche's endpoint serves no Extended blocks, so neither
-package runs there. The checks cover the emitted rows of those windows only;
-the pull request has the windows and counts.
+44,000,001 and kept wrong balances on Polygon and Ethereum. ERC-20 differs on
+a few computed-balance tokens per window (BSC, Base, Ethereum head).
+Avalanche's endpoint serves no Extended blocks, so neither package runs there.
+The checks cover the emitted rows of those windows only; the pull request has
+the windows and counts.
+
+The pre-release noops of the first v0.7.8 build's CI package (2026-10-14),
+over 100,000-block windows of every network and the hard-fork windows of
+Ethereum and BSC, passed on Ethereum, BSC, Unichain and HyperEVM, and on
+Optimism after Bedrock. They refused Polygon's `Block.ver` 3 state syncs,
+Base's failed deposits and fee vault credits, and Arbitrum One's failed
+SetCode transactions (ERC-20 too) and repeated self-destruct withdraws. The
+search for those shapes found more on Arbitrum One: failed retries, which
+earlier builds refused or got wrong without a refusal, and failed retryable
+submissions, whose balance moves they dropped. Each shape is now an exact rule
+with captured fixtures, tests that fail without it and an adversarial review,
+and was checked live on the blocks it changes. Two refusals followed on
+2026-10-15: of a failed transaction's record outside its execution that moves
+a balance and persists by no rule (samples of every supported network have
+none), and of the unobserved Arbitrum One self-destruct to itself that would
+chain to a wrong zero. Regression noops of local builds of the merged source
+(2026-10-14 and 15) passed every 100,000-block window of every supported
+network, apart from the windows that start before Bedrock (Optimism) or Nitro
+(Arbitrum One), which stop at their first block that is not Extended, as they
+must. Local macOS builds have other module hashes than CI's: the pre-release
+noop of the CI-built spkgs gives the release's numbers.
 
 ## Next steps (owner)
 
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Finish the full-history noops: ERC-20 v0.7.1, and native v0.7.5 from
-   block 0 (the native versions up to v0.7.2 each accept every block the
-   earlier ones accept, with the same rows: v0.7.1 adds the payout shape of
-   blocks 958 and 4104, v0.7.2 failed blob transactions; v0.7.3 adds the
-   EIP-6780 self-destruct debit; native v0.7.4 and ERC-20 v0.7.1 change only
-   the decode budget, so they give the same rows on every block the previous
-   version decodes; native v0.7.5 drops the self-destruct-to-itself pair,
-   which v0.7.4 refuses, or, when it is the account's first record in the
-   block, keeps as a wrong zero; native v0.7.6 shifts only records that
-   v0.7.5 refuses, so it gives the same rows on every block v0.7.5 accepts;
-   native v0.7.7 shifts only records after the execution, by the sum of the
-   transaction's credits, and so also changes only blocks v0.7.5 refuses). BSC continues native v0.7.5, which has refused no BSC
-   block; Ethereum native moves to v0.7.7. Ethereum runs the same noops from genesis since
-   2026-10-14 (owner), a faster full-history test of about 26M blocks, into
-   `mainnet:evm-balances-native@<version>` and
-   `mainnet:evm-balances-erc20@<version>`.
-2. Per package, finish the backfill (the sink over past blocks, started
-   2026-10-14 on the ranges whose noops passed) and run the live sink into its
-   own database, `<chain>:evm-balances-native@<version>` or
-   `<chain>:evm-balances-erc20@<version>`
+1. Pre-release: commit the CI-built native v0.7.8 and ERC-20 v0.7.3 spkgs from
+   PR #166's `packages` artifact, and run their pre-release noop
+   ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
+   supported network: the hard-fork windows, the windows where the 2026-10-14
+   refusals appeared and the latest blocks. A refusal is fixed and the noop
+   rerun before the merge.
+2. Release both packages by their own tags, `evm-balances-native-v0.7.8` and
+   `evm-balances-erc20-v0.7.3`.
+3. Resync BSC and Ethereum into new databases,
+   `<chain>:evm-balances-native@v0.7.8` and
+   `<chain>:evm-balances-erc20@v0.7.3`: first the full-history noop of each
+   released package, then the backfill from genesis of the ranges it passed
+   and the live sink
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
-   they replace the v0.6.1 shadow. The Ethereum native backfill into
-   `mainnet:evm-balances-native@v0.7.5` stopped when native v0.7.5 refused
-   block 25,741,008; the owner dropped that database on 2026-10-14.
-3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
+   they replace the v0.6.1 shadow.
+4. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
    so that its native routes read the native database and its other routes
    the ERC-20 database; a side without its key keeps reading `balances`.
-4. Cut over each database on its own
+5. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
 
@@ -296,7 +345,9 @@ the path to production:
   the networks epic: per-network start heights, the producer record, the
   endpoint identity check, the cold start and the failed-root rules, with
   one issue per network family. BSC keeps no `networks:` entry and starts at
-  0 (owner, 2026-10-06), which native accepts since v0.7.0.
+  0 (owner, 2026-10-06), which native accepts since v0.7.0; Optimism and
+  Arbitrum One start at the first whole 1,000-block segment of their Extended
+  blocks ([start blocks](../native/balances/README.md#input-and-networks)).
 - The [cutover contract](initialization-and-completeness.md) and its offline
   checks are done (#7, PR #144), per package since v0.7.0.
 

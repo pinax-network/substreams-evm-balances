@@ -12,7 +12,7 @@
  *   bun scripts/check-live-balances.ts --chain bsc --package spkg/evm-balances-native-v0.7.5.spkg --blocks 300
  *
  * Options:
- *   --chain eth|bsc     network (required)
+ *   --chain <id>        Pinax network id: eth, bsc, polygon, arbone, base, optimism, unichain, hyperevm (required)
  *   --package <path>    manifest or spkg (required)
  *   --blocks <n>        blocks to stream (default 100)
  *   --behind <n>        blocks the range ends behind the head, against reorgs (default 64)

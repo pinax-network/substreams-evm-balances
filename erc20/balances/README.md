@@ -110,6 +110,23 @@ but the word is not the balance. A live check against `balanceOf`
 contracts over 100 Ethereum blocks and 1 of 830 over 300 Base blocks. A token
 whose real supply reaches 2^128 base units also loses its rows.
 
+Since v0.7.3 the embedded [persistence rules](src/persist.rs), like
+[`common/persist`](../../common/persist), recover the authorization boundary of
+a failed SetCode (EIP-7702) transaction whose root call records `begin_ordinal`
+0, as Arbitrum One's `Block.ver` 3 producer does for every root call: after the
+sender's nonce record, each authorization's nonce and delegation code records
+at consecutive ordinals (after the authority's creation when it is new), then
+one ordinal that no record or call boundary takes. Any other shape still fails
+the block. ERC-20 v0.7.2 failed Arbitrum One blocks 350,048,039, 400,015,655,
+400,016,543, 450,044,117, 500,000,077 and 514,791,024 on it (its pre-release
+noop failed in the 350M, 400M, 450M, 500M and head windows); v0.7.3 gives
+v0.7.2's rows on every block v0.7.2 accepts. The captured transactions are the
+`arbitrum-*-setcode.pb` fixtures in [`tests/fixtures/`](tests/fixtures/), with
+their provenance in
+[`arbitrum-setcode.json`](tests/fixtures/arbitrum-setcode.json); the
+[native README](../../native/balances/README.md#failed-transactions) gives the
+whole shape.
+
 ## Measured
 
 Offline replays of captured Extended BSC blocks. Each interval is scored against
@@ -191,6 +208,16 @@ and holders.
   can be emitted instead. A packed word is emitted whole when its other fields
   never change, or change on no more of the block's touches than those that move
   the balance alone.
+- **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
+  restarts the ordinals in each of its depth-1 calls
+  ([native](../../native/balances/README.md#execution-order-v078)). A
+  contract with a storage word that the transaction writes in two or more of
+  those calls, such as WPOL or WETH, fails the chain check by ordinal and gets
+  no rows in that block. On the nine Polygon blocks checked on 2026-10-14, no
+  row was wrong (443 of 444 rows match `balanceOf`; the other is a computed
+  balance from another transaction), and the dropped rows come back offline
+  without the state-sync transaction. A write pattern that chains by ordinal
+  to another final value remains possible; none was observed.
 - **Guards from synthetic scenarios.** Inner mappings, dust votes,
   self-destruct, non-voting `Deposit`/`Mint`, large own mismatches and
   unexplained writes come from synthetic scenarios and change at most a few rows
@@ -206,29 +233,33 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`: `spkg/evm-balances-erc20-v0.7.2.spkg`, not live-qualified. v0.7.1
+`db_out`: `spkg/evm-balances-erc20-v0.7.3.spkg`, not live-qualified. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
 same rows on every block v0.7.0 decodes. v0.7.2 drops a contract's rows for
 the block when a chosen word reaches 2^128, and otherwise gives v0.7.1's rows;
+it was not released, and its committed spkg embeds the earlier schema. v0.7.3
+recovers the SetCode boundary of Arbitrum One's `Block.ver` 3
+([producer releases](#producer-releases)) and otherwise gives v0.7.2's rows;
 its ClickHouse history keeps only the 1h, 4h, 1d and 1w bars the Token API
-serves (owner, 2026-10-14). Until
-then it was `erc20_balances`: `spkg/erc20-balances-v0.4.0.spkg` (package
-version v0.4.0; versions skip v0.3.x, so no build can overwrite the v0.3.4 RPC
-reference). No Buf
-generation is needed here; the public schema is already maintained by the
-shared `proto` crate. The committed `spkg/erc20-balances-v0.1.0.spkg`
-(`532b571f…`, 2026-09-23) is the earlier layout package, which takes layouts as
-params; no build writes to it. The inference source is packed (v0.2.0 and
-v0.4.0, below) but has only been checked offline: it has not run in a
-Substreams engine
+serves (owner, 2026-10-14), and the replay check and repair work in 1-hour
+windows. Before v0.7.0 it was `erc20_balances`:
+`spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions skip
+v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf generation
+is needed here; the public schema is already maintained by the shared `proto`
+crate. The committed `spkg/erc20-balances-v0.1.0.spkg` (`532b571f…`,
+2026-09-23) is the earlier layout package, which takes layouts as params; no
+build writes to it. The inference source is packed (v0.2.0 and v0.4.0, below).
+v0.4.0 has run in the BSC shadow of the retired combined package since
+2026-10-13, and later builds in noops, backfills and the 2026-10-14 live
+checks; none of this is live qualification
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 A build is a new artifact and inherits none of the layout package's checks.
 `spkg/erc20-balances-v0.3.4.spkg` is the immutable RPC reference. See
-[rename provenance](../../docs/migration.md#module-rename). The
-committed `spkg/erc20-balances-v0.2.0.spkg` (module `6539de92…`, Rust 1.88)
-predates the [producer-release](#producer-releases) rules; v0.4.0 is the
-first build with them
+[rename provenance](../../docs/migration.md#module-rename). The committed
+`spkg/erc20-balances-v0.2.0.spkg` (module `6539de92…`, Rust 1.88) predates the
+[producer-release](#producer-releases) rules; v0.4.0 is the first build with
+them
 ([#118](https://github.com/pinax-network/substreams-evm-balances/issues/118)).
 The committed v0.4.0 is CI's canonical Linux build: WASM `17a847aa…`, module
 `d8a9db86…`, not live-qualified.
@@ -237,12 +268,13 @@ Thin Rust tests call the package functions directly. They cover the rules on
 synthetic blocks, the embedded persistence rules, which blocks fail, the
 manifest shape, and captured block 122260950 against its saved same-block RPC
 values; `tests/db_out.rs` covers the ClickHouse rows, the manifest wiring and
-the embedded schema. On that block, all 18 recorded `balanceOf` checks match, and so do the
-101 rows inferred for USDT, WBNB, USDC and BTCB. Without the 383 preimages a
-5.5.0 producer would not record
+the embedded schema. On block 122260950, all 18 recorded `balanceOf` checks
+match, and so do the 101 rows inferred for USDT, WBNB, USDC and BTCB. Without
+the 383 preimages a 5.5.0 producer would not record
 ([`bsc-122260950-5.5.0-dropped-preimages.json`](tests/fixtures/bsc-122260950-5.5.0-dropped-preimages.json)),
 13 of its `balanceOf` calls lose their holder's preimage and all 164 rows stay
-the same.
+the same. The tests of the embedded persistence rules also cover the captured
+Arbitrum One SetCode transactions.
 
 ## History
 

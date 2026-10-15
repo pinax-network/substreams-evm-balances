@@ -4,7 +4,7 @@
 -- Preconditions:
 --   * Same server. The schema embedded in this package is byte-identical to
 --     the `blocks` and ERC-20 tables of the one in
---     evm-clickhouse-balances-v0.3.4, except that since v0.7.2 its history keeps
+--     evm-clickhouse-balances-v0.3.4, except that since v0.7.3 its history keeps
 --     only the 1h, 4h, 1d and 1w bars; step 0 checks the tables.
 --   * No block is written by both pipelines: the RPC-era sink stopped with its
 --     cursor at block S-1 and this package's sink started at block S.
