@@ -72,7 +72,10 @@ async function rpc(calls: { method: string; params: unknown[] }[]): Promise<{ re
                 body: JSON.stringify(body),
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const replies = (await response.json()) as { id: number; result?: string; error?: { message?: string } }[];
+            type Reply = { id: number; result?: string; error?: { message?: string } };
+            // Some nodes answer a batch of one call with a bare object.
+            const json = (await response.json()) as Reply | Reply[];
+            const replies = Array.isArray(json) ? json : [json];
             const byId = new Map(replies.map((r) => [r.id, r]));
             return body.map((b) => {
                 const r = byId.get(b.id);
