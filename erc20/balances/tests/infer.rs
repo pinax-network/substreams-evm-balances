@@ -32,6 +32,17 @@ const WITHDRAWAL: &str = "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a9
 const APPROVAL: &str = "8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925";
 /// FiatToken v2.2 `Blacklisted(address indexed)`, a reference candidate shape.
 const BLACKLISTED: &str = "ffa4e6181777692565cf28528fc88fd1516ea86b56da075235fa575af6a4b855";
+/// TetherToken `Issue(uint256)`, `Redeem(uint256)` and
+/// `DestroyedBlackFunds(address,uint256)` (also TrueCurrency's, with the
+/// holder indexed), and USDT0's `DestroyedBlockedFunds(address indexed,uint256)`.
+const ISSUE: &str = "cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a";
+const REDEEM: &str = "702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44";
+const DESTROYED_BLACK_FUNDS: &str = "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6";
+const DESTROYED_BLOCKED_FUNDS: &str = "6a2859ae7902313752498feb80a014e6e7275fe964c79aa965db815db1c7f1e9";
+/// TetherToken `destroyBlackFunds(address)`.
+const DESTROY_BLACK_FUNDS: [u8; 4] = [0xf3, 0xbd, 0xc2, 0x28];
+/// The Tether owner, the sender of its admin calls.
+const OWNER: [u8; 20] = [0x0c; 20];
 /// A token amount unit large enough that exact votes are not dust.
 const U: u64 = 1_000_000;
 
@@ -81,6 +92,25 @@ fn store_word(c: &mut eth::Call, holder: [u8; 20], slot: u8, old: Vec<u8>, new: 
 /// Persists `holder`'s word under mapping `slot` with its same-frame preimage.
 fn store(c: &mut eth::Call, holder: [u8; 20], slot: u8, old: u64, new: u64, ordinal: u64) {
     store_word(c, holder, slot, w(old), w(new), ordinal);
+}
+/// Persists the plain (unhashed) word at slot `slot`, such as a total supply.
+fn store_plain(c: &mut eth::Call, slot: u64, old: u64, new: u64, ordinal: u64) {
+    c.storage_changes.push(eth::StorageChange {
+        address: TOKEN.to_vec(),
+        key: w(slot),
+        old_value: w(old),
+        new_value: w(new),
+        ordinal,
+    });
+}
+/// A log of the token with only topic0 and the given data.
+fn unindexed(topic0: &str, data: Vec<u8>) -> eth::Log {
+    eth::Log {
+        address: TOKEN.to_vec(),
+        topics: vec![hex::decode(topic0).unwrap()],
+        data,
+        ..Default::default()
+    }
 }
 fn log(topic0: &str, holders: &[[u8; 20]], value: u64) -> eth::Log {
     eth::Log {
@@ -623,6 +653,156 @@ fn reads_vouch_only_for_writes_they_saw() {
     assert_eq!(with(txs(balance_of(3, D, BASE, 60, 50))), vec![r(C, 990), r(D, 60)]);
 }
 
+/// Tether's owner-only `issue`/`redeem` move the sender's balance, and its
+/// `destroyBlackFunds` zeroes a blacklisted holder's, each with the total
+/// supply and without a `Transfer`. The event explains the holder's write when
+/// the frame's net change of the word equals its amount, a destruction also
+/// leaving it at zero; otherwise the write stays unexplained (no row), and the
+/// token keeps its other rows.
+#[test]
+fn tether_admin_events_explain_exact_writes() {
+    // A CALL from OWNER with one admin event, a holder's word and the supply.
+    let admin = |event: eth::Log, holder: [u8; 20], before: u64, after: u64, supply: (u64, u64)| {
+        let mut c = root();
+        c.caller = OWNER.to_vec();
+        c.logs = vec![event];
+        store(&mut c, holder, BASE, before, after, 20);
+        store_plain(&mut c, 1, supply.0, supply.1, 21);
+        c
+    };
+    let with = |tx: Vec<eth::Call>| rows(&block(vec![vec![simple()], tx]));
+    let issue = |amount: u64| unindexed(ISSUE, w(amount));
+    let redeem = |amount: u64| unindexed(REDEEM, w(amount));
+    let destroyed = |holder: [u8; 20], amount: u64| unindexed(DESTROYED_BLACK_FUNDS, [pad(&holder), w(amount)].concat());
+    let simple_rows = vec![r(A, 70), r(B, 35)];
+    let plus = |row: (u8, String)| [simple_rows.clone(), vec![row]].concat();
+    let issued = admin(issue(5 * U), OWNER, 10 * U, 15 * U, (100 * U, 105 * U));
+    assert_eq!(with(vec![issued]), [vec![r(OWNER, 15 * U)], simple_rows.clone()].concat());
+    assert_eq!(with(vec![admin(issue(5 * U), OWNER, 10 * U, 16 * U, (100 * U, 105 * U))]), simple_rows);
+    let redeemed = admin(redeem(5 * U), OWNER, 15 * U, 10 * U, (105 * U, 100 * U));
+    assert_eq!(with(vec![redeemed.clone()]), [vec![r(OWNER, 10 * U)], simple_rows.clone()].concat());
+    // Under a proxy the event is in the DELEGATECALL frame, whose recorded
+    // caller is the proxy itself: the sender is the proxy's caller.
+    let mut implementation = redeemed.clone();
+    (implementation.index, implementation.parent_index, implementation.depth) = (2, 1, 1);
+    (implementation.call_type, implementation.address, implementation.caller) = (eth::CallType::Delegate.into(), IMPL.to_vec(), TOKEN.to_vec());
+    let mut proxy = root();
+    proxy.caller = OWNER.to_vec();
+    assert_eq!(with(vec![proxy, implementation]), [vec![r(OWNER, 10 * U)], simple_rows.clone()].concat());
+    // TetherToken's destruction names its holder in data word 0.
+    assert_eq!(with(vec![admin(destroyed(C, 50 * U), C, 50 * U, 0, (1000 * U, 950 * U))]), plus(r(C, 0)));
+    for (before, after) in [(51 * U, 0), (50 * U, 1), (51 * U, U)] {
+        let supply = (1000 * U, 1000 * U - (before - after));
+        assert_eq!(with(vec![admin(destroyed(C, 50 * U), C, before, after, supply)]), simple_rows);
+    }
+    let mut dirty = destroyed(C, 50 * U);
+    dirty.data[0] = 1;
+    assert_eq!(with(vec![admin(dirty, C, 50 * U, 0, (1000 * U, 950 * U))]), simple_rows);
+    // TrueCurrency's destruction indexes its holder (owner, 2026-10-17).
+    let true_currency = |after: u64| admin(log(DESTROYED_BLACK_FUNDS, &[C], 50 * U), C, 50 * U, after, (1000 * U, 950 * U + after));
+    assert_eq!(with(vec![true_currency(0)]), plus(r(C, 0)));
+    assert_eq!(with(vec![true_currency(1)]), simple_rows);
+    // USDT0's redemption also emits Transfer(owner, 0): one row.
+    let mut both = redeemed;
+    both.logs.insert(0, transfer(OWNER, [0; 20], 5 * U));
+    assert_eq!(rows(&block(vec![vec![both]])), vec![r(OWNER, 10 * U)]);
+    // Accepted: an explained word at or above 2^128 drops the token's rows,
+    // as any emitted word does.
+    let high = |v: u64| {
+        let mut out = w(v);
+        out[0] = 1;
+        out
+    };
+    let mut packed = admin(issue(5 * U), OWNER, 0, 0, (100 * U, 105 * U));
+    packed.storage_changes.remove(0);
+    store_word(&mut packed, OWNER, BASE, high(10 * U), high(15 * U), 20);
+    assert!(with(vec![packed]).is_empty());
+}
+
+/// USDT0's `destroyBlockedFunds` burns through `Transfer(holder, 0)`, which
+/// already names the holder.
+#[test]
+fn destroyed_blocked_funds_are_explained_by_their_transfer() {
+    let mut c = root();
+    c.logs = vec![transfer(C, [0; 20], 50 * U), log(DESTROYED_BLOCKED_FUNDS, &[C], 50 * U)];
+    store(&mut c, C, BASE, 50 * U, 0, 20);
+    assert_eq!(rows(&block(vec![vec![simple()], vec![c]])), vec![r(A, 70), r(B, 35), r(C, 0)]);
+}
+
+/// In a block where TetherToken has no `Transfer` flow (a blacklisted holder
+/// never transfers again), a `destroyBlackFunds(holder)` frame votes: a CALL
+/// that makes no call, whose only log of the token is the 1-topic
+/// `DestroyedBlackFunds(holder, amount)`, and whose writes are the holder's
+/// word, ending at zero, and the unhashed supply, falling by the amount.
+/// `Issue`/`Redeem` frames never vote: a deprecated TetherToken still issues
+/// to its owner after its `balanceOf` forwards to the upgraded contract.
+#[test]
+fn tether_destructions_vote_without_transfers() {
+    let destruction = |holder: [u8; 20], amount: u64, ordinal: u64, supply: (u64, u64)| {
+        let mut c = root();
+        c.caller = OWNER.to_vec();
+        c.input = [DESTROY_BLACK_FUNDS.to_vec(), pad(&holder)].concat();
+        c.logs = vec![unindexed(DESTROYED_BLACK_FUNDS, [pad(&holder), w(amount)].concat())];
+        store(&mut c, holder, BASE, amount, 0, ordinal);
+        store_plain(&mut c, 1, supply.0, supply.1, ordinal + 1);
+        c
+    };
+    let c = || destruction(C, 50 * U, 20, (1000 * U, 950 * U));
+    assert_eq!(rows(&block(vec![vec![c()]])), vec![r(C, 0)]);
+    // The owner Safe's call data ends with a zero word (ETH 22,730,180).
+    let mut safe = c();
+    safe.input.extend(w(0));
+    let d = destruction(D, 20 * U, 30, (950 * U, 930 * U));
+    assert_eq!(rows(&block(vec![vec![safe], vec![d]])), vec![r(C, 0), r(D, 0)]);
+    type Edit = Box<dyn Fn(&mut eth::Call)>;
+    let edits: Vec<(&str, Edit)> = vec![
+        ("a third write", Box::new(|c| store_plain(c, 7, 0, 1, 22))),
+        ("no supply write", Box::new(|c| drop(c.storage_changes.pop()))),
+        ("the supply falls by 49 for 50", Box::new(|c| c.storage_changes[1].new_value = w(951 * U))),
+        (
+            "the holder's word ends at U",
+            Box::new(|c| (c.storage_changes[0].old_value, c.storage_changes[0].new_value) = (w(51 * U), w(U))),
+        ),
+        ("no preimage of the holder's word", Box::new(|c| c.keccak_preimages.clear())),
+        ("another selector", Box::new(|c| c.input[..4].copy_from_slice(&[0xa9, 0x05, 0x9c, 0xbb]))),
+        ("no input", Box::new(|c| c.input.clear())),
+        (
+            "the input names another holder",
+            Box::new(|c| c.input = [DESTROY_BLACK_FUNDS.to_vec(), pad(&D)].concat()),
+        ),
+        ("a second log", Box::new(|c| c.logs.push(log(APPROVAL, &[C, D], 1)))),
+        ("TrueCurrency's event", Box::new(|c| c.logs = vec![log(DESTROYED_BLACK_FUNDS, &[C], 50 * U)])),
+    ];
+    for (case, edit) in edits {
+        let mut frame = c();
+        edit(&mut frame);
+        assert!(rows(&block(vec![vec![frame]])).is_empty(), "{case}");
+    }
+    // A child call, even a reverted one: in deprecated mode the amount comes
+    // from the upgraded contract's balanceOf.
+    let mut child = call(2, 1, 1, eth::CallType::Static, [0x55; 20]);
+    child.return_data = w(50 * U);
+    assert!(rows(&block(vec![vec![c(), child.clone()]])).is_empty());
+    (child.status_failed, child.state_reverted) = (true, true);
+    assert!(rows(&block(vec![vec![c(), child]])).is_empty());
+    // A DELEGATECALL frame under a proxy.
+    let mut implementation = c();
+    (implementation.index, implementation.parent_index, implementation.depth) = (2, 1, 1);
+    (implementation.call_type, implementation.address, implementation.caller) = (eth::CallType::Delegate.into(), IMPL.to_vec(), TOKEN.to_vec());
+    let mut proxy = root();
+    (proxy.caller, proxy.input) = (OWNER.to_vec(), implementation.input.clone());
+    assert!(rows(&block(vec![vec![proxy, implementation]])).is_empty());
+    // An issue or a redemption alone.
+    for (event, before, after) in [(ISSUE, 10 * U, 15 * U), (REDEEM, 15 * U, 10 * U)] {
+        let mut owner = root();
+        owner.caller = OWNER.to_vec();
+        owner.logs = vec![unindexed(event, w(5 * U))];
+        store(&mut owner, OWNER, BASE, before, after, 20);
+        store_plain(&mut owner, 1, 100 * U + before, 100 * U + after, 21);
+        assert!(rows(&block(vec![vec![owner]])).is_empty(), "{event}");
+    }
+}
+
 /// Recorded preimages longer than 64 bytes are never decoded, however often
 /// their key is written.
 #[test]
@@ -744,6 +924,58 @@ fn captured_block_without_read_preimages_keeps_its_rows() {
     };
     assert_eq!(all(&filtered).len(), 164);
     assert_eq!(all(&filtered), all(&original));
+}
+
+/// The v0.7.4 captures in `fixtures/v074/`: Ethereum and BSC blocks cut to
+/// the transactions of one token, with provenance in `cases.json`. Each gives
+/// exactly its recorded rows, which equal the RPC-era values at the block
+/// wherever the RPC-era database has them, and still holds the calls its case
+/// names.
+#[test]
+fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
+    use sha2::Digest;
+    use std::collections::BTreeMap;
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/v074");
+    let cases: serde_json::Value = serde_json::from_str(include_str!("fixtures/v074/cases.json")).unwrap();
+    for case in cases["cases"].as_array().unwrap() {
+        let file = case["file"].as_str().unwrap();
+        let bytes = std::fs::read(format!("{dir}/{file}")).unwrap();
+        assert_eq!(hex::encode(sha2::Sha256::digest(&bytes)), case["fixture_sha256"], "{file}");
+        let block = eth::Block::decode_from_slice(&bytes).unwrap();
+        assert_eq!(
+            (block.number, format!("0x{}", hex::encode(&block.hash))),
+            (case["block"].as_u64().unwrap(), case["block_hash"].as_str().unwrap().to_string())
+        );
+        let kept: Vec<u32> = block.transaction_traces.iter().map(|tx| tx.index).collect();
+        assert_eq!(serde_json::json!(kept), case["kept_transactions"], "{file}");
+        let mut ours = BTreeMap::<String, BTreeMap<String, String>>::new();
+        for b in run(&block).unwrap().balances {
+            let contract = format!("0x{}", hex::encode(b.contract.unwrap()));
+            ours.entry(contract).or_default().insert(format!("0x{}", hex::encode(b.address)), b.amount);
+        }
+        assert_eq!(serde_json::json!(ours), case["rows"], "{file}");
+        for (contract, values) in case["rpc_era"]["values"].as_object().unwrap() {
+            for (holder, value) in values.as_object().unwrap() {
+                let row = ours.get(contract).and_then(|t| t.get(holder)).map(String::as_str);
+                assert_eq!(row, value.as_str(), "{file} {contract} {holder}");
+            }
+        }
+        let token = case["token"].as_str().unwrap();
+        for c in case["calls"].as_array().unwrap() {
+            let tx = block.transaction_traces.iter().find(|tx| c["tx"] == tx.index).unwrap();
+            let call = tx.calls.iter().find(|x| c["call"] == x.index).unwrap();
+            assert_eq!(format!("0x{}", hex::encode(&call.address)), token, "{file} {c}");
+            if let Some(t0) = c["log_topic0"].as_str() {
+                assert!(call.logs.iter().any(|l| hex::encode(&l.topics[0]) == t0), "{file} {c}");
+            }
+            if let Some(n) = c["input_len"].as_u64() {
+                assert_eq!(call.input.len() as u64, n, "{file} {c}");
+            }
+            if let Some(n) = c["return_len"].as_u64() {
+                assert_eq!(call.return_data.len() as u64, n, "{file} {c}");
+            }
+        }
+    }
 }
 
 #[test]

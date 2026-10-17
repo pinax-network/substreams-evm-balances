@@ -1,0 +1,638 @@
+{
+ "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-10-17 for the v0.7.4 investigation.",
+ "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block; added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
+ "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:evm-balances@v0.3.3 or bsc:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed.",
+ "cases": [
+  {
+   "file": "eth-19439412-usdt-destroyed-black-funds.pb",
+   "chain": "eth",
+   "block": 19439412,
+   "block_hash": "0xf5d1099c48fbaa9e9066b9b7e92342415224db90e6b22801c2d4a3a0f8ff3e7a",
+   "ver": 3,
+   "source_block_sha256": "b8e5520a8c6096b33227575b477ca73989d5fe9023e5ee8745846957ccd689c9",
+   "fixture_sha256": "e93df98a4c726c002e5e38906926eb8c454a68542b0908c6f384b15e4a0319a8",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    27,
+    30,
+    32,
+    34,
+    39,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    54,
+    58,
+    61,
+    63,
+    66,
+    112,
+    122,
+    135,
+    164
+   ],
+   "selection": "every USDT transaction with one call, and the destroyBlackFunds transaction 135",
+   "rule": "C3",
+   "demonstrates": "destroyBlackFunds(0x5ff793c0...) in tx 135 call 2 zeroes 206,582.903646 USDT with DestroyedBlackFunds; the holder gets 0 where v0.7.3 kept the old balance",
+   "calls": [
+    {
+     "tx": 135,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x0e7b7bd85e1a25822b43c2df9f4772738b0687ba": "597356620",
+     "0x1195634f81013e2733bb147152f3ebebb0b1a845": "109458458842",
+     "0x13469ac3c072302490fa0c9f5acd8fba15aff587": "1667003816",
+     "0x1440ec793ae50fa046b95bfeca5af475b6003f9e": "54180310000",
+     "0x3b82ff2ea45595c8d0c79a2e5749b7347dd4970a": "0",
+     "0x42202574b1d6177c4cb2de3b87f5716cc95f631e": "0",
+     "0x4a973c62bf243de4fff3c73e1700acab279be183": "0",
+     "0x5382b0d3d88e3fae0ae9fd98909c3c9997c761e5": "570312243",
+     "0x5ca30b1ea934d35cd285141d9e075d693eeca429": "195750427",
+     "0x5ff793c01a443a22b925df59d1b2c427347db36e": "0",
+     "0x6c69fa64ec451b1bc5b5fbaa56cf648a281634be": "268598633686",
+     "0x6f9c67baac8a89694d83260921de72385929c425": "0",
+     "0x74aa5387681505c806ff1e972b12cdfd01406828": "2685995741722",
+     "0x75e89d5979e4f6fba9f97c104c2f0afb3f1dcb88": "4641408935582",
+     "0x7b05785cce801abcc613a29138e922fd1526f842": "135406801",
+     "0x7cab2e5f73334d08a48bd6031cb95a3444f01a17": "7998372801",
+     "0x8138d1f3d8caf1739051cb957d837d0ab538cb8b": "3600391007",
+     "0x822afa2b74c87412eb528ef93bfd14017488466e": "40000000000",
+     "0x83c41363cbee0081dab75cb841fa24f3db46627e": "40790525463028",
+     "0x8b1f67d124c013ff5fd5f73d1eb51fe7fd29dc17": "405000000",
+     "0xa03400e098f4421b34a3a44a1b4e571419517687": "619820082816",
+     "0xa88f86e5685fca7c5d6de0e4d944875b007137b5": "500247025302",
+     "0xa95ff9669f424fc159fd3e7cb986512bf1739927": "0",
+     "0xab782bc7d4a2b306825de5a7730034f8f63ee1bc": "5782330936313",
+     "0xb2d5a2d7286d4c8c3c202dd6dd748e2bba3f51ba": "70368999596",
+     "0xbc47c7365a7dd039a0974cf517e344e353d42732": "50000000000",
+     "0xc4f6f3c4c393c99d0994bd92a3a87619c8cd969a": "497000000",
+     "0xc64c9294696cc1617bf7f00350ae972edeab5e84": "38544910654",
+     "0xc7dc59a6e40a6ccd79c340fdea1a197117ff0e00": "687094267",
+     "0xd35b616d9bbcf89d0ff718cfbc0d74a61c6d55ab": "500000000",
+     "0xe42a06ea431dc1524fc93d58ad0f6eec9775e1a6": "2071170000",
+     "0xfb8ed165b827ad43cf3b63e96917b573d67878a0": "12600000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x5ff793c01a443a22b925df59d1b2c427347db36e"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x0e7b7bd85e1a25822b43c2df9f4772738b0687ba": "597356620",
+      "0x3b82ff2ea45595c8d0c79a2e5749b7347dd4970a": "0",
+      "0x42202574b1d6177c4cb2de3b87f5716cc95f631e": "0",
+      "0x4a973c62bf243de4fff3c73e1700acab279be183": "0",
+      "0x5382b0d3d88e3fae0ae9fd98909c3c9997c761e5": "570312243",
+      "0x5ff793c01a443a22b925df59d1b2c427347db36e": "0",
+      "0x6f9c67baac8a89694d83260921de72385929c425": "0",
+      "0x8b1f67d124c013ff5fd5f73d1eb51fe7fd29dc17": "405000000",
+      "0xa95ff9669f424fc159fd3e7cb986512bf1739927": "0",
+      "0xb2d5a2d7286d4c8c3c202dd6dd748e2bba3f51ba": "70368999596"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-22730180-usdt-destroyed-black-funds.pb",
+   "chain": "eth",
+   "block": 22730180,
+   "block_hash": "0x015d2dff837e858348b2b2514dbbb1c510e2d922eddfe87e6c1e12f1f6e26bae",
+   "ver": 4,
+   "source_block_sha256": "d79502356028bec19843d487230862db426e2c1a3c983f4473d99722da55bea3",
+   "fixture_sha256": "1b301500a993671001367425a9d48a42733ef87f81376aed1dc0dd607dc29bbf",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    6,
+    8,
+    25,
+    82,
+    110,
+    115,
+    133,
+    134,
+    140,
+    144,
+    159,
+    164,
+    165,
+    171,
+    173,
+    176,
+    181,
+    183,
+    189,
+    190,
+    243,
+    245,
+    246,
+    247,
+    251,
+    261,
+    262,
+    263,
+    264
+   ],
+   "selection": "every USDT transaction with one call, and the four destroyBlackFunds transactions 261 to 264",
+   "rule": "C3",
+   "demonstrates": "the owner Safe's destroyBlackFunds(holder) CALLs (call 2 of txs 261 to 264) each zero a blacklisted holder's balances word under base 2 and move _totalSupply (slot 1) by the same amount, with only the 1-topic DestroyedBlackFunds(holder, amount); the event explains each zeroing write, so the four holders get 0 where v0.7.3 kept their old balances (64,707,708.53, 2,903,914.21, 87,464,642.26 and 30,000,000.35 USDT)",
+   "calls": [
+    {
+     "tx": 261,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 262,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 263,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 264,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8": "0",
+     "0x0fb40309aa1a668681f0ccdbe88690a5743ac8a5": "3003",
+     "0x1a564b0dfbe4820a98fe8bd666d5f759f2726d81": "3220353",
+     "0x1a74b617eb88c597978f18768956381461dffd27": "5000000",
+     "0x20e7899f4fdd469d68048938ec3d9f0167fa1b3a": "976244736032",
+     "0x28c6c06298d514db089934071355e5743bf21d60": "374748939263238",
+     "0x2fa2308eb42d7fde2151d493a1574f872393504f": "206348871",
+     "0x34fbbb8fcc18ce261e60f690586180b66285ba07": "522805924",
+     "0x37f2c792b56f320a2c693d66baa706da445af8a0": "254949800",
+     "0x3c02290922a3618a4646e3bbca65853ea45fe7c6": "683577743908",
+     "0x43d210f15e720713493439eec5f1222687c14cc4": "98654985",
+     "0x48106a9eed30f27d167737234f371e5e1931346a": "1210",
+     "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "4062608423158",
+     "0x559432e18b281731c054cd703d4b49872be4ed53": "383758035418216",
+     "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16": "0",
+     "0x5a977aa7476a1ef69473e285e2adfb94fe047800": "2169718131",
+     "0x5d5ad65ebd58f63193bf7e14a61134366c79e7f1": "16171506525",
+     "0x5e83859828955e022f5b75f410396ad76ee814bc": "3003",
+     "0x605d698e15393fba8771088b43bef87a764145f8": "53269460634",
+     "0x61a045232cf2175fd5569be89360c16961e128c8": "165017996",
+     "0x633dcf31bb890b26279c9a0480754dc09e27c01e": "98677985",
+     "0x63c79fccd0a21e4a4d87056a0efe3b85d8c373d4": "7494760624298",
+     "0x6b45731884d12cfb3ee065ad64d7651ba0cb5b57": "300000000",
+     "0x76a8115555ad1050d52652ce8f649596be243313": "63000057704",
+     "0x8297b890d762562a333f21e2b43898a95f22821c": "660000000",
+     "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb": "0",
+     "0x83829970dc02dbf5f080377a13bd318544f4cd1d": "603762872",
+     "0x852687c55fb6876082c4cb8fc6b8199453fb228d": "104979004",
+     "0x85411916fbbe372f2bb7e24af0c8578880e8e02c": "0",
+     "0x8e9dedb712fe1a7536c6dab80367d73d44323ba9": "55400000000",
+     "0x91dca37856240e5e1906222ec79278b16420dc92": "1931136432158",
+     "0x979672630fb3cc4bdb328943662476fd03a172db": "426001000",
+     "0x99ebaf3661065dc1e44feff4b80365678bdff6ce": "0",
+     "0x9e513b6b5d5005343331159fc82a24feff8d12b3": "50560484",
+     "0xa937d576eb152a7ba8a2176e75c25abced5d94cd": "98722870",
+     "0xb809343568101d1ab52a0d17f7311959b67d0c49": "13563951",
+     "0xb8356a14e2610315f4d6604c71738c7f2ef7aa2a": "177274800880",
+     "0xbb8672490e99fae095c1d2784422ecb00fcb961e": "343640000",
+     "0xbc66594da6feb2e2581e2a376c40fd59c9b16ffe": "0",
+     "0xcdf2a9eaf795d4cb5b8a659c8d18f15d06ee77d0": "0",
+     "0xd0df73b103ce041a522b891e7610dbcc830ae14f": "0",
+     "0xd10f7cf30585bbc301bac5c218304cbef858b3ab": "1424325914",
+     "0xddcdf30b41c8b5bb86725cd8d508f76138478530": "0",
+     "0xe6fd9b84508aeca59923c736279e2685705f1909": "148791725",
+     "0xf0c744479bbad117226dac19fb62bdb02defa830": "520000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x99ebaf3661065dc1e44feff4b80365678bdff6ce"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8": "0",
+      "0x1a74b617eb88c597978f18768956381461dffd27": "5000000",
+      "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16": "0",
+      "0x61a045232cf2175fd5569be89360c16961e128c8": "165017996",
+      "0x8297b890d762562a333f21e2b43898a95f22821c": "660000000",
+      "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb": "0",
+      "0x83829970dc02dbf5f080377a13bd318544f4cd1d": "603762872",
+      "0x852687c55fb6876082c4cb8fc6b8199453fb228d": "104979004",
+      "0x85411916fbbe372f2bb7e24af0c8578880e8e02c": "0",
+      "0x979672630fb3cc4bdb328943662476fd03a172db": "426001000",
+      "0x99ebaf3661065dc1e44feff4b80365678bdff6ce": "0",
+      "0x9e513b6b5d5005343331159fc82a24feff8d12b3": "50560484",
+      "0xb809343568101d1ab52a0d17f7311959b67d0c49": "13563951",
+      "0xbb8672490e99fae095c1d2784422ecb00fcb961e": "343640000",
+      "0xbc66594da6feb2e2581e2a376c40fd59c9b16ffe": "0",
+      "0xcdf2a9eaf795d4cb5b8a659c8d18f15d06ee77d0": "0",
+      "0xd0df73b103ce041a522b891e7610dbcc830ae14f": "0",
+      "0xe6fd9b84508aeca59923c736279e2685705f1909": "148791725"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-25804475-usdt-redeem.pb",
+   "chain": "eth",
+   "block": 25804475,
+   "block_hash": "0xe45a620d2251c311dd6fba8f601009dfe0ce3f3f1385255825a9e1689f9a5dad",
+   "ver": 5,
+   "source_block_sha256": "df08137e5cc44044e434d57d673b63e7fc270075790671257d248b2212cc4687",
+   "fixture_sha256": "08d6051f8635e61ceffc6bf47d41930ec5e2e8edae103d72b7238dc7e5910dea",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    19,
+    21,
+    25,
+    26,
+    27,
+    28,
+    29,
+    48,
+    49,
+    60,
+    62,
+    66,
+    68,
+    71,
+    85,
+    88,
+    98,
+    115,
+    143,
+    149,
+    153,
+    155,
+    160,
+    178,
+    198,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    211,
+    218,
+    239,
+    240,
+    245,
+    246,
+    247,
+    251,
+    252,
+    254,
+    256,
+    259,
+    260,
+    262,
+    264,
+    267,
+    269,
+    270,
+    276,
+    277,
+    278,
+    282
+   ],
+   "selection": "every USDT transaction with one call, and the redeem transaction 269",
+   "rule": "C3",
+   "demonstrates": "redeem(2,000,000,000 USDT) by the owner Safe 0xc6cde7c3... in tx 269 call 2 (Block.ver 5) moves the sender's balances word and _totalSupply by the amount, with only Redeem(amount); the sender is a candidate and the event explains its write, so the owner gets 108,983.767 USDT where v0.7.3 left 2,000,108,983.767",
+   "calls": [
+    {
+     "tx": 269,
+     "call": 2,
+     "log_topic0": "702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x061be0bc209a27588b7e85c0032ac8a0cdfd12a5": "71473337225",
+     "0x065ddc9dd4caec60199af4cb40e31ca807e120d8": "10446164349",
+     "0x06bf555360e9b2e1ed69140ee826881c74fb0a8d": "3896100000",
+     "0x0a780b004a6f92268aeaaa5fa03f3d744c78d304": "0",
+     "0x0b4813c45f503c01b527cdab770677385a29e268": "1245426",
+     "0x0bf07a0615b37ec22354d5bf0922aee5b2c21216": "0",
+     "0x0fcbd0966b9fa51edc465d90d2d404c32a3a6e5c": "2442206441",
+     "0x1d0316cc0453c731000df8e1e1d8b14fc6074ded": "1925689830412",
+     "0x1d40718423f96f69bab57cec75ee5056366c1653": "70261393511",
+     "0x1dcdbee3bc4ca9909b0636c75fdb326831ac1ff7": "1000000",
+     "0x21a31ee1afc51d94c2efccaa2092ad1028285549": "40658709237406",
+     "0x23fd81610361f6f7cdb10ea93f0d2af422ca2579": "0",
+     "0x28c6c06298d514db089934071355e5743bf21d60": "516194852292233",
+     "0x2a327fef8c6a60d447aa3853884b9ebfb4af5ba9": "0",
+     "0x2aa060202d53d361a264a446ca66d469bfc862c9": "100000000",
+     "0x2d6f6871f2ba499b2fdbc1ec079c1476be1e2236": "117026215233",
+     "0x2fbdf825f724697da6dca73f73093f52f0134076": "0",
+     "0x3068aaa8e7e07693cf3066dd15f174f7afc30c40": "436883370000",
+     "0x42752bac0fcfe94dbaaf2fdf4925edec09fa41ab": "0",
+     "0x46a03a196c8cf0c74e35b6f525237a3a277422d2": "0",
+     "0x49682837d9a418ce425a25f30ffa2e3e20a932ab": "75653724",
+     "0x49e69ed9a6cb6714c4d5bb0f825d3212e02459bc": "0",
+     "0x4be4bb60a6213b2faa3b1049728751ebb8d03646": "200000000",
+     "0x4c2c0f0bb2631b02ac9299c59690914ee7a200b8": "29798224470",
+     "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "3690732631237",
+     "0x4ff4834475e366693a89ea4d8c06833e3de0890e": "0",
+     "0x53480145586ece7064e191109f389c0e5ca23fcd": "0",
+     "0x559432e18b281731c054cd703d4b49872be4ed53": "375086638402347",
+     "0x56eddb7aa87536c09ccc2793473599fd21a8b17f": "60277514863021",
+     "0x579da13bca2fc5bad3311f503f243bc10f1aad64": "500000009",
+     "0x57c9975b1c36d237f25797dbfc5411b381491047": "1400000000",
+     "0x58b704065b7aff3ed351052f8560019e05925023": "6144940826073",
+     "0x5ccd69abe9130ad2bbff3026e9975f593100a068": "207000000",
+     "0x5d3e4bc22e9420014f6078e1d075069b543f27f8": "40000000",
+     "0x618a5f55275b028837b3a26408ef160ab3ad00d0": "0",
+     "0x64cdaa89629fe003eaa31b480d8b63372d109a53": "12911218799",
+     "0x68e6ae8b176df01b9b669dfeee0d235047370bf3": "30405048607",
+     "0x6c45c376a8488183ba4e80d41b49c8e46ed97420": "0",
+     "0x6c772df69d8b5c8baaa5b2222b4c761f597ac075": "1144438862",
+     "0x6e99145baec37507f6b2d30b359803f3c11cd381": "0",
+     "0x702ebe3d06cb18d20872efa58dbda97351e32afc": "2606101916",
+     "0x740b0fba160c53d68f9894270a4ee7f87978499e": "4700000",
+     "0x77a4f15e968b1fa40894089f1bb82f43ce9f2e6f": "0",
+     "0x78cab31c98cccbbed510c299847478f5dbccf4be": "6210348043",
+     "0x7c0d181e0f32f4a40189be4e62ea774fe4cd96d4": "43254538274",
+     "0x7cd8cb8cc90f97de1a7d3d66131d180eb3d36678": "0",
+     "0x7e8e348f33c332ee6527f0f43f3b569cb0279aa5": "48636565641",
+     "0x83e40f7b02594e0c151a5ec50f5641183e25d5dd": "0",
+     "0x8824138e3ab22c7896a7680b801615f9f5c17bf4": "108546000",
+     "0x88ba1b22dad95daf5221ee3330104ca3866e6d53": "102489277819",
+     "0x9696f59e4d72e237be84ffd425dcad154bf96976": "42437936174904",
+     "0x98c93a7326c87a4fa9b85631a6b3dafe1f02d3f9": "841378",
+     "0x9ea9eb6e98090df3e904b02a1d99b94b453a4d32": "0",
+     "0xa05bf52279ca7b35b8a238a6ba71046b02b230be": "557",
+     "0xa26ef00ede5cffd435cb937b88c7b693b1c5390c": "1854513069",
+     "0xa2977fc332478918ddac8b3c393e28329ae0cd77": "340000000",
+     "0xa9386c8bd3beefaea22893efb1678108a54c963f": "0",
+     "0xac7b1b390becb677db28041c29ff86374afd861c": "3643602525971",
+     "0xb13f8eddc66a1169aa3cc6a38fb3d50a3179dc3d": "91150878522",
+     "0xb21b7c28c5befc80d58b326600305cdd62a4a58a": "89518041434",
+     "0xb3129b1a41b7a301b24b6c0f1d224f495a4cca3a": "0",
+     "0xb334a61a6209f14b5fa5f1684a4ed7621f66e1ef": "585779198725",
+     "0xba325093f3da06d5b0425d8b8668a77be04de466": "0",
+     "0xbc7531742b53d40a73183c657b34aa0057624fb2": "550660001",
+     "0xc575bbbac444b375dcbe9a4be280358a9ad3ed97": "424107229900",
+     "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828": "108983767000",
+     "0xc6d7ab9cedcff52ac35900053fed26014362751a": "0",
+     "0xc9d3ff433a7b7e58379f26be4efa568e994f7b23": "0",
+     "0xca0962d7cb2951ed408128fef5dc201d29635a8b": "0",
+     "0xcabb91aa70a2368174ed673705a456f97e884c70": "184364386",
+     "0xcba624d0d0e9273f6a67284a0d7dd2eb9d8eb845": "49700000",
+     "0xd0613ed65aefd88cf8a43c5d116018c0814bec71": "35040772541",
+     "0xd1573677b557cf49c1dd9f50759f39a97773aa1e": "0",
+     "0xd23ff8856030f5a347514b342fe1e2bba26812b3": "89820780200",
+     "0xd502f9785f852103de7b60e30a8d01786cd5ef8e": "77414620",
+     "0xd66cd68853da5f6d9cd4df8b3c3946d264df3e1a": "10916380200",
+     "0xd9274b3ab26cfb3b0829b79d0cb2248b0f5ba7c5": "790870",
+     "0xdc7a2e036a49b930f874fb80f4801fb5acd7f19f": "0",
+     "0xdc9b1002934461ecfc687d536ed958655163c001": "168000000",
+     "0xdf93443dfd007ec0c06f54012e83d50b8177d303": "48194805673",
+     "0xe0be37ddc78935df75c33d7ee12d68919c47774e": "0",
+     "0xe3478b0bb1a5084567c319096437924948be1964": "753287295995",
+     "0xe542ed5886d3325c2d1594f8fc68cff9db8cd629": "1962045308",
+     "0xef55f440af4e1e0a76a3f871aeb16544ff356b1b": "854354296259",
+     "0xf106c6f2b0ce398f1420cb73d472b1e44dc9f0d6": "99309600",
+     "0xf2e36adf227ecc5e6a0251f6b66836a8451a4e21": "1999379805",
+     "0xf52605c7b778563a5a9144ef4dc53b57463ca2c7": "94243282789",
+     "0xf5bbd3f496f6d83ee7706c0917ccf99c3faff553": "306133739914",
+     "0xf6d4e5a7c5215f91f59a95065190cca24bf64554": "571887564356",
+     "0xfad817fde40bcdda2d0e71c86c81999d1d75c909": "30890000",
+     "0xfb80a789631875f9cd7f5e3000db914a38f1e01f": "57163462498",
+     "0xfd323ade861f0e284b113c85ff3ab0e07804806a": "1081151582",
+     "0xfed005f027c35e3d7fd01860f57968ce06276aaa": "2921708684"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x061be0bc209a27588b7e85c0032ac8a0cdfd12a5": "71473337225",
+      "0x065ddc9dd4caec60199af4cb40e31ca807e120d8": "10446164349",
+      "0x06bf555360e9b2e1ed69140ee826881c74fb0a8d": "3896100000",
+      "0x0a780b004a6f92268aeaaa5fa03f3d744c78d304": "0",
+      "0x0b4813c45f503c01b527cdab770677385a29e268": "1245426",
+      "0x0bf07a0615b37ec22354d5bf0922aee5b2c21216": "0",
+      "0x0fcbd0966b9fa51edc465d90d2d404c32a3a6e5c": "2442206441",
+      "0x1d0316cc0453c731000df8e1e1d8b14fc6074ded": "1925689830412",
+      "0x1d40718423f96f69bab57cec75ee5056366c1653": "70261393511",
+      "0x1dcdbee3bc4ca9909b0636c75fdb326831ac1ff7": "1000000",
+      "0x21a31ee1afc51d94c2efccaa2092ad1028285549": "40658709237406",
+      "0x23fd81610361f6f7cdb10ea93f0d2af422ca2579": "0",
+      "0x28c6c06298d514db089934071355e5743bf21d60": "516194852292233",
+      "0x2a327fef8c6a60d447aa3853884b9ebfb4af5ba9": "0",
+      "0x2aa060202d53d361a264a446ca66d469bfc862c9": "100000000",
+      "0x2d6f6871f2ba499b2fdbc1ec079c1476be1e2236": "117026215233",
+      "0x2fbdf825f724697da6dca73f73093f52f0134076": "0",
+      "0x3068aaa8e7e07693cf3066dd15f174f7afc30c40": "436883370000",
+      "0x42752bac0fcfe94dbaaf2fdf4925edec09fa41ab": "0",
+      "0x46a03a196c8cf0c74e35b6f525237a3a277422d2": "0",
+      "0x49682837d9a418ce425a25f30ffa2e3e20a932ab": "75653724",
+      "0x49e69ed9a6cb6714c4d5bb0f825d3212e02459bc": "0",
+      "0x4be4bb60a6213b2faa3b1049728751ebb8d03646": "200000000",
+      "0x4c2c0f0bb2631b02ac9299c59690914ee7a200b8": "29798224470",
+      "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "3690732631237",
+      "0x4ff4834475e366693a89ea4d8c06833e3de0890e": "0",
+      "0x53480145586ece7064e191109f389c0e5ca23fcd": "0",
+      "0x559432e18b281731c054cd703d4b49872be4ed53": "375086638402347",
+      "0x56eddb7aa87536c09ccc2793473599fd21a8b17f": "60277514863021",
+      "0x579da13bca2fc5bad3311f503f243bc10f1aad64": "500000009",
+      "0x57c9975b1c36d237f25797dbfc5411b381491047": "1400000000",
+      "0x58b704065b7aff3ed351052f8560019e05925023": "6144940826073",
+      "0x5ccd69abe9130ad2bbff3026e9975f593100a068": "207000000",
+      "0x5d3e4bc22e9420014f6078e1d075069b543f27f8": "40000000",
+      "0x618a5f55275b028837b3a26408ef160ab3ad00d0": "0",
+      "0x64cdaa89629fe003eaa31b480d8b63372d109a53": "12911218799",
+      "0x68e6ae8b176df01b9b669dfeee0d235047370bf3": "30405048607",
+      "0x6c45c376a8488183ba4e80d41b49c8e46ed97420": "0",
+      "0x6c772df69d8b5c8baaa5b2222b4c761f597ac075": "1144438862",
+      "0x6e99145baec37507f6b2d30b359803f3c11cd381": "0",
+      "0x702ebe3d06cb18d20872efa58dbda97351e32afc": "2606101916",
+      "0x740b0fba160c53d68f9894270a4ee7f87978499e": "4700000",
+      "0x77a4f15e968b1fa40894089f1bb82f43ce9f2e6f": "0",
+      "0x78cab31c98cccbbed510c299847478f5dbccf4be": "6210348043",
+      "0x7c0d181e0f32f4a40189be4e62ea774fe4cd96d4": "43254538274",
+      "0x7cd8cb8cc90f97de1a7d3d66131d180eb3d36678": "0",
+      "0x7e8e348f33c332ee6527f0f43f3b569cb0279aa5": "48636565641",
+      "0x83e40f7b02594e0c151a5ec50f5641183e25d5dd": "0",
+      "0x8824138e3ab22c7896a7680b801615f9f5c17bf4": "108546000",
+      "0x88ba1b22dad95daf5221ee3330104ca3866e6d53": "102489277819",
+      "0x9696f59e4d72e237be84ffd425dcad154bf96976": "42437936174904",
+      "0x98c93a7326c87a4fa9b85631a6b3dafe1f02d3f9": "841378",
+      "0x9ea9eb6e98090df3e904b02a1d99b94b453a4d32": "0",
+      "0xa05bf52279ca7b35b8a238a6ba71046b02b230be": "557",
+      "0xa26ef00ede5cffd435cb937b88c7b693b1c5390c": "1854513069",
+      "0xa2977fc332478918ddac8b3c393e28329ae0cd77": "340000000",
+      "0xa9386c8bd3beefaea22893efb1678108a54c963f": "0",
+      "0xac7b1b390becb677db28041c29ff86374afd861c": "3643602525971",
+      "0xb13f8eddc66a1169aa3cc6a38fb3d50a3179dc3d": "91150878522",
+      "0xb21b7c28c5befc80d58b326600305cdd62a4a58a": "89518041434",
+      "0xb3129b1a41b7a301b24b6c0f1d224f495a4cca3a": "0",
+      "0xb334a61a6209f14b5fa5f1684a4ed7621f66e1ef": "585779198725",
+      "0xba325093f3da06d5b0425d8b8668a77be04de466": "0",
+      "0xbc7531742b53d40a73183c657b34aa0057624fb2": "550660001",
+      "0xc575bbbac444b375dcbe9a4be280358a9ad3ed97": "424107229900",
+      "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828": "108983767000",
+      "0xc6d7ab9cedcff52ac35900053fed26014362751a": "0",
+      "0xc9d3ff433a7b7e58379f26be4efa568e994f7b23": "0",
+      "0xca0962d7cb2951ed408128fef5dc201d29635a8b": "0",
+      "0xcabb91aa70a2368174ed673705a456f97e884c70": "184364386",
+      "0xcba624d0d0e9273f6a67284a0d7dd2eb9d8eb845": "49700000",
+      "0xd0613ed65aefd88cf8a43c5d116018c0814bec71": "35040772541",
+      "0xd1573677b557cf49c1dd9f50759f39a97773aa1e": "0",
+      "0xd23ff8856030f5a347514b342fe1e2bba26812b3": "89820780200",
+      "0xd502f9785f852103de7b60e30a8d01786cd5ef8e": "77414620",
+      "0xd66cd68853da5f6d9cd4df8b3c3946d264df3e1a": "10916380200",
+      "0xd9274b3ab26cfb3b0829b79d0cb2248b0f5ba7c5": "790870",
+      "0xdc7a2e036a49b930f874fb80f4801fb5acd7f19f": "0",
+      "0xdc9b1002934461ecfc687d536ed958655163c001": "168000000",
+      "0xdf93443dfd007ec0c06f54012e83d50b8177d303": "48194805673",
+      "0xe0be37ddc78935df75c33d7ee12d68919c47774e": "0",
+      "0xe3478b0bb1a5084567c319096437924948be1964": "753287295995",
+      "0xe542ed5886d3325c2d1594f8fc68cff9db8cd629": "1962045308",
+      "0xef55f440af4e1e0a76a3f871aeb16544ff356b1b": "854354296259",
+      "0xf106c6f2b0ce398f1420cb73d472b1e44dc9f0d6": "99309600",
+      "0xf2e36adf227ecc5e6a0251f6b66836a8451a4e21": "1999379805",
+      "0xf52605c7b778563a5a9144ef4dc53b57463ca2c7": "94243282789",
+      "0xf5bbd3f496f6d83ee7706c0917ccf99c3faff553": "306133739914",
+      "0xf6d4e5a7c5215f91f59a95065190cca24bf64554": "571887564356",
+      "0xfad817fde40bcdda2d0e71c86c81999d1d75c909": "30890000",
+      "0xfb80a789631875f9cd7f5e3000db914a38f1e01f": "57163462498",
+      "0xfd323ade861f0e284b113c85ff3ab0e07804806a": "1081151582",
+      "0xfed005f027c35e3d7fd01860f57968ce06276aaa": "2921708684"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-5758964-usdt-destroyed-black-funds-only.pb",
+   "chain": "eth",
+   "block": 5758964,
+   "block_hash": "0x03fa90e75db7bbcb19e4fb574be6a927624aa408455d5f906e59f3d636ec3027",
+   "ver": 3,
+   "source_block_sha256": "fdf53983af38e0d2ed2da755b36c49656d24e473b7ae2f206901ca5373aea496",
+   "fixture_sha256": "20ffb0fee7f4680e6c3676476c392459aea27dbfd9bcf141ba7dd23627150df5",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    31
+   ],
+   "selection": "every USDT transaction (only the destroyBlackFunds transaction 31)",
+   "rule": "C3",
+   "demonstrates": "a block whose only USDT frame is destroyBlackFunds(0x008fe405...) (tx 31 call 2): no Transfer flow, so the destruction frame votes base 2 and the holder gets 0; v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 31,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x008fe40574e881e7247b50b991c0cc057d66647f": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x008fe40574e881e7247b50b991c0cc057d66647f"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x008fe40574e881e7247b50b991c0cc057d66647f": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-6969323-usdt-destroyed-black-funds-only.pb",
+   "chain": "eth",
+   "block": 6969323,
+   "block_hash": "0x3a0f86053edc67ad7d5a03c10e6292885a920d10b9bea15a7754ec2670eb70c6",
+   "ver": 3,
+   "source_block_sha256": "6764c9910e5bdf8e03b84be1c12a650f2f232888caea43fdb7e487085a47b771",
+   "fixture_sha256": "0c446945a939c3462633ecb8eb716ac42f7d62e49dc996421225f5fee940e822",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    56
+   ],
+   "selection": "every USDT transaction (only the destroyBlackFunds transaction 56)",
+   "rule": "C3",
+   "demonstrates": "a block whose only USDT frame is destroyBlackFunds(0x...18fe) (tx 56 call 2): no Transfer flow, so the destruction frame votes base 2 and the holder gets 0; v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 56,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x00000000000000000000000000000000000018fe": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x00000000000000000000000000000000000018fe"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x00000000000000000000000000000000000018fe": "0"
+     }
+    }
+   }
+  }
+ ]
+}

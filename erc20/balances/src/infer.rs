@@ -2,13 +2,20 @@
 //! block's persisted storage. Per block and per contract:
 //!
 //! 1. Candidates are the RPC reference's `(contract, holder)` pairs: see
-//!    [`candidates`].
+//!    [`candidates`]. For Tether `Issue`/`Redeem`, where the reference called
+//!    `owner()`, the holder is the sender of the emitting frame: both functions
+//!    are owner-only and move the sender's balance. TrueCurrency's
+//!    `DestroyedBlackFunds` also names its holder.
 //! 2. Every non-reverted call frame of a successful transaction votes. A holder's
 //!    signed net `Transfer` flow in the frame is compared with the net delta of
 //!    the frame's persisted writes whose key has a verified same-frame Keccak
 //!    preimage `pad(holder) || base`. Equal is an exact vote for `base`, unequal
 //!    a mismatch. Exact votes for flows below 10^6 do not count for a base that
-//!    also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` never vote.
+//!    also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` never vote. In a
+//!    block where the contract has no `Transfer` flow, a TetherToken
+//!    `destroyBlackFunds` frame that makes no call and also moves one unhashed
+//!    word (the supply) by the amount it states votes that debit (see
+//!    [`backed`]).
 //! 3. The base is the mapping every keyed `balanceOf` reads, if it has exact
 //!    votes, or else the base with the most exact votes; a tie chooses none.
 //!    A traced `balanceOf` is keyed when its storage context recorded a
@@ -28,11 +35,14 @@
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
 //!    matching, only mismatches of at least a thousandth of the flow count.
 //! 6. Candidate holders written under the base get their last persisted word,
-//!    unless that write is unexplained: a holder other than the contract whose
-//!    last write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
-//!    naming it needs its own keyed `balanceOf`, traced after that write.
-//!    Candidate holders without a write get the value of a keyed `balanceOf`
-//!    that read exactly the base.
+//!    unless that write is unexplained. A write is explained when its frame has
+//!    a `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn` naming the holder, or a
+//!    Tether `Issue`/`Redeem` (for the frame's sender) or `DestroyedBlackFunds`
+//!    whose amount equals the frame's net change of the holder's word, a
+//!    destruction also leaving it at zero. The contract's own word needs no
+//!    explanation. A holder whose last write is unexplained needs its own keyed
+//!    `balanceOf`, traced after that write. Candidate holders without a write
+//!    get the value of a keyed `balanceOf` that read exactly the base.
 //!
 //! Inference never fails a block: any detected doubt drops that contract's
 //! inferred rows for the block. Holders without a write or such a read stay
@@ -45,18 +55,43 @@ type Addr = [u8; 20];
 type Word = [u8; 32];
 /// (system call, transaction index, call index)
 type Frame = (bool, u32, u32);
-/// Net `Transfer` flow per holder of one contract in one frame.
+/// Net voting flow per holder of one contract in one frame.
 type Flows<'a> = BTreeMap<(Frame, Addr), (&'a eth::Call, BTreeMap<Addr, Net>)>;
-/// Per contract, the `(frame, holder)` pairs that a balance event names.
-type Named = BTreeMap<Addr, BTreeSet<(Frame, Addr)>>;
+/// Per contract, the holders that its events name or explain.
+type Named = BTreeMap<Addr, Names>;
+/// Per frame and contract, the net persisted delta and the last new word of
+/// each written key.
+type Framed = BTreeMap<(Frame, Addr), BTreeMap<Word, (Net, Word)>>;
+
+/// The holders whose writes in a frame a contract's events account for.
+#[derive(Default)]
+struct Names {
+    /// `(frame, holder)` pairs that a balance event names.
+    named: BTreeSet<(Frame, Addr)>,
+    /// Tether admin events: the signed amount they state for a holder in a
+    /// frame, and whether its word must end at zero (a destruction). They
+    /// explain the holder's write only when the frame's net change of the
+    /// holder's word under the chosen base equals that amount.
+    admin: BTreeMap<(Frame, Addr), (Net, bool)>,
+}
 
 const SUCCEEDED: eth::TransactionTraceStatus = eth::TransactionTraceStatus::Succeeded;
 const CALL: eth::CallType = eth::CallType::Call;
 const STATIC: eth::CallType = eth::CallType::Static;
 const DELEGATE: eth::CallType = eth::CallType::Delegate;
 const BALANCE_OF: [u8; 4] = [0x70, 0xa0, 0x82, 0x31];
+/// TetherToken `destroyBlackFunds(address)`.
+const DESTROY_BLACK_FUNDS: [u8; 4] = [0xf3, 0xbd, 0xc2, 0x28];
 const ZERO: Addr = [0; 20];
 const TRANSFER: Word = topic("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+/// TetherToken `Issue(uint256)` and `Redeem(uint256)`: the owner-only issue
+/// and redemption of the sender's own balance.
+const ISSUE: Word = topic("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a");
+const REDEEM: Word = topic("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44");
+/// `DestroyedBlackFunds(address,uint256)`: TetherToken's, with nothing
+/// indexed, and TrueCurrency's, with the holder indexed. Both zero a
+/// blacklisted holder's balance and state the amount destroyed.
+const DESTROYED_BLACK_FUNDS: Word = topic("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6");
 /// WETH `Deposit`/`Withdrawal` and the `Mint`/`Burn(address indexed, uint256)`
 /// of DSToken, WBTC, FiatToken and Tether: they name a holder whose balance
 /// changes, but may also mean staking or locking, so they never vote.
@@ -96,10 +131,8 @@ enum Part {
     Topics12,
     Word0,
     Words01,
-    /// The caller of the frame that emitted the log.
-    Caller,
-    /// The reference's holder is an `owner()` RPC result: not reproducible.
-    RpcOwner,
+    /// The msg.sender of the frame that emitted the log (see [`senders`]).
+    Sender,
 }
 struct Shape {
     topic0: Word,
@@ -117,8 +150,12 @@ const fn shape(topic0: &str, topics: usize, data: usize, part: Part) -> Shape {
 }
 /// The event shapes of the RPC reference (substreams-evm erc20-balances v0.3.4
 /// with its erc20-transfers and erc20-tokens inputs): topic0, exact topic count
-/// and exact data length, with no address filter.
-const SHAPES: [Shape; 64] = [
+/// and exact data length, with no address filter. Since v0.7.4 (owner,
+/// 2026-10-17) Tether `Issue`/`Redeem` name the emitting frame's sender, where
+/// the reference called `owner()`: both are owner-only and move the sender's
+/// balance. TrueCurrency's `DestroyedBlackFunds(address indexed,uint256)`, the
+/// last shape, is not one of the reference's.
+const SHAPES: [Shape; 65] = [
     shape("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c", 2, 32, Part::Topic1), // weth.Deposit
     shape("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65", 2, 32, Part::Topic1), // weth.Withdrawal
     shape("ab8530f87dc9b59234c4623bf917212bb2536d647574c8e7e5da92c2ede0c9f8", 3, 32, Part::Topics12), // fiattokenv2_2.Mint
@@ -136,8 +173,8 @@ const SHAPES: [Shape; 64] = [
     shape("7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33", 1, 0, Part::Context), // fiattokenv2_2.Unpause
     shape("1cdd46ff242716cdaa72d159d339a485b3438398348d68f09d7c8c0a59353d81", 3, 0, Part::Context), // fiattokenv2_2.AuthorizationCanceled
     shape("98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5", 3, 0, Part::Context), // fiattokenv2_2.AuthorizationUsed
-    shape("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a", 1, 32, Part::RpcOwner), // tethertoken.Issue
-    shape("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44", 1, 32, Part::RpcOwner), // tethertoken.Redeem
+    shape("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a", 1, 32, Part::Sender), // tethertoken.Issue
+    shape("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44", 1, 32, Part::Sender), // tethertoken.Redeem
     shape("cc358699805e9a8b7f77b522628c7cb9abd07d9efb86b6fb616af1609036a99e", 1, 32, Part::Context), // tethertoken.Deprecate
     shape("b044a1e409eac5c48e5af22d4af52670dd1a99059537a78b31b48c6500a6354e", 1, 64, Part::Context), // tethertoken.Params
     shape("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6", 1, 64, Part::Word0),  // tethertoken.DestroyedBlackFunds
@@ -166,7 +203,7 @@ const SHAPES: [Shape; 64] = [
     shape("9d9c909296d9c674451c0c24f02cb64981eb3b727f99865939192f880a755dcb", 3, 32, Part::Topics12), // steth.TransferShares
     shape("8b2a1e1ad5e0578c3dd82494156e985dade827a87c573b5c1c7716a32162ad64", 2, 96, Part::Topic1), // steth.SharesBurnt
     shape("ee473f96486a2f4b93ccb6729f121223e96975db6e0d6a5ef01f56477e3eab3b", 2, 32, Part::Topic1), // steth.ExternalSharesMinted
-    shape("ad21467656c56eb8c99f7916faa12f7a657a04d8802100acec62e92451ac5606", 1, 32, Part::Caller), // steth.ExternalSharesBurnt
+    shape("ad21467656c56eb8c99f7916faa12f7a657a04d8802100acec62e92451ac5606", 1, 32, Part::Sender), // steth.ExternalSharesBurnt
     shape("4ee34277c93491eeca655ad5c42ae1c193a5719e1c8837df9058af7696817cce", 1, 32, Part::Context), // steth.ExternalEtherTransferredToBuffer
     shape("4e80196ef1285462b2c4ee20f88e18e58c59e405eec6fd51f5fd1d614bc98a7f", 1, 32, Part::Context), // steth.ExternalBadDebtInternalized
     shape("13c514ee70ee403f89bdf5ab83908edba92a77e3a61e19b774670c0a2cb2d7e6", 1, 32, Part::Context), // steth.MaxExternalRatioBpSet
@@ -183,6 +220,7 @@ const SHAPES: [Shape; 64] = [
     shape("61f9416d3c29deb4e424342445a2b132738430becd9fa275e11297c90668b22e", 1, 32, Part::Context), // steth.LidoLocatorSet
     shape("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", 3, 32, Part::Topics12), // erc20.Transfer
     shape("8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925", 3, 32, Part::Topics12), // erc20.Approval
+    shape("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6", 2, 32, Part::Topic1), // truecurrency.DestroyedBlackFunds
 ];
 
 fn insert(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, contract: &[u8], holder: &[u8]) {
@@ -192,7 +230,7 @@ fn insert(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, contract: &[u8], holder: &[u
         }
     }
 }
-fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, caller: Option<&[u8]>) {
+fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, sender: Option<&[u8]>) {
     let Some(topic0) = log.topics.first() else {
         return;
     };
@@ -204,9 +242,8 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
         let topic = |i: usize| Some(&log.topics[i][12..32]);
         let word = |i: usize| Some(&log.data[i * 32 + 12..i * 32 + 32]);
         let parts = match s.part {
-            Part::RpcOwner => continue,
-            Part::Caller => match caller {
-                Some(caller) => [Some(caller), None],
+            Part::Sender => match sender {
+                Some(sender) => [Some(sender), None],
                 None => continue,
             },
             Part::Context => [None, None],
@@ -228,9 +265,10 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
 }
 /// The RPC reference's `(contract, holder)` candidates for a block, by
 /// contract. Successful transactions' logs from non-reverted calls (receipt
-/// logs when a trace has no calls) that match a reference event shape add
+/// logs when a trace has no calls) that match an event shape of [`SHAPES`] add
 /// its holders, `tx.from` and the contract; zero or non-20-byte addresses are
-/// dropped. USDT `Issue`/`Redeem` are omitted: their holder needs `owner()` RPC.
+/// dropped. Tether `Issue`/`Redeem` and stETH `ExternalSharesBurnt` take the
+/// emitting frame's msg.sender.
 pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
     let mut out = BTreeMap::new();
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
@@ -239,11 +277,26 @@ pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
                 visit(&mut out, &tx.from, log, None);
             }
         }
+        let senders = senders(tx);
         for call in tx.calls.iter().filter(|c| !c.state_reverted) {
             for log in &call.logs {
-                visit(&mut out, &tx.from, log, Some(&call.caller));
+                visit(&mut out, &tx.from, log, senders.get(&call.index).copied());
             }
         }
+    }
+    out
+}
+/// The msg.sender of each call of a transaction, by call index: a
+/// DELEGATECALL runs with its parent's sender, every other call with its own
+/// caller (Firehose records a DELEGATECALL's caller as the proxy itself).
+fn senders(tx: &eth::TransactionTrace) -> BTreeMap<u32, &[u8]> {
+    let mut out = BTreeMap::new();
+    for c in &tx.calls {
+        let own = match out.get(&c.parent_index) {
+            Some(parent) if c.call_type == DELEGATE => *parent,
+            _ => &c.caller[..],
+        };
+        out.insert(c.index, own);
     }
     out
 }
@@ -381,13 +434,40 @@ impl persist::Sink for Persisted<'_> {
     }
 }
 
+/// A Tether admin event: the holder whose word it moves, its signed amount,
+/// and whether the word must end at zero. `Issue`/`Redeem` move the emitting
+/// frame's sender; `DestroyedBlackFunds` zeroes the holder it names (data word
+/// 0 for TetherToken, topic 1 for TrueCurrency). An amount of zero, a
+/// malformed holder or the zero address gives none.
+fn admin(log: &eth::Log, t0: &[u8], sender: impl FnOnce() -> Option<Addr>) -> Option<(Addr, Net, bool)> {
+    let (topics, data) = (log.topics.len(), &log.data[..]);
+    let (holder, amount, debit, zero) = match (topics, data.len()) {
+        (1, 32) if t0 == ISSUE => (sender()?, data, false, false),
+        (1, 32) if t0 == REDEEM => (sender()?, data, true, false),
+        (1, 64) if t0 == DESTROYED_BLACK_FUNDS => (topic_address(&data[..32])?, &data[32..], true, true),
+        (2, 32) if t0 == DESTROYED_BLACK_FUNDS => (topic_address(&log.topics[1])?, data, true, true),
+        _ => return None,
+    };
+    let amount = Word::try_from(amount).ok().filter(|a| *a != [0; 32])?;
+    let mut net = Net::default();
+    if debit {
+        net.sub(&amount);
+    } else {
+        net.add(&amount);
+    }
+    (holder != ZERO).then_some((holder, net, zero))
+}
+
 /// Net `Transfer` flows per frame of contracts with persisted writes, and the
-/// holders that their balance events name. Self-destructing contracts and
-/// malformed event addresses are doubted.
+/// holders that their balance events name or that a Tether admin event may
+/// explain. Self-destructing contracts and malformed event addresses are
+/// doubted.
 fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: &mut BTreeSet<Addr>) -> (Flows<'a>, Named) {
     let mut flows = Flows::new();
     let mut named = Named::new();
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        // Resolved only for a transaction with an `Issue` or `Redeem`.
+        let mut senders_of_tx = None;
         for call in tx.calls.iter().filter(|c| !c.state_reverted) {
             if call.suicide {
                 // SELFDESTRUCT acts on the storage context: a DELEGATECALL's caller.
@@ -402,7 +482,17 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
                 let Some(token) = Addr::try_from(log.address.as_slice()).ok().filter(|t| writes.contains_key(t)) else {
                     continue;
                 };
-                let (Some(t0), Ok(value)) = (log.topics.first(), Word::try_from(log.data.as_slice())) else {
+                let Some(t0) = log.topics.first() else {
+                    continue;
+                };
+                let sender = || Addr::try_from(*senders_of_tx.get_or_insert_with(|| senders(tx)).get(&call.index)?).ok();
+                if let Some((holder, amount, zero)) = admin(log, t0, sender) {
+                    let entry = named.entry(token).or_default().admin.entry((frame, holder)).or_default();
+                    entry.0.merge(&amount);
+                    entry.1 |= zero;
+                    continue;
+                }
+                let Ok(value) = Word::try_from(log.data.as_slice()) else {
                     continue;
                 };
                 let transfer = log.topics.len() == 3 && t0[..] == TRANSFER;
@@ -414,7 +504,7 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
                     doubt.insert(token);
                     continue;
                 };
-                named.entry(token).or_default().extend(holders.iter().map(|h| (frame, *h)));
+                named.entry(token).or_default().named.extend(holders.iter().map(|h| (frame, *h)));
                 if transfer && holders[0] != holders[1] {
                     let net = nets.entry(token).or_default();
                     if holders[0] != ZERO {
@@ -451,21 +541,84 @@ struct Tally {
     /// The base has its own verified 64-byte preimage: an inner mapping.
     nested: bool,
 }
-fn votes(flows: &Flows, writes: &BTreeMap<Addr, Vec<Write>>) -> BTreeMap<Addr, BTreeMap<Word, Tally>> {
-    // Net persisted delta per key, per frame and contract.
-    let mut framed = BTreeMap::<(Frame, Addr), BTreeMap<Word, Net>>::new();
+/// The net persisted delta and last new word of each key, per frame and
+/// contract. Writes are in execution order.
+fn framed(writes: &BTreeMap<Addr, Vec<Write>>) -> Framed {
+    let mut framed = Framed::new();
     for (token, ws) in writes {
-        for w in ws.iter().filter(|w| flows.contains_key(&(w.frame, *token))) {
-            let d = framed.entry((w.frame, *token)).or_default().entry(w.key).or_default();
+        for w in ws {
+            let (d, last) = framed.entry((w.frame, *token)).or_default().entry(w.key).or_default();
             d.add(&w.new);
             d.sub(&w.old);
+            *last = w.new;
         }
     }
+    framed
+}
+
+/// Frames that vote in a block where their contract has no `Transfer` flow:
+/// a TetherToken `destroyBlackFunds(holder)` frame. It is a CALL to the
+/// contract that makes no call, its only log of the contract is the 1-topic
+/// `DestroyedBlackFunds(holder, amount)`, and its persisted writes of the
+/// contract are two keys: the holder's word, whose same-frame preimage is
+/// `pad(holder) || base` and which ends at zero, and one word without a
+/// 64-byte preimage (the total supply) that falls by the amount. It votes the
+/// debit of the amount from the holder. `Issue`/`Redeem` never vote: a
+/// deprecated TetherToken still issues to its owner after `balanceOf` moved
+/// to the upgraded contract.
+fn backed<'a>(block: &'a eth::Block, framed: &Framed, flows: &mut Flows<'a>) {
+    let voted: BTreeSet<Addr> = flows.keys().map(|(_, token)| *token).collect();
+    for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        let mut children = None;
+        for call in tx.calls.iter().filter(|c| !c.state_reverted && !c.status_failed && c.call_type == CALL) {
+            let frame = (false, tx.index, call.index);
+            let Some(token) = Addr::try_from(call.address.as_slice()).ok().filter(|t| !voted.contains(t)) else {
+                continue;
+            };
+            let Some(keys) = framed.get(&(frame, token)).filter(|keys| keys.len() == 2) else {
+                continue;
+            };
+            let mut logs = call.logs.iter().filter(|l| l.address[..] == token[..]);
+            let (Some(log), None) = (logs.next(), logs.next()) else {
+                continue;
+            };
+            if log.topics.len() != 1 || log.topics[0][..] != DESTROYED_BLACK_FUNDS {
+                continue;
+            }
+            let Some((holder, amount, _)) = admin(log, &log.topics[0], || None) else {
+                continue;
+            };
+            // Every child, reverted or not, counts.
+            let children = children.get_or_insert_with(|| {
+                let mut n = BTreeMap::<u32, u32>::new();
+                for c in tx.calls.iter().filter(|c| c.depth > 0) {
+                    *n.entry(c.parent_index).or_default() += 1;
+                }
+                n
+            });
+            let input = &call.input;
+            if children.contains_key(&call.index) || input.len() < 36 || input[..4] != DESTROY_BLACK_FUNDS || input[4..16] != [0; 12] || input[16..36] != holder
+            {
+                continue;
+            }
+            let backs = |(key, (delta, last)): (&Word, &(Net, Word))| match preimage(call, key) {
+                Some((h, _)) => h == holder && *last == [0; 32],
+                None => preimage64(call, key).is_none() && *delta == amount,
+            };
+            let mut owners = keys.keys().filter_map(|key| preimage(call, key)).map(|(h, _)| h);
+            if keys.iter().all(backs) && owners.next() == Some(holder) && owners.next().is_none() {
+                flows.insert((frame, token), (call, BTreeMap::from([(holder, amount)])));
+            }
+        }
+    }
+}
+
+fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Word, Tally>> {
     let mut tallies = BTreeMap::<Addr, BTreeMap<Word, Tally>>::new();
     for (key, (call, net)) in flows {
         // Each distinct key, and each base, is resolved once per frame.
         let mut deltas = BTreeMap::<(Addr, Word), Net>::new();
-        for (k, d) in framed.get(key).into_iter().flatten() {
+        for (k, (d, _)) in framed.get(key).into_iter().flatten() {
             if let Some(resolved) = preimage(call, k) {
                 deltas.entry(resolved).or_default().merge(d);
             }
@@ -667,9 +820,19 @@ fn decide(
     writes: &[Write],
     reads: &[Read],
     holders: &BTreeSet<Addr>,
-    named: &BTreeSet<(Frame, Addr)>,
+    names: &Names,
+    framed: &Framed,
 ) -> Option<BTreeMap<Addr, Word>> {
     let base = choose(tallies, reads)?;
+    // A Tether admin event explains a holder's write in its frame when the
+    // frame's net change of the holder's word equals the amount it states, and
+    // a destruction also leaves the word at zero.
+    let explained = |frame: Frame, holder: &Addr| {
+        names.admin.get(&(frame, *holder)).is_some_and(|(amount, zero)| {
+            let written = framed.get(&(frame, *token)).and_then(|keys| keys.get(&mapping(holder, &base)));
+            written.is_some_and(|(delta, last)| delta == amount && (!zero || *last == [0; 32]))
+        })
+    };
     let mut by_key = BTreeMap::<Word, Vec<&Write>>::new();
     for w in writes {
         by_key.entry(w.key).or_default().push(w);
@@ -730,12 +893,12 @@ fn decide(
     }
     for holder in holders {
         if let Some(last) = by_key.get(&mapping(holder, &base)).and_then(|ws| ws.last()) {
-            // A third party's word changed with no balance event naming it in
-            // that frame (a flag, an admin or a sync write) needs its own read,
-            // traced after that write: a read before it validated only the
-            // word it saw.
+            // A third party's word changed with no balance event naming or
+            // explaining it in that frame (a flag, an admin or a sync write)
+            // needs its own read, traced after that write: a read before it
+            // validated only the word it saw.
             let vouched = read.get(holder).is_some_and(|begin| *begin > last.ordinal);
-            if holder == token || named.contains(&(last.frame, *holder)) || vouched {
+            if holder == token || names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched {
                 values.insert(*holder, last.new);
             }
         }
@@ -767,16 +930,19 @@ pub(crate) fn rows(block: &eth::Block) -> BTreeMap<(Addr, Addr), Word> {
     for ws in writes.values_mut() {
         ws.sort_by_key(|w| w.ordinal);
     }
-    let (flows, named) = flows(block, &writes, &mut doubt);
-    let tallies = votes(&flows, &writes);
+    let framed = framed(&writes);
+    let (mut flows, named) = flows(block, &writes, &mut doubt);
+    backed(block, &framed, &mut flows);
+    let tallies = votes(&flows, &framed);
     let reads = reads(block, &tallies);
     doubt.extend(truncated(block, &tallies));
-    let nobody = BTreeSet::new();
-    // A contract has tallies only if a nonzero `Transfer` moved a holder.
+    let nobody = Names::default();
+    // A contract has tallies only if a nonzero `Transfer` moved a holder or a
+    // backed frame voted.
     for (token, t) in tallies.iter().filter(|(token, _)| !doubt.contains(*token)) {
         let token_reads = reads.get(token).map(Vec::as_slice).unwrap_or_default();
-        let named = named.get(token).unwrap_or(&nobody);
-        if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], named) {
+        let names = named.get(token).unwrap_or(&nobody);
+        if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], names, &framed) {
             // A balance word at or above 2^128 holds another field next to the
             // balance (a packed timestamp, FiatToken v2.2's blacklist flag in
             // bit 255) that did not move in the block, so the slot is not a

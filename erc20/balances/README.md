@@ -41,8 +41,12 @@ longer recorded preimages are never decoded. Per block and per contract
 
 1. **Candidates** are the RPC reference's `(contract, holder)` pairs: logs of
    non-reverted calls in successful transactions matching its 64 event shapes,
-   their participants, `tx.from` and the emitting contract. USDT
-   `Issue`/`Redeem` holders need an `owner()` call and are excluded.
+   their participants, `tx.from` and the emitting contract. Since v0.7.4
+   (owner, 2026-10-17), Tether `Issue`/`Redeem`, whose holder the reference
+   took from an `owner()` call, name the msg.sender of the emitting frame
+   (both are owner-only and move the sender's balance), and TrueCurrency's
+   `DestroyedBlackFunds(address indexed, uint256)`, which the reference lacks,
+   names its holder.
 2. **Votes**: in every such call frame, each holder's signed net `Transfer` flow
    is compared with the net persisted delta of the frame's writes whose key has
    a verified same-frame preimage `pad(holder) || base`. DELEGATECALL frames
@@ -50,7 +54,14 @@ longer recorded preimages are never decoded. Per block and per contract
    10^6 do not count for a mapping that also mismatches. `Deposit`,
    `Withdrawal`, `Mint` and `Burn` never vote, because staking pools and lock
    ledgers emit the same shapes; a contract without a nonzero `Transfer` in
-   the block is not inferred.
+   the block is not inferred, with one exception since v0.7.4. There a
+   TetherToken `destroyBlackFunds(holder)` frame votes the debit that its
+   1-topic `DestroyedBlackFunds(holder, amount)` states: a CALL to the contract
+   that makes no call, with that one log of the contract, whose writes are the
+   holder's word, which ends at zero, and one unhashed word (the supply), which
+   falls by the amount. Tether `Issue`/`Redeem` never vote: a deprecated
+   TetherToken still issues to its owner once its `balanceOf` forwards to the
+   upgraded contract.
 3. **Base**: the mapping every keyed `balanceOf` reads, if it has exact votes;
    otherwise the mapping with the most exact votes, and a tie infers nothing.
    A traced `balanceOf` is keyed when its storage context recorded a
@@ -75,7 +86,10 @@ longer recorded preimages are never decoded. Per block and per contract
    naming a holder other than the contract itself (a flag such as FiatToken's
    blacklist bit, an admin or a sync write), that holder needs its own keyed
    `balanceOf`, traced after that write: a read before it saw only the earlier
-   word. A candidate without a write gets the value of a keyed
+   word. Since v0.7.4 a Tether `Issue`/`Redeem` (for the frame's sender) or
+   `DestroyedBlackFunds` in the frame also explains the write when its amount
+   equals the frame's net change of the holder's word, a destruction also
+   leaving it at zero. A candidate without a write gets the value of a keyed
    `balanceOf` that read only the base. Everyone else stays unknown; nothing
    becomes zero.
 
@@ -275,7 +289,13 @@ the 383 preimages a 5.5.0 producer would not record
 ([`bsc-122260950-5.5.0-dropped-preimages.json`](tests/fixtures/bsc-122260950-5.5.0-dropped-preimages.json)),
 13 of its `balanceOf` calls lose their holder's preimage and all 164 rows stay
 the same. The tests of the embedded persistence rules also cover the captured
-Arbitrum One SetCode transactions.
+Arbitrum One SetCode transactions. The v0.7.4 captures in
+[`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum and BSC blocks cut
+to one token's transactions, with their provenance and the RPC-era values at
+each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded
+RPC-era value equals its row. They include five Tether destructions and a
+redemption whose holders v0.7.3 left at the old balance, and two blocks whose
+only USDT frame is a destruction.
 
 ## History
 
