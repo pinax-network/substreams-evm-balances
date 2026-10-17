@@ -328,7 +328,8 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`: `spkg/evm-balances-erc20-v0.7.3.spkg`, not live-qualified. v0.7.1
+`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.3.spkg`,
+not live-qualified; v0.7.4's comes from CI's artifact. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
 same rows on every block v0.7.0 decodes. v0.7.2 drops a contract's rows for
@@ -338,7 +339,21 @@ recovers the SetCode boundary of Arbitrum One's `Block.ver` 3
 ([producer releases](#producer-releases)) and otherwise gives v0.7.2's rows;
 its ClickHouse history keeps only the 1h, 4h, 1d and 1w bars the Token API
 serves (owner, 2026-10-14), and the replay check and repair work in 1-hour
-windows. Before v0.7.0 it was `erc20_balances`:
+windows. v0.7.4 (owner, 2026-10-17) addresses the causes of stale and
+missing rows that the investigation of 131 saved Ethereum, BSC and Polygon
+blocks found in v0.7.3: it
+reads `balanceOf` inputs longer than 36 bytes and doubts the cut shape only
+where a cut was possible, lets native-backed WETH9 frames and TetherToken
+destructions vote in a block without a `Transfer`, explains Tether's admin
+writes, vouches for an unexplained write only with a later read, orders
+Polygon state syncs by depth-1 call, and reads Vyper's key order (rules 1 to
+6, [producer releases](#producer-releases), [limits](#limits)). On those
+blocks it keeps all 31,745 rows of v0.7.3 with the same value and adds 16,363:
+15,814 from long reads, 36 from WETH9 frames, 8 from Tether's admin events,
+24 from Polygon state syncs and 481 from Vyper tokens. Because its rows differ
+from v0.7.3's for past blocks, it is written to a new database,
+`<chain>:evm-balances-erc20@v0.7.4`, by a full resync. Before v0.7.0 it was
+`erc20_balances`:
 `spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions skip
 v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf generation
 is needed here; the public schema is already maintained by the shared `proto`

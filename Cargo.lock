@@ -269,7 +269,7 @@ dependencies = [
 
 [[package]]
 name = "erc20-balances"
-version = "0.7.3"
+version = "0.7.4"
 dependencies = [
  "buffa",
  "buffa-types",

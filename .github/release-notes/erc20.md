@@ -1,5 +1,16 @@
 ERC-20 balances from Firehose **Extended** blocks, inferred per block from `Transfer` flows and persisted storage, and written to ClickHouse in the ERC-20 tables of substreams-evm `evm-balances` v0.3.4. No RPC, no params and no token list; the default network is BSC. Native balances are the separate `evm-balances-native` package, with their own database.
 
+## This release
+
+v0.7.4 (owner, 2026-10-17) changes which rows are inferred, for past blocks as well as new ones, so it is written to a **new database, `<chain>:evm-balances-erc20@v0.7.4`, filled by a full resync** from each network's start block; a v0.7.3 database is not reused. On 131 saved Ethereum, BSC and Polygon blocks it keeps every v0.7.3 row with the same value and adds 16,363 rows ([history](https://github.com/${REPO}/blob/${TAG}/erc20/balances/README.md#build-and-rust-tests)):
+
+- A `balanceOf` input longer than 36 bytes (bots reuse a 68-byte `transfer` buffer) is read as `balanceOf(input[16..36])` instead of dropping the token for the block, and the cut shape (a 4-byte input or no return data) drops it only where the tracer could have cut the call.
+- In a block without a `Transfer` of the contract, a native-backed WETH9 deposit or withdrawal and a TetherToken `destroyBlackFunds` vote.
+- Tether `Issue`/`Redeem` name the sender of the emitting frame, and they and `DestroyedBlackFunds` explain the writes whose net change equals their amount.
+- A `balanceOf` vouches for an unexplained write only when it was traced after it.
+- Polygon's state-sync transaction is ordered by its depth-1 calls.
+- Vyper's `HashMap` key order is read (crvUSD, CRV, Curve pools and gauges, Yearn vaults); under it, a contract's own row needs a `balanceOf` of the contract after its last write, because a Yearn v3 vault computes its own balance.
+
 ## Included
 
 | File | Modules | Contents |
@@ -52,9 +63,10 @@ substreams-sink-sql run "$SUBSTREAMS_SINK_DSN" "$PKG" <start-block>: \
 
 ## Before you deploy
 
-- **Not live-qualified.** No dated live evidence exists for this build yet ([#124](https://github.com/${REPO}/issues/124)).
+- **Not live-qualified.** No dated live evidence exists for this build yet ([#124](https://github.com/${REPO}/issues/124)). v0.7.4's rules were checked offline on captured blocks against the RPC-era database, not on a live stream.
 - **Reorgs.** The sink holds the newest 5 blocks back instead of waiting for finality. A fork deeper than that stops the sink; after a restart it continues on the canonical chain, but the rows it wrote for the orphaned blocks stay. This is an accepted risk ([reorgs](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#build-and-deploy)).
 - **Rows are measured, not qualified.** On five captured BSC intervals, the inference reproduced 58.5–62.8% of the RPC reference rows with 99.92–100% value precision ([measured](https://github.com/${REPO}/blob/${TAG}/erc20/balances/README.md#measured)). Pairs it does not emit keep their previous value, and computed balances (reward, reflection, rebasing) can be missed. [Monitor](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#monitoring) ERC-20 rows per block.
+- **Own rows of Vyper vaults.** A Yearn v3 vault's `balanceOf(vault)` falls with time while its stored word stays, so v0.7.4 emits the vault's own row only after a traced `balanceOf(vault)`, where the RPC era re-read it in nearly every block that touched the vault. Between such reads the database keeps the vault's last emitted value.
 - **Inference never fails a block.** A native refusal no longer stops these rows: native is its own sink.
 - **Start block.** A block that is not Extended stops the stream. Where a network's Extended blocks begin after genesis, start at the first whole 1,000-block segment of them: Optimism 105,236,000, Arbitrum One 22,208,000 ([start blocks](https://github.com/${REPO}/blob/${TAG}/native/balances/README.md#input-and-networks)).
 - **Cutover** from the RPC-era database: follow the [cutover steps](https://github.com/${REPO}/blob/${TAG}/docs/clickhouse.md#cutover-and-backfill) and the [cutover contract](https://github.com/${REPO}/blob/${TAG}/docs/initialization-and-completeness.md).

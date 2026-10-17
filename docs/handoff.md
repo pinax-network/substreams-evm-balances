@@ -25,7 +25,8 @@ since 2026-10-14 (owner) backfills wrote ranges whose noops passed:
 `bsc:evm-balances-erc20@v0.7.1` [0, 23.5M) and [76.5M, 113.8M), and
 `mainnet:evm-balances-erc20@v0.7.0` [0, 26.2M). The last of them ended on
 2026-10-15, and all are superseded: the owner decided on 2026-10-14 to resync BSC and Ethereum into
-new databases with native v0.7.8 and ERC-20 v0.7.3, whose historical views
+new databases with native v0.7.8 and ERC-20 v0.7.3 (since 2026-10-17 ERC-20
+v0.7.4, below), whose historical views
 keep only the intervals the Token API serves (1h, 4h, 1d, 1w), after their
 noops pass, and wants one release for every supported chain, each
 spot-checked and nooped before the tag. Ethereum native passed its full-history noop
@@ -48,6 +49,12 @@ has four of the v0.7.8 rules, and ERC-20 v0.7.3 has no spkg yet: both come
 from CI's `packages` artifact of the final source before the merge. ERC-20
 v0.7.2 (#165) was never released; its committed spkg keeps the earlier
 history schema.
+
+**ERC-20 v0.7.4 (2026-10-17, unreleased, no spkg yet)** replaces v0.7.3 for
+the resync: the owner wants the causes of stale and missing ERC-20 rows that
+the v0.7.4 investigation found in v0.7.3 fixed before the full Ethereum and
+BSC resyncs. It writes `<chain>:evm-balances-erc20@v0.7.4`; native is
+unchanged ([ERC-20 history](../erc20/balances/README.md#build-and-rust-tests)).
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -111,9 +118,14 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   2^128 (packed or computed slots); it was not released. v0.7.3 (unreleased,
   above) takes the shared rules' SetCode boundary, on which v0.7.2 refused
   Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows on every block
-  v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. Not
-  qualified. Offline, on five captured BSC intervals scored against every row
-  the RPC reference package emitted for them, it reproduces 58.5–62.8% of
+  v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. v0.7.4
+  (above) reads long `balanceOf` inputs, lets WETH9 frames and Tether
+  destructions vote without a `Transfer`, explains Tether's admin writes,
+  vouches for an unexplained write only with a later read, orders Polygon
+  state syncs by call and reads Vyper's key order; on 131 saved blocks it
+  keeps every v0.7.3 row and adds 16,363. Not qualified. Offline, on five
+  captured BSC intervals scored against every row the RPC reference package
+  emitted for them, the inference reproduces 58.5–62.8% of
   those rows with 99.92–100% value precision
   ([measured](../erc20/balances/README.md#measured) gives each interval and
   its scored holders). v0.4.0 runs in the BSC shadow below. The earlier layout
@@ -154,7 +166,7 @@ over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
 balances among 10,223,501 same-block pairs (precision 0.999844)
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 That is shadow evidence for v0.6.1, not live qualification. The sinks of
-native v0.7.8 and ERC-20 v0.7.3 replace this shadow after their noops pass.
+native v0.7.8 and ERC-20 v0.7.4 replace this shadow after their noops pass.
 
 A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
 below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had
@@ -232,17 +244,18 @@ noop of the CI-built spkgs gives the release's numbers.
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Pre-release: commit the CI-built native v0.7.8 and ERC-20 v0.7.3 spkgs from
-   PR #166's `packages` artifact, and run their pre-release noop
+1. Pre-release: commit the CI-built ERC-20 v0.7.4 spkg from its pull
+   request's `packages` artifact (native v0.7.8's came from PR #166's), and
+   run both packages' pre-release noop
    ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
    supported network: the hard-fork windows, the windows where the 2026-10-14
    refusals appeared and the latest blocks. A refusal is fixed and the noop
    rerun before the merge.
 2. Release both packages by their own tags, `evm-balances-native-v0.7.8` and
-   `evm-balances-erc20-v0.7.3`.
+   `evm-balances-erc20-v0.7.4`.
 3. Resync BSC and Ethereum into new databases,
    `<chain>:evm-balances-native@v0.7.8` and
-   `<chain>:evm-balances-erc20@v0.7.3`: first the full-history noop of each
+   `<chain>:evm-balances-erc20@v0.7.4`: first the full-history noop of each
    released package, then the backfill from genesis of the ranges it passed
    and the live sink
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
