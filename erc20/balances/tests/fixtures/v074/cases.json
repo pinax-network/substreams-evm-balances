@@ -1142,7 +1142,8 @@
    "removed_since_v073": [],
    "rpc_era": {
     "database": "bsc:evm-balances@v0.3.3",
-    "values": {}
+    "values": {},
+    "note": "Not confirmed at the block, read-only, 2026-10-17: the RPC era has no 1-minute bar there; its observations before (block 122,287,736: 986695725389579487777) and after (block 122,288,121: 981759524013973611004) bracket it. In the capture, the token's own balanceOf of the holder traced after the deposit in the same transaction (call 19) returns the row. The full block is not kept, so later transactions of the block are not reflected."
    },
    "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
   },
@@ -1194,7 +1195,12 @@
    "removed_since_v073": [],
    "rpc_era": {
     "database": "bsc:evm-balances@v0.3.3",
-    "values": {}
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "47036052789971507993"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's previous RPC-era observation (historical_erc20_balances_state, close at block 122,287,634: 47161234038734946494) plus its WBNB transfers, deposits and withdrawals in bsc:evm-transfers@v0.3.3 up to the block (-125181248763438501) gives the value; adding those up to the next observation (block 122,288,120) gives its open, 47053978436890657813."
    },
    "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
   },
@@ -1519,7 +1525,12 @@
    "removed_since_v073": [],
    "rpc_era": {
     "database": "bsc:evm-balances@v0.3.3",
-    "values": {}
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x8eccf824e72521e2a28515a934ef8ca7fc525a07": "0"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's next RPC-era observation (historical_erc20_balances_state, block 877,370) is 0, and bsc:evm-transfers@v0.3.3 has no transfer, deposit or withdrawal of the holder in the token between the block and it."
    }
   },
   {
@@ -1566,7 +1577,12 @@
    "removed_since_v073": [],
    "rpc_era": {
     "database": "mainnet:evm-balances@v0.3.3",
-    "values": {}
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628": "0"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's next RPC-era observation (historical_erc20_balances_state, block 10,053,856) is 0, and mainnet:evm-transfers@v0.3.3 has no transfer, deposit or withdrawal of the holder in the token between the block and it."
    }
   },
   {
