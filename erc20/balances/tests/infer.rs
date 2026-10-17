@@ -2,9 +2,13 @@
 //! captured block 122260950 against its saved same-block RPC values, also as a
 //! firehose-tracer 5.5.0 producer would record it.
 use buffa::Message;
-use erc20_balances::run;
 use substreams_ethereum::pb::eth::v2 as eth;
 use tiny_keccak::{Hasher, Keccak};
+
+/// `map_events` on a block delivered as its own encoding.
+fn run(b: &eth::Block) -> Result<proto::pb::evm::balances::v1::Events, substreams::errors::Error> {
+    erc20_balances::run(b, b.encoded_len() as usize)
+}
 
 fn hash(bytes: &[u8]) -> [u8; 32] {
     let mut out = [0; 32];
@@ -359,25 +363,119 @@ fn unkeyed_reads_only_veto() {
     assert_eq!(with(vec![vec![simple()], vec![sync]], vec![unkeyed(2, C, 60)]), vec![r(A, 70), r(B, 35)]);
 }
 
-/// Producers on firehose-tracer 5.5.0 and later cut a transaction's later
-/// internal calls to their selector past 50 MiB of call input, and drop their
-/// return data past 25 MiB. A successful `balanceOf` of the token without a
-/// 36-byte input or return data may be a read whose veto was lost, so it drops
-/// the token's rows.
+/// Producers on firehose-tracer 5.5.0 (`Block.ver` 5) cut a transaction's
+/// later internal calls to their selector past 50 MiB of call input and drop
+/// their return data past 25 MiB, and cut a block over 1 GiB again with
+/// halved limits. A successful `balanceOf` of the token that keeps only its
+/// selector or has no return data may then be a read whose veto was lost, so
+/// it drops the token's rows where a cut was possible: in a transaction whose
+/// internal calls record more than 25 MiB of input or 12.5 MiB of return
+/// data, or in a block of 64 MiB or 150M gas. Elsewhere it is neither a read
+/// nor a doubt.
 #[test]
-fn truncated_balance_of_calls_drop_the_token() {
-    let with = |read: eth::Call| rows(&block(vec![vec![simple()], router(vec![read])]));
+fn cut_balance_of_calls_drop_the_token_where_a_cut_was_possible() {
     let mut input = balance_of(2, B, BASE, 35, 50);
     input.input.truncate(4);
-    assert!(with(input.clone()).is_empty());
     let mut output = balance_of(2, B, BASE, 35, 50);
     output.return_data.clear();
-    assert!(with(output).is_empty());
-    // A failed call, or a call to another contract, is not a read.
+    let mut big_input = call(3, 1, 1, eth::CallType::Call, [0x55; 20]);
+    big_input.input = vec![0; (25 << 20) + 1];
+    let mut big_return = call(3, 1, 1, eth::CallType::Call, [0x55; 20]);
+    big_return.return_data = vec![0; (25 << 19) + 1];
+    let with = |calls: Vec<eth::Call>| block(vec![vec![simple()], router(calls)]);
+    let kept = vec![r(A, 70), r(B, 35)];
+    // A 4-byte call that a token compiled before Solidity 0.5 answers with
+    // balanceOf(0), or a call that returned nothing.
+    assert_eq!(rows(&with(vec![input.clone()])), kept);
+    assert_eq!(rows(&with(vec![output.clone()])), kept);
+    assert!(rows(&with(vec![input.clone(), big_input.clone()])).is_empty());
+    assert!(rows(&with(vec![output.clone(), big_input.clone()])).is_empty());
+    assert!(rows(&with(vec![output.clone(), big_return.clone()])).is_empty());
+    // Exactly 25 MiB of internal input, the 4-byte call's own included.
+    let mut exact = big_input.clone();
+    exact.input.truncate((25 << 20) - 4);
+    assert_eq!(rows(&with(vec![input.clone(), exact])), kept);
+    // The root call's input is never cut and does not count.
+    let mut root_input = with(vec![input.clone()]);
+    root_input.transaction_traces[1].calls[0].input = big_input.input.clone();
+    assert_eq!(rows(&root_input), kept);
+    // A block that a later halving could have cut.
+    let mut gas = with(vec![input.clone()]);
+    gas.header.get_or_insert_default().gas_used = 150_000_000;
+    assert!(rows(&gas).is_empty());
+    let small = with(vec![input.clone()]);
+    let at = |len: usize| erc20_balances::run(&small, len).unwrap().balances.len();
+    assert_eq!((at(64 << 20), at((64 << 20) - 1)), (0, 2));
+    // Producers before 5.5.0 (Block.ver 3 and 4) cut nothing.
+    let mut older = with(vec![input.clone(), big_input.clone()]);
+    older.ver = 4;
+    assert_eq!(rows(&older), kept);
+    // A failed call, or a call to another contract, is not a cut read.
     input.status_failed = true;
-    assert_eq!(with(input.clone()), vec![r(A, 70), r(B, 35)]);
+    assert_eq!(rows(&with(vec![input.clone(), big_input.clone()])), kept);
     (input.status_failed, input.address) = (false, [0x55; 20].to_vec());
-    assert_eq!(with(input), vec![r(A, 70), r(B, 35)]);
+    assert_eq!(rows(&with(vec![input, big_input])), kept);
+}
+
+/// A `balanceOf` input of more than 36 bytes is read as
+/// `balanceOf(input[16..36])`, as the ABI decoder reads it (arbitrage bots
+/// reuse a 68-byte `transfer(address,uint256)` buffer): it vetoes, vouches and
+/// supplies a value like a 36-byte read. A shorter input, or a longer one with
+/// nonzero upper address bytes, succeeds only on a token compiled before
+/// Solidity 0.5, which zero-extends and masks the argument: it only vetoes. A
+/// 36-byte input with nonzero upper bytes stays ignored.
+#[test]
+fn long_balance_of_inputs_are_reads() {
+    // Holders whose zero-extended 28-byte argument names them.
+    const Y: [u8; 20] = [0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0x59, 0, 0, 0, 0, 0, 0, 0, 0];
+    const Z: [u8; 20] = [0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0x5a, 0, 0, 0, 0, 0, 0, 0, 0];
+    let with = |reads: Vec<eth::Call>| rows(&block(vec![vec![simple()], router(reads)]));
+    let kept = vec![r(A, 70), r(B, 35)];
+    let long = |holder: [u8; 20], value: u64, tail: &[u8]| {
+        let mut c = balance_of(2, holder, BASE, value, 50);
+        c.input.extend_from_slice(tail);
+        c
+    };
+    assert_eq!(with(vec![long(B, 35, &[0; 32])]), kept);
+    let tail = hex::decode("0694f01c00000000000000000000000000000000000000000000000000000000").unwrap();
+    assert_eq!(with(vec![long(B, 35, &tail)]), kept);
+    assert_eq!(with(vec![long(B, 35, &[0; 28])]), kept);
+    assert!(with(vec![long(B, 36, &[0; 32])]).is_empty());
+    assert_eq!(with(vec![long(FROM, 42, &[0; 32])]), vec![r(A, 70), r(B, 35), r(FROM, 42)]);
+    let mut unkeyed = long(B, 35, &[0; 32]);
+    unkeyed.keccak_preimages.clear();
+    let mut outside = call(3, 2, 2, eth::CallType::Static, [0x55; 20]);
+    outside.return_data = w(1);
+    assert!(with(vec![unkeyed, outside]).is_empty());
+    // Nonzero upper address bytes: the masked holder, veto only.
+    let dirty = |holder: [u8; 20], value: u64, tail: &[u8]| {
+        let mut c = long(holder, value, tail);
+        c.input[4] = 1;
+        c
+    };
+    assert_eq!(with(vec![dirty(B, 35, &[0; 32])]), kept);
+    assert!(with(vec![dirty(B, 36, &[0; 32])]).is_empty());
+    assert_eq!(with(vec![dirty(FROM, 42, &[0; 32])]), kept);
+    assert_eq!(with(vec![dirty(B, 36, &[])]), kept);
+    // A 28-byte input: the zero-extended argument, veto only.
+    let mut moved = root();
+    moved.logs = vec![transfer(Z, E, 10 * U), log(APPROVAL, &[Y, D], 1)];
+    store(&mut moved, Z, BASE, 50 * U, 40 * U, 30);
+    store(&mut moved, E, BASE, 0, 10 * U, 31);
+    let short = |holder: [u8; 20], value: u64| {
+        let mut c = balance_of(2, holder, BASE, value, 50);
+        c.input.truncate(28);
+        c
+    };
+    let both = |read: eth::Call| rows(&block(vec![vec![simple()], vec![moved.clone()], router(vec![read])]));
+    let all = vec![r(Z, 40 * U), r(A, 70), r(B, 35), r(E, 10 * U)];
+    assert_eq!(both(short(Z, 40 * U)), all);
+    assert!(both(short(Z, 41 * U)).is_empty());
+    assert_eq!(both(short(Y, 42)), all);
+    assert_eq!(
+        both(balance_of(2, Y, BASE, 42, 50)),
+        vec![r(Y, 42), r(Z, 40 * U), r(A, 70), r(B, 35), r(E, 10 * U)]
+    );
 }
 
 /// A reflection-style second mapping (`rOwned`) that moves with the flows
@@ -964,7 +1062,11 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
         for c in case["calls"].as_array().unwrap() {
             let tx = block.transaction_traces.iter().find(|tx| c["tx"] == tx.index).unwrap();
             let call = tx.calls.iter().find(|x| c["call"] == x.index).unwrap();
-            assert_eq!(format!("0x{}", hex::encode(&call.address)), token, "{file} {c}");
+            assert_eq!(
+                format!("0x{}", hex::encode(&call.address)),
+                c["address"].as_str().unwrap_or(token),
+                "{file} {c}"
+            );
             if let Some(t0) = c["log_topic0"].as_str() {
                 assert!(call.logs.iter().any(|l| hex::encode(&l.topics[0]) == t0), "{file} {c}");
             }

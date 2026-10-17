@@ -28,8 +28,12 @@
 //!    address is malformed, its code is removed or it self-destructs, writes to
 //!    one key are discontinuous, a traced `balanceOf` calls out or returns a
 //!    value that contradicts storage, a keyed one reads other holder state, or
-//!    a successful `balanceOf` call to it lacks a 36-byte input or return data,
-//!    as when a producer truncated it.
+//!    a successful `balanceOf` call to it keeps only its 4-byte selector or has
+//!    no return data, the shape a producer leaves when it cuts a call, where a
+//!    cut was possible (see [`cut_possible`]). A `balanceOf` input of more than
+//!    36 bytes is read as `balanceOf(input[16..36])`, as the ABI decoder reads
+//!    it; a shorter one, or a longer one with nonzero upper address bytes, only
+//!    vetoes.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
@@ -720,23 +724,41 @@ impl Read {
         !self.bases.is_empty()
     }
 }
-fn is_read(call: &eth::Call) -> bool {
-    !call.status_failed
-        && (call.call_type == CALL || call.call_type == STATIC)
-        && call.input.len() == 36
-        && call.input[..4] == BALANCE_OF
-        && call.input[4..16] == [0; 12]
-        && call.return_data.len() == 32
-        && call.begin_ordinal != 0
+/// A traced `balanceOf(address)`: a completed CALL or STATICCALL with
+/// selector `0x70a08231`, more input than the selector and a 32-byte return,
+/// with the holder of its zero-extended first argument word, as the ABI
+/// decoder reads it. The read is clean when its input holds the whole word and
+/// the word is a padded address (`input[4..16]` zero); bytes after the word
+/// are ignored, as the decoder ignores them. A shorter input, or a longer one
+/// with nonzero upper bytes, can succeed only on a token compiled before
+/// Solidity 0.5 (no calldata size check, address arguments masked): it is
+/// read only to veto. A 36-byte input with nonzero upper bytes stays ignored,
+/// as before v0.7.4.
+fn balance_of(call: &eth::Call) -> Option<(Addr, bool)> {
+    let input = &call.input;
+    if call.status_failed
+        || !(call.call_type == CALL || call.call_type == STATIC)
+        || input.len() <= 4
+        || input[..4] != BALANCE_OF
+        || call.return_data.len() != 32
+        || call.begin_ordinal == 0
+    {
+        return None;
+    }
+    let mut argument = [0; 32];
+    let n = (input.len() - 4).min(32);
+    argument[..n].copy_from_slice(&input[4..4 + n]);
+    let clean = input.len() >= 36 && argument[..12] == [0; 12];
+    (clean || input.len() != 36).then(|| (argument[12..].try_into().unwrap(), clean))
 }
-/// Traced `balanceOf(address)` calls of voted contracts: a completed CALL or
-/// STATICCALL to the contract in a successful transaction, selector
-/// `0x70a08231`, a 36-byte input and a 32-byte return.
+/// Traced `balanceOf(address)` calls of voted contracts (see [`balance_of`])
+/// in successful transactions. Only a clean read's storage context is scanned
+/// for preimages, so only a clean read can be keyed.
 fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Vec<Read>> {
     let mut out = BTreeMap::<Addr, Vec<Read>>::new();
     let token = |c: &eth::Call| Addr::try_from(c.address.as_slice()).ok().filter(|t| tokens.contains_key(t));
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
-        if !tx.calls.iter().any(|c| is_read(c) && token(c).is_some()) {
+        if !tx.calls.iter().any(|c| balance_of(c).is_some() && token(c).is_some()) {
             continue;
         }
         // One pass assigns every call its storage context (itself, or its
@@ -760,12 +782,12 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
             };
             context.insert(c.index, own);
         }
-        for call in tx.calls.iter().filter(|c| is_read(c)) {
-            let Some(token) = token(call) else {
+        for call in &tx.calls {
+            let (Some((holder, clean)), Some(token)) = (balance_of(call), token(call)) else {
                 continue;
             };
             let mut read = Read {
-                holder: call.input[16..].try_into().unwrap(),
+                holder,
                 begin: call.begin_ordinal,
                 end: call.end_ordinal,
                 value: call.return_data[..].try_into().unwrap(),
@@ -773,10 +795,12 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
                 bases: Vec::new(),
                 external: false,
             };
-            read.scan(call);
             let members = members.get(&call.index).map(Vec::as_slice).unwrap_or_default();
-            for c in members {
-                read.scan(c);
+            if clean {
+                read.scan(call);
+                for c in members {
+                    read.scan(c);
+                }
             }
             // A call out of the storage context counts unless it only returns
             // the address that its parent then DELEGATECALLs: a beacon lookup.
@@ -790,27 +814,59 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
     }
     out
 }
-/// Voted contracts with a successful CALL or STATICCALL of `balanceOf`, in a
-/// successful transaction, that lacks a 36-byte input or return data.
-/// Producers on firehose-tracer 5.5.0 and later keep only the selector of a
-/// transaction's later internal calls once 50 MiB of call input precede them,
-/// and drop their return data past 25 MiB, so such a call may be a read whose
-/// veto was lost.
-fn truncated<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeSet<Addr> {
-    block
-        .transaction_traces
-        .iter()
-        .filter(|tx| tx.status == SUCCEEDED)
-        .flat_map(|tx| &tx.calls)
-        .filter(|c| {
-            !c.status_failed
-                && (c.call_type == CALL || c.call_type == STATIC)
-                && c.input.starts_with(&BALANCE_OF)
-                && (c.input.len() != 36 || c.return_data.is_empty())
-        })
-        .filter_map(|c| Addr::try_from(c.address.as_slice()).ok())
-        .filter(|a| tokens.contains_key(a))
-        .collect()
+/// Producers on firehose-tracer 5.5.0 (`call_data_limit.rs` at `70497b7`),
+/// which always record `Block.ver` 5, keep only the 4-byte selector of a
+/// transaction's later internal calls once those calls' input passes 50 MiB,
+/// and leave their return data empty past 25 MiB. A block whose encoding
+/// passes 1 GiB is then cut again with both limits halved, until it fits. A
+/// cut is therefore possible only in a `Block.ver` 5 transaction whose
+/// internal calls (failed, reverted and cut ones included) record more than
+/// 25 MiB of input or 12.5 MiB of return data, the limits of the first
+/// halving, or in a block of at least 64 MiB or 150M gas, which a later
+/// halving needs. Re-review these bounds on every tracer release.
+const CUT_TX_INPUT: usize = 25 << 20;
+const CUT_TX_RETURN: usize = 25 << 19;
+const CUT_BLOCK_LEN: usize = 64 << 20;
+const CUT_BLOCK_GAS: u64 = 150_000_000;
+/// Whether a producer could have cut call data in `tx`; `block_len` is the
+/// length of the block's delivered encoding.
+fn cut_possible(block: &eth::Block, block_len: usize, tx: &eth::TransactionTrace) -> bool {
+    if block.ver < 5 {
+        return false;
+    }
+    let gas = block.header.as_option().map_or(0, |h| h.gas_used);
+    if block_len >= CUT_BLOCK_LEN || gas >= CUT_BLOCK_GAS {
+        return true;
+    }
+    let internal = tx.calls.iter().filter(|c| c.depth > 0);
+    let (input, output) = internal.fold((0, 0), |(i, r), c| (i + c.input.len(), r + c.return_data.len()));
+    input > CUT_TX_INPUT || output > CUT_TX_RETURN
+}
+/// Voted contracts with a successful CALL or STATICCALL of `balanceOf` that
+/// keeps only its 4-byte selector or has no return data, the shape a cut
+/// leaves, in a successful transaction where a producer could have cut it
+/// ([`cut_possible`]): it may be a read whose veto was lost. Elsewhere such a
+/// call is neither a read nor a doubt: a 4-byte call that a token compiled
+/// before Solidity 0.5 answers with `balanceOf(0)`, or a call that returned
+/// nothing.
+fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>) -> BTreeSet<Addr> {
+    let mut out = BTreeSet::new();
+    for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        let mut possible = None;
+        for call in &tx.calls {
+            let shape = !call.status_failed
+                && (call.call_type == CALL || call.call_type == STATIC)
+                && call.input.starts_with(&BALANCE_OF)
+                && (call.input.len() == 4 || call.return_data.is_empty());
+            let Some(token) = Addr::try_from(call.address.as_slice()).ok().filter(|a| shape && tokens.contains_key(a)) else {
+                continue;
+            };
+            if *possible.get_or_insert_with(|| cut_possible(block, block_len, tx)) {
+                out.insert(token);
+            }
+        }
+    }
+    out
 }
 
 /// The end-of-block balances of one voted contract, or `None` on any doubt.
@@ -911,8 +967,9 @@ fn decide(
     Some(values)
 }
 
-/// Inferred end-of-block balances, by `(contract, holder)`.
-pub(crate) fn rows(block: &eth::Block) -> BTreeMap<(Addr, Addr), Word> {
+/// Inferred end-of-block balances, by `(contract, holder)`. `block_len` is
+/// the length of the block's delivered encoding.
+pub(crate) fn rows(block: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr), Word> {
     let mut out = BTreeMap::new();
     let candidates = candidates(block);
     if candidates.is_empty() {
@@ -935,7 +992,7 @@ pub(crate) fn rows(block: &eth::Block) -> BTreeMap<(Addr, Addr), Word> {
     backed(block, &framed, &mut flows);
     let tallies = votes(&flows, &framed);
     let reads = reads(block, &tallies);
-    doubt.extend(truncated(block, &tallies));
+    doubt.extend(truncated(block, block_len, &tallies));
     let nobody = Names::default();
     // A contract has tallies only if a nonzero `Transfer` moved a holder or a
     // backed frame voted.

@@ -63,10 +63,13 @@ never prints them.
   preimages that explain a storage write, and cut call data past
   per-transaction limits (#116). At the owner's direction (2026-10-06),
   `erc20/balances` lets a `balanceOf` without a `pad(holder) || base` preimage
-  only veto (on a call out or a contradicted stored word), and drops a
-  contract's rows for the block on a successful `balanceOf` call without a
-  36-byte input or return data. Each qualification records the reader release
-  (client and tracer version), not just `Block.ver`.
+  only veto (on a call out or a contradicted stored word). It drops a
+  contract's rows for the block on a successful `balanceOf` call that keeps
+  only its 4-byte selector or has no return data, the shape a producer leaves
+  when it cuts a call, only where a cut was possible: a `Block.ver` 5
+  transaction or block past the tracer's cut bounds. A longer input is read as
+  `balanceOf(input[16..36])` (owner, 2026-10-17). Each qualification records
+  the reader release (client and tracer version), not just `Block.ver`.
 - The two balance packages each ship their `map_events` and a `db_out` in one
   spkg (owner, 2026-10-13): `native/balances` is `evm_balances_native`, written
   to `<chain>:evm-balances-native@<version>`, and `erc20/balances` is

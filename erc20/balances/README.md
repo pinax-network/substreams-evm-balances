@@ -74,8 +74,12 @@ longer recorded preimages are never decoded. Per block and per contract
    that calls another contract (a beacon `implementation()` lookup followed by
    its DELEGATECALL is allowed) or contradicts the stored word at its execution
    ordinal, or a keyed one that reads another holder mapping; a successful
-   `balanceOf` call to the contract without a 36-byte input or return data,
-   the shape a producer leaves when it truncates a call.
+   `balanceOf` call to the contract that keeps only its 4-byte selector or has
+   no return data, the shape a producer leaves when it cuts a call, where a
+   cut was possible ([producer releases](#producer-releases)). A `balanceOf`
+   input of more than 36 bytes is read as `balanceOf(input[16..36])`, as the
+   ABI decoder reads it; a shorter one, or a longer one with nonzero upper
+   address bytes, only vetoes.
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
@@ -104,17 +108,33 @@ things this package reads
 - `Call.keccak_preimages` keeps only the preimages that explain a storage
   write of their transaction or system call. A `balanceOf` of a holder whose
   balance the transaction does not write usually records none.
-- Once a transaction's internal calls pass 50 MiB of input, or 25 MiB of
-  return data, later calls keep only their 4-byte selector and no return data.
-  The flags that mark them (`Call` fields 35 and 36) are not in
-  substreams-ethereum 0.12.0, so this package sees only the shape.
+- Once a transaction's internal calls pass 50 MiB of input, later calls keep
+  only their 4-byte selector; once they pass 25 MiB of return data, later calls
+  keep no return data. The two cuts are independent. A block whose encoding
+  passes 1 GiB is then cut again with both limits halved, until it fits
+  (`call_data_limit.rs` at `70497b7`). The flags that mark a cut call (`Call`
+  fields 35 and 36) are not in substreams-ethereum 0.12.0, so this package
+  sees only the shape.
 
 At the owner's direction (2026-10-06), an unkeyed read still excludes its
 contract when it calls out or contradicts the stored word, but it never
-chooses the base, vouches for a holder or supplies a value. A truncated-shape
-`balanceOf` call drops its contract's rows for the block (rule 4). Each
-qualification records the reader release (client and tracer version), not just
-`Block.ver`.
+chooses the base, vouches for a holder or supplies a value. Since v0.7.4
+(owner, 2026-10-17), a `balanceOf` call of the cut shape drops its contract's
+rows for the block (rule 4) only where a cut was possible: in a `Block.ver` 5
+transaction whose internal calls (failed, reverted and cut ones included)
+record more than 25 MiB of input or 12.5 MiB of return data, the limits of
+the first halving, or in a `Block.ver` 5 block of at least 64 MiB or 150M gas,
+which a later halving needs. Every cut meets one of these bounds. Elsewhere
+the call is a genuine 4-byte call, which a token compiled before Solidity 0.5
+answers with `balanceOf(0)`, or one that returned nothing, and is neither a
+read nor a doubt. The bounds are re-reviewed on every tracer release. They do
+not stop a transaction that records 25 MiB of internal input on purpose from
+dropping a token for its block. A longer input is read as
+`balanceOf(input[16..36])`: arbitrage bots call `balanceOf(self)` with their
+68-byte `transfer` buffer, and v0.7.3 dropped the whole token for the block on
+every such call (156 of the 160 flagged calls in the 104 investigated drop
+blocks; the others had 64 and 28 bytes). Each qualification records the reader
+release (client and tracer version), not just `Block.ver`.
 
 Since v0.7.2 (owner, 2026-10-14), a chosen word at or above 2^128 drops its
 contract's rows for the block. Such a word holds another field next to the
@@ -293,7 +313,8 @@ Arbitrum One SetCode transactions. The v0.7.4 captures in
 [`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum and BSC blocks cut
 to one token's transactions, with their provenance and the RPC-era values at
 each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded
-RPC-era value equals its row. They include five Tether destructions and a
+RPC-era value equals its row. They include five blocks whose tokens v0.7.3
+dropped on a 68-, 64- or 28-byte `balanceOf`, five Tether destructions and a
 redemption whose holders v0.7.3 left at the old balance, and two blocks whose
 only USDT frame is a destruction.
 

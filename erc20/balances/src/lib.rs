@@ -61,10 +61,12 @@ impl persist::Sink for Discard {
 /// The `map_events` body. A block fails only when it is not a complete
 /// Extended block or the persistence rules cannot resolve it. Inference never
 /// fails a block: on any doubt it drops that contract's rows for the block.
-pub fn run(block: &eth::Block) -> Result<balances_pb::Events, Error> {
+/// `block_len` is the length of the block's delivered encoding, one bound on
+/// where a producer could have cut call data.
+pub fn run(block: &eth::Block, block_len: usize) -> Result<balances_pb::Events, Error> {
     validate_block(block)?;
     persist::collect_block(block, &mut Discard)?;
-    let balances = infer::rows(block)
+    let balances = infer::rows(block, block_len)
         .into_iter()
         .map(|((contract, address), value)| balances_pb::Balance {
             contract: Some(contract.to_vec()),
@@ -111,7 +113,7 @@ mod handler {
         let block =
             decode_block(bytes).unwrap_or_else(|error| panic!("Unable to decode Protobuf data ({block_len} bytes) to 'eth::Block' message's struct: {error}"));
         substreams::skip_empty_output();
-        match run(&block) {
+        match run(&block, block_len) {
             Ok(events) => substreams::output(events),
             Err(error) => panic!("{error:?}"),
         }
