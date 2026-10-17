@@ -1,8 +1,8 @@
 {
- "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-10-17 for the v0.7.4 investigation.",
+ "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-10-17 for the v0.7.4 investigation. A case with a provenance field is an earlier capture described there.",
  "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits.",
- "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block; added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
- "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:evm-balances@v0.3.3 or bsc:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block (except for the earlier captures, whose full blocks are not kept); added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
+ "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:, bsc: or polygon:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed. A case's rpc_era.method, where present, replaces this method.",
  "cases": [
   {
    "file": "bsc-39960369-wbnb-long-reads.pb",
@@ -2292,6 +2292,406 @@
       "0x00000000000000000000000000000000000018fe": "0"
      }
     }
+   }
+  },
+  {
+   "file": "polygon-20007040-state-sync.pb",
+   "chain": "polygon",
+   "block": 20007040,
+   "block_hash": "0xa885926caaa623403af4f2c5facda684fc342655606f579f0a0bf4803f662ba7",
+   "ver": 3,
+   "source_block_sha256": "2161b87b3994da5d85311f83812f8f84c6489ac3312a96f83237069738c7f79a",
+   "fixture_sha256": "2161b87b3994da5d85311f83812f8f84c6489ac3312a96f83237069738c7f79a",
+   "token": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+   "kept_transactions": [
+    0
+   ],
+   "selection": "the whole block (its only transaction is the state sync)",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction (tx 0, ordinals 1 to 57) commits ten events; each depth-1 commitState call restarts the ordinals at 4 or 5. Four bridge deposits mint PoS WETH in subtrees 0, 5, 8 and 9, whose total-supply writes fall at ordinals 17, 15, 15 and 15. By ordinal they tie and v0.7.3 dropped WETH; in call order they chain and the four holders get rows",
+   "calls": [
+    {
+     "tx": 0,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 0,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 30,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 42,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 46,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    }
+   ],
+   "rows": {
+    "0x11602a402281974a70c2b4824d58ebede967e2be": {
+     "0x90f1cb932dbf94385434c40d53df3727f00e50b1": "1832632215603747022550"
+    },
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+     "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7": "500000000000000",
+     "0x4dd85b1f87695834ded0f89d2b798fa408f92297": "618000000000000000",
+     "0x65d38157cded6a43917fd78318998c590000ade1": "88423872443881000",
+     "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51": "155800000000000000"
+    },
+    "0xdf7837de1f2fa4631d716cf2502f8b230f1dcc32": {
+     "0x123deef738caa91b0b45e665e2efdd1780439518": "300000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x4dd85b1f87695834ded0f89d2b798fa408f92297"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x65d38157cded6a43917fd78318998c590000ade1"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x11602a402281974a70c2b4824d58ebede967e2be": {
+      "0x90f1cb932dbf94385434c40d53df3727f00e50b1": "1832632215603747022550"
+     },
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+      "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7": "500000000000000",
+      "0x4dd85b1f87695834ded0f89d2b798fa408f92297": "618000000000000000",
+      "0x65d38157cded6a43917fd78318998c590000ade1": "88423872443881000",
+      "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51": "155800000000000000"
+     },
+     "0xdf7837de1f2fa4631d716cf2502f8b230f1dcc32": {
+      "0x123deef738caa91b0b45e665e2efdd1780439518": "300000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "polygon-50016032-state-sync.pb",
+   "chain": "polygon",
+   "block": 50016032,
+   "block_hash": "0x5f8c64fbd54b2b7747ee743ee3e4ee24d09f85a329e5fdbb261efe71a4350421",
+   "ver": 3,
+   "source_block_sha256": "1b2dcdeed988f2efd5b83008acca08b1c51ae6cb63d6b37ac55e2d0a1f6c201e",
+   "fixture_sha256": "e03ad3939777f0478c28ff77959d360b6db6a55004ffbc01582ba1cfa771c9ae",
+   "token": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+   "kept_transactions": [
+    509,
+    607,
+    652,
+    662
+   ],
+   "selection": "every WPOL transaction: 509, 607, 652 and the state sync 662",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction (tx 662, ordinals 10,389 to 10,585) commits five events. In subtrees 0 and 4, deposits of the bridged token 0x712f0cf3... are swapped to POL through the WPOL pool 0x3d4cc8a6..., whose WPOL word is written at ordinal 10,534 in subtree 0 and 10,532 in subtree 4: by ordinal the writes run backwards and v0.7.3 dropped WPOL and 0x712f0cf3...; in call order they chain. The balanceOf calls inside the transaction compare with the word call order gives, so 0x1fdeaf93... keeps its three rows",
+   "calls": [
+    {
+     "tx": 662,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 662,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 662,
+     "call": 71,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    }
+   ],
+   "rows": {
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+     "0x1111111254eeb25477b68fb85ed929f73a960582": "1",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "242533458350013628141828",
+     "0x3ed60954467363d4eb5495ab62924699247307ef": "7768472903287438781",
+     "0x643770e279d5d0733f21d6dc03a8efbabf3255b4": "0",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0": "2025362239627385444215239",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a": "20499175636669163922",
+     "0xe592427a0aece92de3edee1f18e0157c05861564": "0"
+    },
+    "0x1fdeaf938267ca43388ed1fdb879eaf91e920c7a": {
+     "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "562961582835200981525",
+     "0xb98454270065a31d71bf635f6f7ee6a518dfb849": "0",
+     "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "0"
+    },
+    "0x3c720206bfacb2d16fa3ac0ed87d2048dbc401fc": {
+     "0x0a6c69327d517568e6308f1e1cd2fd2b2b3cd4bf": "19079332750558306040908"
+    },
+    "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "392241522955416482754384",
+     "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0"
+    },
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+     "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "625613964202339418536",
+     "0x864836929f6635880fccdc09001a68b0de863dc2": "2096680000000002862",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0": "662738365118862196625",
+     "0xb79cdf3ab15fdbbbfd956274c48a12e13f045bff": "1071094377642045098",
+     "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "17914071519583"
+    },
+    "0x8505b9d2254a7ae468c0e9dd10ccea3a837aef5c": {
+     "0x3ed60954467363d4eb5495ab62924699247307ef": "461118151928354629",
+     "0x4a183b7ed67b9e14b3f45abfb2cf44ed22c29e54": "88920045355538816",
+     "0x8a347b8c5a63316d2c3c60ea73180c26189f8220": "3805970149254",
+     "0xd7f1dd5d49206349cae8b585fcb0ce3d96f1696f": "0"
+    },
+    "0xbbba073c31bf03b8acf7c28ef0738decf3695683": {
+     "0xe0b7263a26776d004df96c480252092c9bc65cbf": "881000000000000000000"
+    },
+    "0xe0b52e49357fd4daf2c15e02058dce6bc0057db4": {
+     "0x18f52ad1141ea172cb71fbc324fded1e4357b100": "981860649210870",
+     "0x4a183b7ed67b9e14b3f45abfb2cf44ed22c29e54": "10169438095652760408",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a": "36942561888456946188",
+     "0xd7f1dd5d49206349cae8b585fcb0ce3d96f1696f": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x1111111254eeb25477b68fb85ed929f73a960582"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3ed60954467363d4eb5495ab62924699247307ef"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x643770e279d5d0733f21d6dc03a8efbabf3255b4"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0xe592427a0aece92de3edee1f18e0157c05861564"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x553bc791d746767166fa3888432038193ceed5e2"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+      "0x1111111254eeb25477b68fb85ed929f73a960582": "1",
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "242533458350013628141828",
+      "0x3ed60954467363d4eb5495ab62924699247307ef": "7768472903287438781",
+      "0x643770e279d5d0733f21d6dc03a8efbabf3255b4": "0",
+      "0x86f1d8390222a3691c28938ec7404a1661e618e0": "2025362239627385444215239",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+      "0x934fc18b73e51f247548ffe2d86108502b18037a": "20499175636669163922",
+      "0xe592427a0aece92de3edee1f18e0157c05861564": "0"
+     },
+     "0x1fdeaf938267ca43388ed1fdb879eaf91e920c7a": {
+      "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "562961582835200981525",
+      "0xb98454270065a31d71bf635f6f7ee6a518dfb849": "0",
+      "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "0"
+     },
+     "0x3c720206bfacb2d16fa3ac0ed87d2048dbc401fc": {
+      "0x0a6c69327d517568e6308f1e1cd2fd2b2b3cd4bf": "19079332750558306040908"
+     },
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "392241522955416482754384",
+      "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0"
+     },
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+      "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "625613964202339418536",
+      "0x864836929f6635880fccdc09001a68b0de863dc2": "2096680000000002862",
+      "0x86f1d8390222a3691c28938ec7404a1661e618e0": "662738365118862196625",
+      "0xb79cdf3ab15fdbbbfd956274c48a12e13f045bff": "1071094377642045098",
+      "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "17914071519583"
+     },
+     "0xbbba073c31bf03b8acf7c28ef0738decf3695683": {
+      "0xe0b7263a26776d004df96c480252092c9bc65cbf": "881000000000000000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "polygon-70044000-state-sync.pb",
+   "chain": "polygon",
+   "block": 70044000,
+   "block_hash": "0x9ca157f51d5002bab1f49302aabdef0b7a32ff9e9d3c12532d9a08d828bb7541",
+   "ver": 3,
+   "source_block_sha256": "4c8d2392486a3761c019c1f1c1c189f27e892113faea62ffdcf3cd0cdec0f91c",
+   "fixture_sha256": "bcab4f5d71515a1d1d1fdab30e5ace8deb8f293b030c37f04af3cad152a7d8c8",
+   "token": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+   "kept_transactions": [
+    29,
+    31,
+    34,
+    46
+   ],
+   "selection": "every WPOL transaction: 29, 31, 34 and the state sync 46",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction 0x60891cc1... (tx 46, ordinals 3,250 to 3,443; native's fixture) commits four events. WPOL's pool word is written in subtrees 0, 1 and 3 at ordinals 3,390, 3,389 and 3,389, and 0x712f0cf3...'s supply at 3,275, 3,274 and 3,274: ties by ordinal, so v0.7.3 dropped both tokens, also for the WPOL holders of transactions 29, 31 and 34; in call order they chain, and the balanceOf calls inside the transaction agree",
+   "calls": [
+    {
+     "tx": 46,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 46,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 46,
+     "call": 33,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 46,
+     "call": 69,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    }
+   ],
+   "rows": {
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+     "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c": "73627400173254967139500",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "239755620864795824783826",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "910000000000000000",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "1000000000000000000",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "4199380082770000000"
+    },
+    "0x1cd0cd01c8c902adab3430ae04b9ea32cb309cf1": {
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "1090000000000000000",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "0",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "1362917230000000"
+    },
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": {
+     "0xeeb17adefd06a3c67abd4adf7e42978b1f018c8e": "343498769278"
+    },
+    "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "304631281238662176630667",
+     "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "669120754160000000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x553bc791d746767166fa3888432038193ceed5e2"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+      "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c": "73627400173254967139500",
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "239755620864795824783826",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+      "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "910000000000000000",
+      "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "1000000000000000000",
+      "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "4199380082770000000"
+     },
+     "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": {
+      "0xeeb17adefd06a3c67abd4adf7e42978b1f018c8e": "343498769278"
+     },
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "304631281238662176630667",
+      "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "669120754160000000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
    }
   }
  ]

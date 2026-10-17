@@ -54,11 +54,20 @@
 //!    `balanceOf`, traced after that write. Candidate holders without a write
 //!    get the value of a keyed `balanceOf` that read exactly the base.
 //!
+//! Writes and reads are in execution order: by ordinal, except in a
+//! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
+//! the ordinals; there they are ordered by depth-1 call, then ordinal (see
+//! [`bor`]). A transaction with the state-sync signature in any other layout
+//! drops every contract it writes or calls `balanceOf` of.
+//!
 //! Inference never fails a block: any detected doubt drops that contract's
 //! inferred rows for the block. Holders without a write or such a read stay
 //! unknown. Per-block work is bounded by the block's calls, logs, writes and
 //! 64-byte preimages; longer recorded preimages are never decoded.
+mod bor;
+
 use crate::{eth, hash, mapping, persist};
+use bor::Seq;
 use std::collections::{BTreeMap, BTreeSet};
 
 type Addr = [u8; 20];
@@ -418,12 +427,17 @@ struct Write {
     key: Word,
     old: Word,
     new: Word,
-    ordinal: u64,
+    /// The write's place in execution order.
+    seq: Seq,
 }
 /// Persisted storage writes of candidate contracts with their frame, from the
 /// shared persistence rules.
 struct Persisted<'a> {
     tokens: &'a BTreeMap<Addr, BTreeSet<Addr>>,
+    /// The block's recognized Bor state-sync transaction, and the indices of
+    /// transactions with its signature in another layout.
+    sync: Option<&'a bor::StateSync>,
+    unordered: &'a BTreeSet<u32>,
     writes: BTreeMap<Addr, Vec<Write>>,
     doubt: BTreeSet<Addr>,
 }
@@ -437,13 +451,18 @@ impl persist::Sink for Persisted<'_> {
         let Some(address) = self.token(&c.address) else {
             return;
         };
+        let tx = !matches!(ctx.scope, persist::Scope::SystemCall | persist::Scope::Block);
+        let tx = tx.then_some(ctx.tx_index);
+        if tx.is_some_and(|tx| self.unordered.contains(&tx)) {
+            self.doubt.insert(address);
+        }
         match (word(&c.key), word(&c.old_value), word(&c.new_value)) {
             (Some(key), Some(old), Some(new)) if c.ordinal > 0 => self.writes.entry(address).or_default().push(Write {
                 frame: (ctx.scope == persist::Scope::SystemCall, ctx.tx_index, ctx.call_index),
                 key,
                 old,
                 new,
-                ordinal: c.ordinal,
+                seq: bor::seq(self.sync, tx, ctx.call_index, c.ordinal),
             }),
             _ => {
                 self.doubt.insert(address);
@@ -771,8 +790,9 @@ fn choose(tallies: &BTreeMap<Word, Tally>, reads: &[Read]) -> Option<Word> {
 /// A traced `balanceOf(holder)` call to a contract.
 struct Read {
     holder: Addr,
-    begin: u64,
-    end: u64,
+    /// The places of the call's begin and end in execution order.
+    begin: Seq,
+    end: Seq,
     value: Word,
     /// In a non-reverted frame: the value reflects persisted state.
     persisted: bool,
@@ -841,7 +861,7 @@ fn balance_of(call: &eth::Call) -> Option<(Addr, bool)> {
 /// Traced `balanceOf(address)` calls of voted contracts (see [`balance_of`])
 /// in successful transactions. Only a clean read's storage context is scanned
 /// for preimages, so only a clean read can be keyed.
-fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Vec<Read>> {
+fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::StateSync>) -> BTreeMap<Addr, Vec<Read>> {
     let mut out = BTreeMap::<Addr, Vec<Read>>::new();
     let token = |c: &eth::Call| Addr::try_from(c.address.as_slice()).ok().filter(|t| tokens.contains_key(t));
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
@@ -875,8 +895,8 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
             };
             let mut read = Read {
                 holder,
-                begin: call.begin_ordinal,
-                end: call.end_ordinal,
+                begin: bor::seq(sync, Some(tx.index), call.index, call.begin_ordinal),
+                end: bor::seq(sync, Some(tx.index), call.index, call.end_ordinal),
                 value: call.return_data[..].try_into().unwrap(),
                 persisted: !call.state_reverted,
                 bases: Vec::new(),
@@ -981,10 +1001,7 @@ fn decide(
         by_key.entry(w.key).or_default().push(w);
     }
     // Persisted writes to one key must chain in execution order.
-    if by_key
-        .values()
-        .any(|ws| ws.windows(2).any(|p| p[1].ordinal <= p[0].ordinal || p[1].old != p[0].new))
-    {
+    if by_key.values().any(|ws| ws.windows(2).any(|p| p[1].seq <= p[0].seq || p[1].old != p[0].new)) {
         return None;
     }
     // An unkeyed read still vetoes when it calls out or contradicts the stored
@@ -993,7 +1010,7 @@ fn decide(
         return None;
     }
     // Holders with a persisted keyed read, and the latest such read's begin.
-    let mut read = BTreeMap::<Addr, u64>::new();
+    let mut read = BTreeMap::<Addr, Seq>::new();
     for r in reads.iter().filter(|r| r.persisted && r.keyed()) {
         let begin = read.entry(r.holder).or_default();
         *begin = r.begin.max(*begin);
@@ -1011,14 +1028,14 @@ fn decide(
     for r in reads.iter().filter(|r| r.persisted) {
         match by_key.get(&mapping(&r.holder, &base)) {
             Some(ws) => {
-                // Writes to the key are in increasing ordinal order.
-                if ws.get(ws.partition_point(|w| w.ordinal <= r.begin)).is_some_and(|w| w.ordinal < r.end) {
+                // Writes to the key are in execution order.
+                if ws.get(ws.partition_point(|w| w.seq <= r.begin)).is_some_and(|w| w.seq < r.end) {
                     continue;
                 }
-                let stored = ws[..ws.partition_point(|w| w.ordinal < r.begin)]
+                let stored = ws[..ws.partition_point(|w| w.seq < r.begin)]
                     .last()
                     .map(|w| w.new)
-                    .or_else(|| ws.get(ws.partition_point(|w| w.ordinal <= r.end)).map(|w| w.old));
+                    .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| w.old));
                 if stored.is_some_and(|s| s != r.value) {
                     return None;
                 }
@@ -1040,7 +1057,7 @@ fn decide(
             // explaining it in that frame (a flag, an admin or a sync write)
             // needs its own read, traced after that write: a read before it
             // validated only the word it saw.
-            let vouched = read.get(holder).is_some_and(|begin| *begin > last.ordinal);
+            let vouched = read.get(holder).is_some_and(|begin| *begin > last.seq);
             if holder == token || names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched {
                 values.insert(*holder, last.new);
             }
@@ -1062,8 +1079,12 @@ pub(crate) fn rows(block: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr
     if candidates.is_empty() {
         return out;
     }
+    let sync = bor::state_sync(block);
+    let unordered = bor::unordered(block, sync.as_ref());
     let mut persisted = Persisted {
         tokens: &candidates,
+        sync: sync.as_ref(),
+        unordered: &unordered,
         writes: BTreeMap::new(),
         doubt: BTreeSet::new(),
     };
@@ -1072,14 +1093,23 @@ pub(crate) fn rows(block: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr
     }
     let Persisted { mut writes, mut doubt, .. } = persisted;
     for ws in writes.values_mut() {
-        ws.sort_by_key(|w| w.ordinal);
+        ws.sort_by_key(|w| w.seq);
     }
     let framed = framed(&writes);
     let (mut flows, named) = flows(block, &writes, &mut doubt);
     backed(block, &framed, &mut flows);
     let tallies = votes(&flows, &framed);
-    let reads = reads(block, &tallies);
+    let reads = reads(block, &tallies, sync.as_ref());
     doubt.extend(truncated(block, block_len, &tallies));
+    // A `balanceOf` call in a transaction whose order is unknown.
+    for tx in block.transaction_traces.iter().filter(|tx| unordered.contains(&tx.index)) {
+        let called = tx.calls.iter().filter(|c| c.input.starts_with(&BALANCE_OF));
+        doubt.extend(
+            called
+                .filter_map(|c| Addr::try_from(c.address.as_slice()).ok())
+                .filter(|a| tallies.contains_key(a)),
+        );
+    }
     let nobody = Names::default();
     // A contract has tallies only if a nonzero `Transfer` moved a holder or,
     // in a block without one, a backed frame voted.

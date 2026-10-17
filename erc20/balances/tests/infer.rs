@@ -1052,6 +1052,138 @@ fn tether_destructions_vote_without_transfers() {
     }
 }
 
+/// Bor's system address, StateReceiver and ValidatorSet.
+const BOR_SYSTEM: [u8; 20] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+];
+const STATE_RECEIVER: [u8; 20] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0x01];
+const VALIDATOR_SET: [u8; 20] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10, 0x00];
+
+/// A Polygon `Block.ver` 3 block after `earlier`, whose last transaction is a
+/// Bor state sync (ordinals 100 to 200) committing one bridge mint of the
+/// token per `(holder, amount)`. Each depth-1 `commitState` call restarts the
+/// ordinals: its mint frame (101 to 110) writes the holder's word at 102 and
+/// the total supply (slot 2) at 103, so the supply's writes tie by ordinal
+/// and chain in call order. There are storage records only, no balance
+/// records.
+fn bor(earlier: Vec<Vec<eth::Call>>, mints: &[([u8; 20], u64)]) -> eth::Block {
+    let zero = [0; 20];
+    let mut root = call(1, 0, 0, eth::CallType::Call, zero);
+    (root.caller, root.begin_ordinal, root.end_ordinal) = (zero.to_vec(), 0, 200);
+    let mut calls = vec![root];
+    let mut supply = 1000 * U;
+    for (i, (holder, amount)) in mints.iter().enumerate() {
+        let index = 2 + 2 * i as u32;
+        let mut commit = call(index, 1, 1, eth::CallType::Call, STATE_RECEIVER);
+        (commit.caller, commit.begin_ordinal, commit.end_ordinal) = (BOR_SYSTEM.to_vec(), 0, 120);
+        let mut mint = call(index + 1, index, 2, eth::CallType::Call, TOKEN);
+        (mint.caller, mint.begin_ordinal, mint.end_ordinal) = (STATE_RECEIVER.to_vec(), 101, 110);
+        mint.logs = vec![transfer(zero, *holder, *amount)];
+        store(&mut mint, *holder, BASE, 0, *amount, 102);
+        store_plain(&mut mint, 2, supply, supply + amount, 103);
+        supply += amount;
+        calls.extend([commit, mint]);
+    }
+    let mut b = block([earlier, vec![calls]].concat());
+    b.ver = 3;
+    let tx = b.transaction_traces.last_mut().unwrap();
+    (tx.from, tx.to, tx.begin_ordinal, tx.end_ordinal) = (zero.to_vec(), zero.to_vec(), 100, 200);
+    b
+}
+/// A transaction appended after the block's others, with the given calls and
+/// ordinals.
+fn append(b: &mut eth::Block, from: [u8; 20], to: [u8; 20], calls: Vec<eth::Call>, ordinals: (u64, u64)) {
+    b.transaction_traces.push(eth::TransactionTrace {
+        index: b.transaction_traces.len() as u32,
+        from: from.to_vec(),
+        to: to.to_vec(),
+        status: eth::TransactionTraceStatus::Succeeded.into(),
+        begin_ordinal: ordinals.0,
+        end_ordinal: ordinals.1,
+        calls,
+        ..Default::default()
+    });
+}
+
+/// Polygon's `Block.ver` 3 state-sync transaction restarts the ordinals in
+/// each depth-1 `commitState` call. In the exact shape (native v0.7.8's,
+/// checked over storage and balance records), its records are ordered by
+/// depth-1 call, then ordinal: writes chain in call order, and a read compares
+/// with the word that order gives. A transaction with the state-sync
+/// signature in any other layout drops every token it writes or reads.
+#[test]
+fn bor_state_sync_writes_chain_in_call_order() {
+    let mints = [(A, 5 * U), (B, 7 * U)];
+    let synced = vec![r(A, 5 * U), r(B, 7 * U)];
+    // By ordinal the supply's two writes tie at 103, and v0.7.3 dropped the token.
+    assert_eq!(rows(&bor(vec![], &mints)), synced);
+    // An earlier transaction of the token, and a span commit after the sync.
+    let mut earlier = root();
+    earlier.logs = vec![transfer(D, E, 10 * U)];
+    store(&mut earlier, D, BASE, 100 * U, 90 * U, 10);
+    store(&mut earlier, E, BASE, 0, 10 * U, 11);
+    let mut spanned = bor(vec![vec![earlier.clone()]], &mints);
+    let mut commit = call(1, 0, 0, eth::CallType::Call, VALIDATOR_SET);
+    (commit.caller, commit.begin_ordinal, commit.input) = (BOR_SYSTEM.to_vec(), 0, vec![0x23, 0xc2, 0xa2, 0xb4]);
+    append(&mut spanned, BOR_SYSTEM, VALIDATOR_SET, vec![commit], (201, 210));
+    assert_eq!(rows(&spanned), vec![r(A, 5 * U), r(B, 7 * U), r(D, 90 * U), r(E, 10 * U)]);
+    // Writes that chain in reverse call order.
+    let mut reversed = bor(vec![], &mints);
+    let calls = &mut reversed.transaction_traces[0].calls;
+    (calls[2].storage_changes[1].old_value, calls[2].storage_changes[1].new_value) = (w(1007 * U), w(1012 * U));
+    (calls[4].storage_changes[1].old_value, calls[4].storage_changes[1].new_value) = (w(1000 * U), w(1007 * U));
+    assert!(rows(&reversed).is_empty());
+    // The producer's later numbering, subtree after subtree: call order is
+    // ordinal order.
+    let mut sequential = bor(vec![], &mints);
+    let second = &mut sequential.transaction_traces[0].calls[4];
+    (second.begin_ordinal, second.end_ordinal) = (111, 120);
+    second.storage_changes.iter_mut().for_each(|c| c.ordinal += 10);
+    assert_eq!(rows(&sequential), synced);
+    // Not the exact shape, although these writes chain by ordinal (v0.7.3
+    // emitted them): another transaction after the sync, gas used, or another
+    // transaction's storage record inside the sync's ordinals.
+    let mut later = sequential.clone();
+    append(&mut later, FROM, [0x55; 20], vec![call(1, 0, 0, eth::CallType::Call, [0x55; 20])], (300, 310));
+    assert!(rows(&later).is_empty());
+    let mut gas = sequential.clone();
+    gas.transaction_traces[0].gas_used = 21_000;
+    assert!(rows(&gas).is_empty());
+    let mut other = call(1, 0, 0, eth::CallType::Call, [0x55; 20]);
+    other.storage_changes.push(eth::StorageChange {
+        address: [0x55; 20].to_vec(),
+        key: w(0),
+        old_value: w(0),
+        new_value: w(1),
+        ordinal: 150,
+    });
+    assert!(rows(&bor(vec![vec![other]], &mints)).is_empty());
+    // A transaction with the signature in another layout drops the tokens it
+    // only reads, too.
+    let mut reader = bor(vec![vec![simple()]], &[]);
+    let mut commit = call(2, 1, 1, eth::CallType::Call, STATE_RECEIVER);
+    (commit.caller, commit.begin_ordinal) = (BOR_SYSTEM.to_vec(), 0);
+    let mut read = balance_of(3, B, BASE, 35, 150);
+    (read.parent_index, read.depth) = (2, 2);
+    reader.transaction_traces[1].calls.extend([commit, read]);
+    assert_eq!(rows(&reader), vec![r(A, 70), r(B, 35)]);
+    reader.transaction_traces[1].gas_used = 21_000;
+    assert!(rows(&reader).is_empty());
+    // A read in the second subtree of a word that the first wrote at a higher
+    // ordinal compares with the first subtree's new word.
+    let mut ahead = bor(vec![], &mints);
+    ahead.transaction_traces[0].calls[2].storage_changes[0].ordinal = 108;
+    let with = |value: u64| {
+        let mut b = ahead.clone();
+        let mut read = balance_of(6, A, BASE, value, 105);
+        (read.parent_index, read.depth) = (5, 3);
+        b.transaction_traces[0].calls.push(read);
+        rows(&b)
+    };
+    assert_eq!(with(5 * U), synced);
+    assert!(with(0).is_empty());
+}
+
 /// Recorded preimages longer than 64 bytes are never decoded, however often
 /// their key is written.
 #[test]
@@ -1175,8 +1307,8 @@ fn captured_block_without_read_preimages_keeps_its_rows() {
     assert_eq!(all(&filtered), all(&original));
 }
 
-/// The v0.7.4 captures in `fixtures/v074/`: Ethereum and BSC blocks cut to
-/// the transactions of one token, and two one-transaction WBNB captures of
+/// The v0.7.4 captures in `fixtures/v074/`: Ethereum, BSC and Polygon blocks
+/// cut to the transactions of one token, and two one-transaction WBNB captures of
 /// `fixtures/wbnb-mutations/`, with provenance in `cases.json`. Each gives
 /// exactly its recorded rows, which equal the RPC-era values at the block
 /// wherever the RPC-era database has them, and still holds the calls its case

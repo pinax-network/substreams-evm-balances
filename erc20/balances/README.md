@@ -118,6 +118,10 @@ longer recorded preimages are never decoded. Per block and per contract
    `balanceOf` that read only the base. Everyone else stays unknown; nothing
    becomes zero.
 
+Writes chain, and reads compare with the stored word, in execution order: by
+ordinal, except in a recognized Polygon state-sync transaction, which is
+ordered by depth-1 call, then ordinal ([Polygon state syncs](#limits)).
+
 ## Producer releases
 
 `Block.ver` alone does not identify producer semantics. Producers on
@@ -266,14 +270,28 @@ and holders.
   the balance alone.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
-  ([native](../../native/balances/README.md#execution-order-v078)). A
-  contract with a storage word that the transaction writes in two or more of
-  those calls, such as WPOL or WETH, fails the chain check by ordinal and gets
-  no rows in that block. On the nine Polygon blocks checked on 2026-10-14, no
-  row was wrong (443 of 444 rows match `balanceOf`; the other is a computed
-  balance from another transaction), and the dropped rows come back offline
-  without the state-sync transaction. A write pattern that chains by ordinal
-  to another final value remains possible; none was observed.
+  ([native](../../native/balances/README.md#execution-order-v078)). Until
+  v0.7.3, a contract with a storage word that the transaction writes in two
+  or more of those calls, such as WPOL or WETH, failed the chain check by
+  ordinal and got no rows in that block, and a write pattern that chains by
+  ordinal to another final value was possible. Since v0.7.4 (owner,
+  2026-10-17), the transaction's records are ordered by depth-1 call, then
+  ordinal, when it has native v0.7.8's exact shape, checked over storage
+  records as well as balance records (a bridge mint usually moves no native
+  balance): among other conditions, every record of the transaction lies
+  within its ordinals and its calls' ranges, and no record of the block
+  outside it does. A transaction with the state-sync signature in any other
+  layout drops every contract it writes or calls `balanceOf` of. On blocks
+  20,007,040, 50,016,032 and 70,044,000, all 75 keys the state-sync
+  transactions write chain in call order, the 34 written in two or more calls
+  included, none of which chains by ordinal; the 18 `balanceOf` calls inside
+  them return the word call order gives; and the 24 rows that v0.7.3 dropped
+  there match the RPC era, checked from the nearest RPC-era observation and
+  the transfers in between (the RPC era has no bar at those blocks). The
+  producer's later numbering (blocks 73,439,280 to 73,440,255) and span-commit
+  blocks were not re-checked over storage. On the nine Polygon blocks checked
+  on 2026-10-14, no row was wrong (443 of 444 rows match
+  `balanceOf`; the other is a computed balance from another transaction).
 - **Guards from synthetic scenarios.** Inner mappings, dust votes,
   self-destruct, unbacked `Deposit` and `Mint`, large own mismatches and
   unexplained writes come from synthetic scenarios and change at most a few rows
@@ -331,14 +349,15 @@ the 383 preimages a 5.5.0 producer would not record
 13 of its `balanceOf` calls lose their holder's preimage and all 164 rows stay
 the same. The tests of the embedded persistence rules also cover the captured
 Arbitrum One SetCode transactions. The v0.7.4 captures in
-[`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum and BSC blocks cut
-to one token's transactions, with their provenance and the RPC-era values at
+[`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum, BSC and Polygon
+blocks cut to one token's transactions, with their provenance and the RPC-era values at
 each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded
 RPC-era value equals its row. They include five blocks whose tokens v0.7.3
 dropped on a 68-, 64- or 28-byte `balanceOf`, five Tether destructions and a
 redemption whose holders v0.7.3 left at the old balance, two blocks whose
-only USDT frame is a destruction, and six blocks whose only WETH or WBNB
-frames are WETH9 deposits or withdrawals. The same test reads two
+only USDT frame is a destruction, six blocks whose only WETH or WBNB
+frames are WETH9 deposits or withdrawals, and three Polygon state-sync blocks
+whose tokens v0.7.3 dropped. The same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
 deposit and a withdrawal without a `Transfer`.
