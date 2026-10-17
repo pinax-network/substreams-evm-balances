@@ -47,6 +47,9 @@ const DESTROYED_BLOCKED_FUNDS: &str = "6a2859ae7902313752498feb80a014e6e7275fe96
 const DESTROY_BLACK_FUNDS: [u8; 4] = [0xf3, 0xbd, 0xc2, 0x28];
 /// The Tether owner, the sender of its admin calls.
 const OWNER: [u8; 20] = [0x0c; 20];
+/// WETH9 `deposit()` and `withdraw(uint256)`.
+const DEPOSIT_CALL: [u8; 4] = [0xd0, 0xe3, 0x0d, 0xb0];
+const WITHDRAW_CALL: [u8; 4] = [0x2e, 0x1a, 0x7d, 0x4d];
 /// A token amount unit large enough that exact votes are not dust.
 const U: u64 = 1_000_000;
 
@@ -180,6 +183,40 @@ fn rows(b: &eth::Block) -> Vec<(u8, String)> {
 fn r(holder: [u8; 20], amount: u64) -> (u8, String) {
     (holder[0], amount.to_string())
 }
+/// Sets the native value a call moves, recorded as minimal big-endian bytes.
+fn pay(c: &mut eth::Call, value: u64) {
+    let bytes = value.to_be_bytes();
+    let start = bytes.iter().take_while(|b| **b == 0).count();
+    c.value = buffa::MessageField::some(eth::BigInt {
+        bytes: bytes[start..].to_vec(),
+    });
+}
+/// A WETH9 `deposit()` by `holder` with `wad` of native value, whose word
+/// under mapping `slot` goes from `before` to `after`.
+fn deposit(holder: [u8; 20], wad: u64, slot: u8, before: u64, after: u64) -> eth::Call {
+    let mut c = root();
+    c.caller = holder.to_vec();
+    c.input = DEPOSIT_CALL.to_vec();
+    pay(&mut c, wad);
+    c.logs = vec![log(DEPOSIT, &[holder], wad)];
+    store(&mut c, holder, slot, before, after, 10);
+    c
+}
+/// A WETH9 `withdraw(wad)` by `holder`, whose word goes from `before` to
+/// `after`, and its only call: the payout of `wad` to the holder with the
+/// 2,300 gas of a Solidity `transfer`.
+fn withdrawal(holder: [u8; 20], wad: u64, before: u64, after: u64) -> Vec<eth::Call> {
+    let mut c = root();
+    c.caller = holder.to_vec();
+    c.input = [WITHDRAW_CALL.to_vec(), w(wad)].concat();
+    c.logs = vec![log(WITHDRAWAL, &[holder], wad)];
+    store(&mut c, holder, BASE, before, after, 10);
+    let mut payout = call(2, 1, 1, eth::CallType::Call, holder);
+    payout.caller = TOKEN.to_vec();
+    pay(&mut payout, wad);
+    payout.gas_limit = 2300;
+    vec![c, payout]
+}
 /// A transfer of 30 from A (100) to B (5) under the voted mapping.
 fn simple() -> eth::Call {
     let mut c = root();
@@ -225,8 +262,9 @@ fn tax_transfers_vote_by_net_flow() {
     assert!(rows(&block(vec![vec![ds]])).is_empty());
 }
 
-/// A staking pool's `Deposit(user, amount)` with `userInfo[user].amount` at
-/// struct offset 0 matches the WETH shape but is not a token.
+/// A staking pool's `Deposit(user, amount)` that no native value backs, with
+/// `userInfo[user].amount` at struct offset 0, matches the WETH shape but is
+/// not a token.
 #[test]
 fn deposits_alone_do_not_make_a_token() {
     let mut pool = root();
@@ -583,11 +621,12 @@ fn interleaved_reads_check_the_word_at_their_ordinal() {
     assert!(rows(&b(reads)).is_empty());
 }
 
-/// `Deposit`/`Withdrawal`/`Mint`/`Burn` name holders but never vote: a staking
-/// pool's `userInfo[user].amount` or a lock ledger moving with them is not a
-/// balance.
+/// `Deposit`/`Withdrawal`/`Mint`/`Burn` name holders but do not vote, except a
+/// native-backed WETH9 frame in a block where the contract has no `Transfer`
+/// flow: a staking pool's `userInfo[user].amount` or a lock ledger moving with
+/// them is not a balance.
 #[test]
-fn credits_and_debits_never_vote() {
+fn unbacked_credits_and_debits_never_vote() {
     let staking = |topic0: &str, holder: [u8; 20], before: u64, after: u64| {
         let mut c = root();
         c.logs = vec![log(topic0, &[holder], before.abs_diff(after))];
@@ -623,6 +662,118 @@ fn credits_and_debits_never_vote() {
     store(&mut lock, B, 6, 0, 200 * U, 11);
     store(&mut lock, TOKEN, BASE, 1000 * U, 1500 * U, 12);
     assert_eq!(rows(&block(vec![vec![lock]])), vec![r(TOKEN, 1500 * U)]);
+    // A native staking pool's stake by its holder with the exact value: it
+    // also writes the pool total, or credits less or someone else.
+    let mut total = deposit(A, 500 * U, 4, 0, 500 * U);
+    store_plain(&mut total, 5, 1000 * U, 1500 * U, 11);
+    assert!(rows(&block(vec![vec![total]])).is_empty());
+    let mut less = deposit(A, 500 * U, 4, 0, 500 * U);
+    pay(&mut less, 500 * U - 1);
+    assert!(rows(&block(vec![vec![less]])).is_empty());
+    let mut other = deposit(A, 500 * U, 4, 0, 500 * U);
+    other.caller = B.to_vec();
+    assert!(rows(&block(vec![vec![other]])).is_empty());
+}
+
+/// In a block where the contract has no `Transfer` flow, a WETH9 frame votes
+/// the amount of its only log of the contract when the frame's execution
+/// backs it: a `deposit()` (or the fallback) by the holder that receives
+/// exactly the wad and makes no call, or a `withdraw(wad)` by the holder whose
+/// only call pays exactly the wad to the holder with the 2,300 gas of a
+/// `transfer`. Each writes one word of the contract, the holder's.
+#[test]
+fn native_backed_wrapped_deposits_and_withdrawals_vote_without_transfers() {
+    let one = |calls: Vec<eth::Call>| rows(&block(vec![calls]));
+    let d = || deposit(A, 500 * U, BASE, 100 * U, 600 * U);
+    let wd = || withdrawal(B, 30 * U, 50 * U, 20 * U);
+    assert_eq!(one(vec![d()]), vec![r(A, 600 * U)]);
+    assert_eq!(one(wd()), vec![r(B, 20 * U)]);
+    // Wallets append bytes to the call data, which WETH9 ignores; a value with
+    // a leading zero byte is the same number.
+    let mut tagged = d();
+    tagged.input.extend(w(500 * U));
+    let mut fallback = d();
+    fallback.input.clear();
+    fallback.value.get_or_insert_default().bytes.insert(0, 0);
+    let mut zerion = wd();
+    zerion[0].input.extend(b"zerion");
+    assert_eq!(rows(&block(vec![vec![tagged], zerion])), vec![r(A, 600 * U), r(B, 20 * U)]);
+    assert_eq!(one(vec![fallback]), vec![r(A, 600 * U)]);
+    type Edit = Box<dyn Fn(&mut Vec<eth::Call>)>;
+    let deposits: Vec<(&str, Edit)> = vec![
+        ("another selector", Box::new(|c| c[0].input = [0xa9, 0x05, 0x9c, 0xbb].to_vec())),
+        ("no value", Box::new(|c| c[0].value = Default::default())),
+        ("an Approval too", Box::new(|c| c[0].logs.push(log(APPROVAL, &[A, D], 1)))),
+        ("a fee: 499 credited for 500", Box::new(|c| c[0].storage_changes[0].new_value = w(599 * U))),
+        ("a child call", Box::new(|c| c.push(call(2, 1, 1, eth::CallType::Static, [0x55; 20])))),
+        (
+            "a reverted child call",
+            Box::new(|c| {
+                let mut child = call(2, 1, 1, eth::CallType::Call, [0x55; 20]);
+                child.state_reverted = true;
+                c.push(child);
+            }),
+        ),
+        (
+            "a 0-wei deposit without a write",
+            Box::new(|c| {
+                c[0].logs = vec![log(DEPOSIT, &[A], 0)];
+                c[0].value = Default::default();
+                c[0].storage_changes.clear();
+            }),
+        ),
+        (
+            "a DELEGATECALL frame under a proxy",
+            Box::new(|c| {
+                let mut implementation = c.remove(0);
+                (implementation.index, implementation.parent_index, implementation.depth) = (2, 1, 1);
+                (implementation.call_type, implementation.address) = (eth::CallType::Delegate.into(), IMPL.to_vec());
+                let mut proxy = root();
+                (proxy.caller, proxy.input) = (A.to_vec(), implementation.input.clone());
+                pay(&mut proxy, 500 * U);
+                *c = vec![proxy, implementation];
+            }),
+        ),
+    ];
+    for (case, edit) in deposits {
+        let mut calls = vec![d()];
+        edit(&mut calls);
+        assert!(one(calls).is_empty(), "deposit: {case}");
+    }
+    let withdrawals: Vec<(&str, Edit)> = vec![
+        ("a payout of 30 + 1", Box::new(|c| pay(&mut c[1], 30 * U + 1))),
+        ("a payout to C", Box::new(|c| c[1].address = C.to_vec())),
+        ("a payout with input", Box::new(|c| c[1].input = vec![0])),
+        ("a payout with 100,000 gas", Box::new(|c| c[1].gas_limit = 100_000)),
+        ("a reverted payout", Box::new(|c| c[1].state_reverted = true)),
+        ("a failed payout", Box::new(|c| c[1].status_failed = true)),
+        ("no payout", Box::new(|c| drop(c.pop()))),
+        (
+            "a second value call",
+            Box::new(|c| {
+                let mut second = c[1].clone();
+                second.index = 3;
+                c.push(second);
+            }),
+        ),
+        ("input for another wad", Box::new(|c| c[0].input = [WITHDRAW_CALL.to_vec(), w(31 * U)].concat())),
+        ("input cut to the selector", Box::new(|c| c[0].input.truncate(4))),
+        ("a frame that receives value", Box::new(|c| pay(&mut c[0], 1))),
+        ("the holder is not the caller", Box::new(|c| c[0].caller = A.to_vec())),
+        ("a second write", Box::new(|c| store_plain(&mut c[0], 5, 0, 1, 11))),
+    ];
+    for (case, edit) in withdrawals {
+        let mut calls = wd();
+        edit(&mut calls);
+        assert!(one(calls).is_empty(), "withdrawal: {case}");
+    }
+    // A block with a Transfer flow keeps only its Transfer votes.
+    let keyed = deposit(A, 500 * U, 4, 100 * U, 600 * U);
+    assert_eq!(rows(&block(vec![vec![simple()], vec![keyed.clone()]])), vec![r(A, 70), r(B, 35)]);
+    // Accepted (owner, 2026-10-17): no state crosses blocks, so a contract
+    // whose Transfers vote base 3 in other blocks still gets the word of a
+    // WETH9-shaped ledger (here base 4) in a block without a Transfer.
+    assert_eq!(one(vec![keyed]), vec![r(A, 600 * U)]);
 }
 
 /// A packed word `lastBlock << 128 | balance`: a holder's first touch in the
@@ -1025,7 +1176,8 @@ fn captured_block_without_read_preimages_keeps_its_rows() {
 }
 
 /// The v0.7.4 captures in `fixtures/v074/`: Ethereum and BSC blocks cut to
-/// the transactions of one token, with provenance in `cases.json`. Each gives
+/// the transactions of one token, and two one-transaction WBNB captures of
+/// `fixtures/wbnb-mutations/`, with provenance in `cases.json`. Each gives
 /// exactly its recorded rows, which equal the RPC-era values at the block
 /// wherever the RPC-era database has them, and still holds the calls its case
 /// names.
@@ -1075,6 +1227,9 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
             }
             if let Some(n) = c["return_len"].as_u64() {
                 assert_eq!(call.return_data.len() as u64, n, "{file} {c}");
+            }
+            if let Some(n) = c["gas_limit"].as_u64() {
+                assert_eq!(call.gas_limit, n, "{file} {c}");
             }
         }
     }

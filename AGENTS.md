@@ -51,7 +51,10 @@ never prints them.
   qualified. Its candidates are the RPC reference's `(contract, holder)`
   pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender
   and TrueCurrency's 2-topic `DestroyedBlackFunds` names its holder (owner,
-  2026-10-17). The former layout path, with its tests, fixtures and qualification
+  2026-10-17). `Deposit`/`Withdrawal`/`Mint`/`Burn` do not vote, except a
+  native-backed WETH9 deposit or withdrawal and a TetherToken
+  `destroyBlackFunds` frame in a block where the contract has no `Transfer`
+  flow (owner, 2026-10-17). The former layout path, with its tests, fixtures and qualification
   evidence, is in git history at `9b41c7f`. Its last packed build is the
   committed `spkg/erc20-balances-v0.1.0.spkg` (2026-09-23), which predates the
   typed-path and enumerable-set source at `9b41c7f`. The inference package was

@@ -1102,6 +1102,569 @@
    }
   },
   {
+   "file": "../wbnb-mutations/122288015-tx18-deposit-nested-no-transfer.pb",
+   "chain": "bsc",
+   "block": 122288015,
+   "block_hash": "0x03813d090496922b3836f884a41127e2d09de9918bf8a87766da36e10f327f39",
+   "ver": 5,
+   "source_block_sha256": "6cac58fdc427aa53846973dcce1dbd8b2a5bf7fccd22259eb923f68b57307aff",
+   "fixture_sha256": "1f4848702bd35d7c998a0b6345ed85de4acf18370844dc41bbe2e7509bef171a",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    18
+   ],
+   "selection": "transaction 18 only, as captured in 2026-09",
+   "rule": "C2",
+   "demonstrates": "deposit() five frames deep, called by the storage address 0x278d858f... (tx 18 call 13, Block.ver 5) with exactly the wad and no call; in the one-transaction capture WBNB has no Transfer, so the frame votes the credit and the holder gets its word",
+   "calls": [
+    {
+     "tx": 18,
+     "call": 13,
+     "log_topic0": "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c",
+     "input_len": 4
+    }
+   ],
+   "rows": {
+    "0x3e5d4f8aee0d9b3082d5f6da5d6e225d17ba9ea0": {
+     "0x238a358808379702088667322f80ac48bad5e6c4": "458489736230038733408125",
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "1459857474448359341386"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "985428582545545169407"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {}
+   },
+   "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
+  },
+  {
+   "file": "../wbnb-mutations/122288035-tx9-withdrawal-no-transfer.pb",
+   "chain": "bsc",
+   "block": 122288035,
+   "block_hash": "0x35678ad4f89c7f35e53df4e3f7fa8a05fbef3792309b0ce457f59d1dcd850e21",
+   "ver": 5,
+   "source_block_sha256": "a0d7f3aa28b0929a3ea6c15effb6b56a9c503abd42e4c17b926522d927317057",
+   "fixture_sha256": "3133e240fe86f8287530baa8d5f2563650ec996fc24dc63c0c8e558fe944ba97",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    9
+   ],
+   "selection": "transaction 9 only, as captured in 2026-09",
+   "rule": "C2",
+   "demonstrates": "withdraw() by the contract 0x4e7ed91e... three frames deep (tx 9 call 7, Block.ver 5), paid by its only call with 2,300 gas; in the one-transaction capture WBNB has no Transfer, so the frame votes the debit and the holder gets its word",
+   "calls": [
+    {
+     "tx": 9,
+     "call": 7,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 8,
+     "address": "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x4b3d30992f003c8167699735f5ab2831b2a087d3": {
+     "0x238a358808379702088667322f80ac48bad5e6c4": "32784653201062672889496388",
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "171551221875647208584530"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "47036052789971507993"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {}
+   },
+   "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
+  },
+  {
+   "file": "bsc-127677069-wbnb-withdrawals.pb",
+   "chain": "bsc",
+   "block": 127677069,
+   "block_hash": "0x5e17ffb67828e8461d0dbec2df6830a7cec2bca44da6912241ba129df370dbfb",
+   "ver": 5,
+   "source_block_sha256": "3bb361cd31c4e07222f806c871a25964a0e790fb843c7a4adf9df065693ad1c1",
+   "fixture_sha256": "dc00e263f04aef0ca6ebfb0ea8e13da2e2632b1f06891037f59c68d1314d67b7",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    9
+   ],
+   "selection": "every WBNB transaction (only transaction 9)",
+   "rule": "C2",
+   "demonstrates": "on a Block.ver 5 producer, WBNB's only frames in the block are eight withdraw calls by eight holders, each five frames deep in transaction 9; each votes its debit, so the eight holders get rows where v0.7.3 inferred nothing for WBNB",
+   "calls": [
+    {
+     "tx": 9,
+     "call": 51,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 52,
+     "address": "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba",
+     "input_len": 0,
+     "gas_limit": 2300
+    },
+    {
+     "tx": 9,
+     "call": 238,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 239,
+     "address": "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x02fca66c1d1afb4e2a7884261eb00f63598a7436": {
+     "0x0b8a37088caad26e69b4414ef45d0f8252f91522": "4744961276159237402",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "16393457239325925"
+    },
+    "0x205812cdbed920aff76c6580abd681a46d11efc7": {
+     "0x6f6f9769d5028e2b072ea86243b98227c9ea7213": "718935287772747693",
+     "0x713cbf8c20e2aac4b1f3dadc0b17fdc81f4fcee4": "1195379629161678224",
+     "0x889e05adfbd5c2e2796e9ac10cc0f8e6a5570012": "1260509078449681699",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "7503885907097150"
+    },
+    "0x2859e4544c4bb03966803b044a93563bd2d0dd4d": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "68724030774154080657345",
+     "0xc83f239d50dbe562fe2c5639f72815fce50c480f": "36235348673943552247190588"
+    },
+    "0x2f8a339b5889ffac4c5a956787cda593b3c36867": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "12616032121061357",
+     "0xb0fb54bd94d755b8fc45127386600af37d4bab64": "1578976959905150801"
+    },
+    "0x55d398326f99059ff775485246999027b3197955": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4248550243314207583",
+     "0xce3a7e93c95f53d5997e4a95e84a0202a8d34a14": "228969496867350412252",
+     "0xe4683369d63a15fa6720c748c8723230a2db9d53": "5918851348677571328616",
+     "0xf42ae0f9fdd5a1b010d4b2714a736c7d772205db": "175565365402591664566"
+    },
+    "0x80ea4afa054f35a4d262730bb9441017d5527777": {
+     "0x4228d98f659e1674727db589e18716683a673fa5": "1114524057966455551529131",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3888671115958297303444"
+    },
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+     "0x4b9f4150c11d3fac12d8183aac0649a80185df07": "36726102649635859791",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3876320311860397"
+    },
+    "0x9b8e987e6fec8cf1380c4dca7071e2c7853aeea1": {
+     "0x1467dd6316c3ac92b01dbdb7ae3b43a0e4f89ed8": "42885500674382008670",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "78355254491751689",
+     "0xb125146e40d4f125a363301db446c70b74354f9c": "1995571053164150285",
+     "0xeb9c94fd3fba49928ad9bd376e37fbb4098cc49e": "12773620458045860119"
+    },
+    "0xba2ae424d960c26247dd6c32edc70b295c744c43": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "612479425",
+     "0xc42edac5ad3a498688af53e2fccd0963d95ccee0": "1827250874890"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f": "12465660532809730",
+     "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2": "27346554434265679",
+     "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28": "809403185415448738",
+     "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba": "3163593218380737732",
+     "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1": "471641938940520783",
+     "0x65b6200dade7312368685f511b03bce9196e1c25": "905136703498030111",
+     "0x890f405568e3520566753c04724f5289aa492c67": "525646499565701830",
+     "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824": "3740572053935469286"
+    },
+    "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1": {
+     "0x3c15f4982981316ec41be690451c1552d264b0b1": "7032911934272937550",
+     "0x65efcfb2d4500d39481ba78baf27483112c58b0c": "12439685490524744953",
+     "0x91c78ca5428cd0de11de1eb25f5c83bcfdfaa145": "2368587049338581931",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4378544628993033"
+    },
+    "0xfa4f58fd46fae74490a9d4cd69ed3eaf1b7d7777": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "2246878218219314339853",
+     "0xe96cc85eebb3db0673b76e5088940aec99f8ed8e": "292383673599371890934925"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x65b6200dade7312368685f511b03bce9196e1c25"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x890f405568e3520566753c04724f5289aa492c67"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0x02fca66c1d1afb4e2a7884261eb00f63598a7436": {
+      "0x0b8a37088caad26e69b4414ef45d0f8252f91522": "4744961276159237402",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "16393457239325925"
+     },
+     "0x205812cdbed920aff76c6580abd681a46d11efc7": {
+      "0x6f6f9769d5028e2b072ea86243b98227c9ea7213": "718935287772747693",
+      "0x713cbf8c20e2aac4b1f3dadc0b17fdc81f4fcee4": "1195379629161678224",
+      "0x889e05adfbd5c2e2796e9ac10cc0f8e6a5570012": "1260509078449681699",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "7503885907097150"
+     },
+     "0x2859e4544c4bb03966803b044a93563bd2d0dd4d": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "68724030774154080657345",
+      "0xc83f239d50dbe562fe2c5639f72815fce50c480f": "36235348673943552247190588"
+     },
+     "0x2f8a339b5889ffac4c5a956787cda593b3c36867": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "12616032121061357",
+      "0xb0fb54bd94d755b8fc45127386600af37d4bab64": "1578976959905150801"
+     },
+     "0x55d398326f99059ff775485246999027b3197955": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4248550243314207583",
+      "0xce3a7e93c95f53d5997e4a95e84a0202a8d34a14": "228969496867350412252",
+      "0xe4683369d63a15fa6720c748c8723230a2db9d53": "5918851348677571328616",
+      "0xf42ae0f9fdd5a1b010d4b2714a736c7d772205db": "175565365402591664566"
+     },
+     "0x80ea4afa054f35a4d262730bb9441017d5527777": {
+      "0x4228d98f659e1674727db589e18716683a673fa5": "1114524057966455551529131",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3888671115958297303444"
+     },
+     "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+      "0x4b9f4150c11d3fac12d8183aac0649a80185df07": "36726102649635859791",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3876320311860397"
+     },
+     "0x9b8e987e6fec8cf1380c4dca7071e2c7853aeea1": {
+      "0x1467dd6316c3ac92b01dbdb7ae3b43a0e4f89ed8": "42885500674382008670",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "78355254491751689",
+      "0xb125146e40d4f125a363301db446c70b74354f9c": "1995571053164150285",
+      "0xeb9c94fd3fba49928ad9bd376e37fbb4098cc49e": "12773620458045860119"
+     },
+     "0xba2ae424d960c26247dd6c32edc70b295c744c43": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "612479425",
+      "0xc42edac5ad3a498688af53e2fccd0963d95ccee0": "1827250874890"
+     },
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f": "12465660532809730",
+      "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2": "27346554434265679",
+      "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28": "809403185415448738",
+      "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba": "3163593218380737732",
+      "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1": "471641938940520783",
+      "0x65b6200dade7312368685f511b03bce9196e1c25": "905136703498030111",
+      "0x890f405568e3520566753c04724f5289aa492c67": "525646499565701830",
+      "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824": "3740572053935469286"
+     },
+     "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1": {
+      "0x3c15f4982981316ec41be690451c1552d264b0b1": "7032911934272937550",
+      "0x65efcfb2d4500d39481ba78baf27483112c58b0c": "12439685490524744953",
+      "0x91c78ca5428cd0de11de1eb25f5c83bcfdfaa145": "2368587049338581931",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4378544628993033"
+     },
+     "0xfa4f58fd46fae74490a9d4cd69ed3eaf1b7d7777": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "2246878218219314339853",
+      "0xe96cc85eebb3db0673b76e5088940aec99f8ed8e": "292383673599371890934925"
+     }
+    }
+   }
+  },
+  {
+   "file": "bsc-2444829-wbnb-withdrawal.pb",
+   "chain": "bsc",
+   "block": 2444829,
+   "block_hash": "0x1fc050270072d0fb7803652586826f24e33c438f81e4093d34edc09a9fcd8e80",
+   "ver": 3,
+   "source_block_sha256": "9c3593344a9288c73268be9d99e3977cb557cc0e217e52655fdea2b8eede9938",
+   "fixture_sha256": "9c3593344a9288c73268be9d99e3977cb557cc0e217e52655fdea2b8eede9938",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "selection": "the whole block (its only WBNB transaction is 2)",
+   "rule": "C2",
+   "demonstrates": "WBNB's only frame in the block is the withdraw by 0x46175f13... (tx 2 call 1, Block.ver 3) of its whole balance; it votes the debit and the holder gets 0, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 2,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 2,
+     "call": 2,
+     "address": "0x46175f13593d91ba9546d6ea6f946de986c95f33",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x46175f13593d91ba9546d6ea6f946de986c95f33": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x46175f13593d91ba9546d6ea6f946de986c95f33"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x46175f13593d91ba9546d6ea6f946de986c95f33": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "bsc-841989-wbnb-withdrawal.pb",
+   "chain": "bsc",
+   "block": 841989,
+   "block_hash": "0xc19ad08699380a6f9b3170374affdb29a56dba01b1652b7a82d4b4f8017c5878",
+   "ver": 3,
+   "source_block_sha256": "35f20bd46be3542c3b5de85244133da60fdd48e5c73be5eaa043f6447185641a",
+   "fixture_sha256": "35f20bd46be3542c3b5de85244133da60fdd48e5c73be5eaa043f6447185641a",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "selection": "the whole block (its only WBNB transaction is 1)",
+   "rule": "C2",
+   "demonstrates": "WBNB's only frame in the block is withdraw(8.36 WBNB) by 0x8eccf824... (tx 1 call 1, Block.ver 3): no Transfer flow, so the frame, whose only call pays the wad to the holder with 2,300 gas, votes the debit and the holder gets 0, where v0.7.3 inferred nothing and left 8.36 WBNB",
+   "calls": [
+    {
+     "tx": 1,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 1,
+     "call": 2,
+     "address": "0x8eccf824e72521e2a28515a934ef8ca7fc525a07",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x009cf7bc57584b7998236eff51b98a168dcea9b0": {
+     "0xab0eca3b1b10ee40d5aeffb7e815b2dbbfc76aab": "0"
+    },
+    "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82": {
+     "0x009cf7bc57584b7998236eff51b98a168dcea9b0": "140300337076560899718876",
+     "0x73feaa1ee314f8c655e354234017be2193c9e24e": "3536045885866575890270458",
+     "0x9b5435e3d9b7e3adb2a606f21faa8ae2978b73f5": "38605267432475954163",
+     "0xab0eca3b1b10ee40d5aeffb7e815b2dbbfc76aab": "53317620280544201725",
+     "0xb9fa21a62fc96cb2ac635a051061e2e50d964051": "98028791129133573681479"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x8eccf824e72521e2a28515a934ef8ca7fc525a07": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x8eccf824e72521e2a28515a934ef8ca7fc525a07"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {}
+   }
+  },
+  {
+   "file": "eth-10053838-weth-withdrawal.pb",
+   "chain": "eth",
+   "block": 10053838,
+   "block_hash": "0x6ee88a5863a79062723db2d0fd0b02d9600af3a008498ef041d349ec90e891a2",
+   "ver": 3,
+   "source_block_sha256": "a1fdfac248d85910b0a640bb641f24fc5de7d21b7f6a55e1d1eb057684f28763",
+   "fixture_sha256": "0f50ab396a9c70756c0d89370a7dea91b21f4cc6cdc37647d439be80fb5cfbea",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    101
+   ],
+   "selection": "every WETH transaction (only the withdrawal transaction 101)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is withdraw(200 WETH) by 0x6e812678... (tx 101 call 1, Block.ver 3); it votes the debit and the holder gets 0, where v0.7.3 inferred nothing and left 200 WETH",
+   "calls": [
+    {
+     "tx": 101,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 101,
+     "call": 2,
+     "address": "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {}
+   }
+  },
+  {
+   "file": "eth-6870128-weth-withdrawal.pb",
+   "chain": "eth",
+   "block": 6870128,
+   "block_hash": "0x74afce3c360b5dc59a92a1e0ea1fb0a3278765f66e1d78db3c0117cc486034ce",
+   "ver": 3,
+   "source_block_sha256": "0f0a6321fe087043206d73d96b659f4bf532270dacd4a6a826b39c9119bb5e81",
+   "fixture_sha256": "bbb177d38a537a18836db0dd173895d5789ba036b97a113117b0b729b66737b9",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    28
+   ],
+   "selection": "every WETH transaction (only the withdrawal transaction 28)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is the withdraw of 0.3599 WETH by 0xd4651483... (tx 28 call 1, Block.ver 3) of its whole balance; it votes the debit and the holder gets 0, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 28,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 28,
+     "call": 2,
+     "address": "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-7641947-weth-deposit.pb",
+   "chain": "eth",
+   "block": 7641947,
+   "block_hash": "0xb2e8dd859be0dc054a6069b2344a4c7b3fc918a63e13df706abb88c356fc0150",
+   "ver": 3,
+   "source_block_sha256": "6d6a960f3ff6b165113cf29fa168aac1d78edbc7a286a82954f04a107916f3e8",
+   "fixture_sha256": "20303a3cd48833ee2529db5eb44f1d5b03fa4990f49ee9ef864421ec384d03de",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    61
+   ],
+   "selection": "every WETH transaction (only the deposit transaction 61)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is a fallback deposit (empty input) of 0.0005 ETH by 0x674ebd53... (tx 61 call 1, Block.ver 3), which makes no call; it votes the credit and the holder gets 500000000000000, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 61,
+     "call": 1,
+     "log_topic0": "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c",
+     "input_len": 0
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x674ebd53c056b7e63ac511922ea4241c90834d09": "500000000000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x674ebd53c056b7e63ac511922ea4241c90834d09"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x674ebd53c056b7e63ac511922ea4241c90834d09": "500000000000000"
+     }
+    }
+   }
+  },
+  {
    "file": "eth-19439412-usdt-destroyed-black-funds.pb",
    "chain": "eth",
    "block": 19439412,

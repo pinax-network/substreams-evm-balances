@@ -52,16 +52,37 @@ longer recorded preimages are never decoded. Per block and per contract
    a verified same-frame preimage `pad(holder) || base`. DELEGATECALL frames
    match by the proxy address of logs and writes. Exact votes for flows below
    10^6 do not count for a mapping that also mismatches. `Deposit`,
-   `Withdrawal`, `Mint` and `Burn` never vote, because staking pools and lock
-   ledgers emit the same shapes; a contract without a nonzero `Transfer` in
-   the block is not inferred, with one exception since v0.7.4. There a
-   TetherToken `destroyBlackFunds(holder)` frame votes the debit that its
-   1-topic `DestroyedBlackFunds(holder, amount)` states: a CALL to the contract
-   that makes no call, with that one log of the contract, whose writes are the
-   holder's word, which ends at zero, and one unhashed word (the supply), which
-   falls by the amount. Tether `Issue`/`Redeem` never vote: a deprecated
-   TetherToken still issues to its owner once its `balanceOf` forwards to the
-   upgraded contract.
+   `Withdrawal`, `Mint` and `Burn` do not vote, because staking pools and lock
+   ledgers emit the same shapes, so a contract without a nonzero `Transfer` in
+   the block is not inferred, with exceptions since v0.7.4 (owner,
+   2026-10-17). In such a block, a CALL frame to the contract, neither failed
+   nor reverted, whose only log of the contract states an amount that the
+   frame's own execution backs votes that amount:
+   - a WETH9 deposit: `Deposit(holder, wad)` in a frame called by the holder,
+     whose input is empty (the fallback) or starts with `deposit()`, that
+     receives exactly wad in native value, makes no call and writes one word
+     of the contract;
+   - a WETH9 withdrawal: `Withdrawal(holder, wad)` in a frame called by the
+     holder, whose input starts with `withdraw(wad)`, that receives no value,
+     whose only call pays exactly wad to the holder (a CALL with no input and
+     the 2,300 gas of a Solidity `transfer`, neither failed nor reverted) and
+     that writes one word of the contract;
+   - a TetherToken `destroyBlackFunds(holder)`: the 1-topic
+     `DestroyedBlackFunds(holder, amount)` in a frame that makes no call,
+     whose input names the holder and whose writes are the holder's word,
+     which ends at zero, and one unhashed word (the supply), which falls by the
+     amount.
+
+   The holder's word must have the frame's preimage `pad(holder) || base`.
+   Wallets append bytes to WETH9 call data, so its inputs are matched by
+   prefix. On the 2,238 live WETH and WBNB frames of 124 Ethereum and BSC
+   blocks this rejects one genuine deposit, a fallback with 68 bytes of call
+   data; of 27 frames of 24 other contracts with these events, only a WBNB
+   copy's passes. No state crosses blocks: a contract whose `Transfer`s vote
+   one mapping and which also keeps a WETH9-shaped native ledger would get the
+   ledger's word in a block without a `Transfer`; none was seen. Tether
+   `Issue`/`Redeem` never vote: a deprecated TetherToken still issues to its
+   owner once its `balanceOf` forwards to the upgraded contract.
 3. **Base**: the mapping every keyed `balanceOf` reads, if it has exact votes;
    otherwise the mapping with the most exact votes, and a tie infers nothing.
    A traced `balanceOf` is keyed when its storage context recorded a
@@ -254,7 +275,7 @@ and holders.
   without the state-sync transaction. A write pattern that chains by ordinal
   to another final value remains possible; none was observed.
 - **Guards from synthetic scenarios.** Inner mappings, dust votes,
-  self-destruct, non-voting `Deposit`/`Mint`, large own mismatches and
+  self-destruct, unbacked `Deposit` and `Mint`, large own mismatches and
   unexplained writes come from synthetic scenarios and change at most a few rows
   in these intervals.
 
@@ -315,8 +336,12 @@ to one token's transactions, with their provenance and the RPC-era values at
 each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded
 RPC-era value equals its row. They include five blocks whose tokens v0.7.3
 dropped on a 68-, 64- or 28-byte `balanceOf`, five Tether destructions and a
-redemption whose holders v0.7.3 left at the old balance, and two blocks whose
-only USDT frame is a destruction.
+redemption whose holders v0.7.3 left at the old balance, two blocks whose
+only USDT frame is a destruction, and six blocks whose only WETH or WBNB
+frames are WETH9 deposits or withdrawals. The same test reads two
+one-transaction WBNB captures of
+[`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
+deposit and a withdrawal without a `Transfer`.
 
 ## History
 
