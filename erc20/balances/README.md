@@ -49,8 +49,13 @@ longer recorded preimages are never decoded. Per block and per contract
    names its holder.
 2. **Votes**: in every such call frame, each holder's signed net `Transfer` flow
    is compared with the net persisted delta of the frame's writes whose key has
-   a verified same-frame preimage `pad(holder) || base`. DELEGATECALL frames
-   match by the proxy address of logs and writes. Exact votes for flows below
+   a verified same-frame preimage of the holder's key under a mapping base:
+   Solidity's `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17),
+   Vyper's `slot || pad(holder)` with a slot below 2^64. Vyper's `HashMap`
+   uses that order in every release from 0.1 to 0.5, so crvUSD, CRV, Curve
+   pools and gauges and Yearn vaults are inferred. The two orders are
+   different bases and never share votes or reads. DELEGATECALL frames match
+   by the proxy address of logs and writes. Exact votes for flows below
    10^6 do not count for a mapping that also mismatches. `Deposit`,
    `Withdrawal`, `Mint` and `Burn` do not vote, because staking pools and lock
    ledgers emit the same shapes, so a contract without a nonzero `Transfer` in
@@ -85,8 +90,9 @@ longer recorded preimages are never decoded. Per block and per contract
    owner once its `balanceOf` forwards to the upgraded contract.
 3. **Base**: the mapping every keyed `balanceOf` reads, if it has exact votes;
    otherwise the mapping with the most exact votes, and a tie infers nothing.
-   A traced `balanceOf` is keyed when its storage context recorded a
-   `pad(holder) || base` preimage; see [producer releases](#producer-releases).
+   A traced `balanceOf` is keyed when its storage context recorded the
+   preimage of the holder's key under a base; see
+   [producer releases](#producer-releases).
    Inner mappings (with their own 64-byte preimage, such as allowances) and
    mappings with more large mismatches than exact votes (a packed word whose
    other field moves) are never chosen.
@@ -114,9 +120,13 @@ longer recorded preimages are never decoded. Per block and per contract
    word. Since v0.7.4 a Tether `Issue`/`Redeem` (for the frame's sender) or
    `DestroyedBlackFunds` in the frame also explains the write when its amount
    equals the frame's net change of the holder's word, a destruction also
-   leaving it at zero. A candidate without a write gets the value of a keyed
-   `balanceOf` that read only the base. Everyone else stays unknown; nothing
-   becomes zero.
+   leaving it at zero. The contract's own word needs no explanation, except
+   under a Vyper base since v0.7.4 (owner, 2026-10-17): there it needs a keyed
+   `balanceOf` of the contract traced after its last write, because a Yearn
+   v3 vault's `balanceOf(self)` is its word less the shares still unlocking,
+   which fall with time and no write. A candidate without a write gets the
+   value of a keyed `balanceOf` that read only the base. Everyone else stays
+   unknown; nothing becomes zero.
 
 Writes chain, and reads compare with the stored word, in execution order: by
 ordinal, except in a recognized Polygon state-sync transaction, which is
@@ -262,12 +272,23 @@ and holders.
   5.5.0 blocks it shows less: a `balanceOf` that also reads a second holder
   mapping usually keeps only the base's preimage. Only a tracer option that
   keeps read preimages would restore that exclusion.
-- **Certification by exact votes alone.** When the real balance key is not
-  `pad(holder) || base` (struct offsets, Vyper ordering, assembly hashing),
-  another mapping that moves exactly, such as a cumulative `received[holder]`,
-  can be emitted instead. A packed word is emitted whole when its other fields
+- **Certification by exact votes alone.** When the real balance key is
+  neither `pad(holder) || slot` nor Vyper's `slot || pad(holder)` (struct
+  offsets, assembly hashing), another mapping that moves exactly, such as a
+  cumulative `received[holder]`, can be emitted instead. A packed word is emitted whole when its other fields
   never change, or change on no more of the block's touches than those that move
   the balance alone.
+- **Vyper tokens.** Since v0.7.4, Curve gauges and st-yETH move other holder
+  maps (working balances, reward and weight maps) with every flow, so their
+  rows are usually dropped as shadowed or tied: missing, not wrong. Curve's
+  BoostV2 computes every holder's balance; its `balanceOf` calls the voting
+  escrow, which vetoes. A Yearn v3 vault computes only its own balance, which
+  rule 6 guards. Yearn v3's Solidity TokenizedStrategy computes its own
+  balance the same way, and keeps its own row like any Solidity contract. On
+  Ethereum blocks 26,174,479, 26,194,925, 26,203,984 and 26,210,251, the 123
+  rows of Vyper tokens include 121 that equal the RPC era at the block; its
+  1-minute bars cannot pin the other 2, and only the vault's own row,
+  dropped by the guard, is missing against an offline model of the rules.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
   ([native](../../native/balances/README.md#execution-order-v078)). Until
@@ -356,8 +377,11 @@ RPC-era value equals its row. They include five blocks whose tokens v0.7.3
 dropped on a 68-, 64- or 28-byte `balanceOf`, five Tether destructions and a
 redemption whose holders v0.7.3 left at the old balance, two blocks whose
 only USDT frame is a destruction, six blocks whose only WETH or WBNB
-frames are WETH9 deposits or withdrawals, and three Polygon state-sync blocks
-whose tokens v0.7.3 dropped. The same test reads two
+frames are WETH9 deposits or withdrawals, three Polygon state-sync blocks
+whose tokens v0.7.3 dropped, and four blocks of Vyper tokens (scrvUSD, 3Crv,
+CRV and crvUSD) that v0.7.3 did not infer, one of them a Yearn v3 report
+whose vault gets no row of its own until a read after the report is
+added. The same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
 deposit and a withdrawal without a `Transfer`.

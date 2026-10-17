@@ -9,25 +9,29 @@
 //! 2. Every non-reverted call frame of a successful transaction votes. A holder's
 //!    signed net `Transfer` flow in the frame is compared with the net delta of
 //!    the frame's persisted writes whose key has a verified same-frame Keccak
-//!    preimage `pad(holder) || base`. Equal is an exact vote for `base`, unequal
-//!    a mismatch. Exact votes for flows below 10^6 do not count for a base that
-//!    also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` and Tether's admin
-//!    events do not vote, except in a block where the contract has no
-//!    `Transfer` flow: there a CALL frame votes the amount of its only log of
-//!    the contract when the frame's own execution backs that amount (see
-//!    [`backed`]). The cases are a WETH9 `deposit()` by the holder that
+//!    preimage of the holder's key under a base: Solidity's
+//!    `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17), Vyper's
+//!    `slot || pad(holder)` with a slot below 2^64 (see [`Base`]). Equal is an
+//!    exact vote for the base, unequal a mismatch; the two key orders are
+//!    different bases. Exact votes for flows below 10^6 do not count for a
+//!    base that also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` and
+//!    Tether's admin events do not vote, except in a block where the contract
+//!    has no `Transfer` flow: there a CALL frame votes the amount of its only
+//!    log of the contract when the frame's own execution backs that amount
+//!    (see [`backed`]). The cases are a WETH9 `deposit()` by the holder that
 //!    receives exactly that native value and makes no call, a WETH9
 //!    `withdraw(wad)` by the holder whose only call pays exactly that value to
 //!    the holder with the 2,300 gas of a `transfer`, each writing one word of
-//!    the contract, and a TetherToken `destroyBlackFunds(holder)` that makes no
-//!    call, zeroes the holder's word and moves one unhashed word (the supply)
-//!    by the same amount.
+//!    the contract, and a TetherToken `destroyBlackFunds(holder)` that makes
+//!    no call, zeroes the holder's word and moves one unhashed word (the
+//!    supply) by the same amount.
 //! 3. The base is the mapping every keyed `balanceOf` reads, if it has exact
 //!    votes, or else the base with the most exact votes; a tie chooses none.
-//!    A traced `balanceOf` is keyed when its storage context recorded a
-//!    `pad(holder) || base` preimage. Producers on firehose-tracer 5.5.0 and
-//!    later keep only the preimages that explain a storage write of their
-//!    transaction, so a read of an unchanged holder is usually not keyed.
+//!    A traced `balanceOf` is keyed when its storage context recorded the
+//!    preimage of the holder's key under a base. Producers on firehose-tracer
+//!    5.5.0 and later keep only the preimages that explain a storage write of
+//!    their transaction, so a read of an unchanged holder is usually not
+//!    keyed.
 //!    Inner (nested) mappings are never chosen, nor a base whose own large
 //!    mismatches outnumber its exact votes.
 //! 4. The contract is excluded for the block when a persisted record or event
@@ -50,9 +54,12 @@
 //!    Tether `Issue`/`Redeem` (for the frame's sender) or `DestroyedBlackFunds`
 //!    whose amount equals the frame's net change of the holder's word, a
 //!    destruction also leaving it at zero. The contract's own word needs no
-//!    explanation. A holder whose last write is unexplained needs its own keyed
-//!    `balanceOf`, traced after that write. Candidate holders without a write
-//!    get the value of a keyed `balanceOf` that read exactly the base.
+//!    explanation, except under a Vyper base, where it always needs a keyed
+//!    `balanceOf` of the contract traced after its last write: a Yearn v3
+//!    vault computes its own balance. A holder whose last write is unexplained
+//!    needs its own keyed `balanceOf`, traced after that write. Candidate
+//!    holders without a write get the value of a keyed `balanceOf` that read
+//!    exactly the base.
 //!
 //! Writes and reads are in execution order: by ordinal, except in a
 //! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
@@ -66,7 +73,7 @@
 //! 64-byte preimages; longer recorded preimages are never decoded.
 mod bor;
 
-use crate::{eth, hash, mapping, persist};
+use crate::{eth, hash, persist};
 use bor::Seq;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -416,10 +423,54 @@ fn preimage64(call: &eth::Call, key: &Word) -> Option<[u8; 64]> {
     let bytes: [u8; 64] = hex::decode(value).ok()?.try_into().ok()?;
     (hash(&bytes) == *key).then_some(bytes)
 }
-/// The verified same-frame preimage `pad(holder) || base` of a storage key.
+/// The verified same-frame Solidity preimage `pad(holder) || base` of a
+/// storage key: WETH9's and TetherToken's (see [`backed`]).
 fn preimage(call: &eth::Call, key: &Word) -> Option<(Addr, Word)> {
-    let bytes = preimage64(call, key)?;
-    (bytes[..12] == [0; 12]).then(|| (bytes[12..32].try_into().unwrap(), bytes[32..].try_into().unwrap()))
+    let (holder, base) = readings(&preimage64(call, key)?)[0]?;
+    Some((holder, base.slot))
+}
+
+/// A holder mapping (`mapping(address => uint256)`): its slot and key order.
+/// Solidity keys a holder's word at `keccak(pad(holder) || slot)`. Vyper's
+/// `HashMap` keys it at `keccak(slot || pad(holder))` in every release from
+/// 0.1 to 0.5, legacy and venom code generation alike, and the tracer records
+/// that 64-byte preimage; since v0.7.4 (owner, 2026-10-17) both orders are
+/// read. The two orders are different bases: they never share votes or
+/// reads.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct Base {
+    slot: Word,
+    vyper: bool,
+}
+impl Base {
+    /// The storage key of `holder`'s word.
+    fn key(&self, holder: &Addr) -> Word {
+        let mut preimage = [0; 64];
+        if self.vyper {
+            preimage[..32].copy_from_slice(&self.slot);
+            preimage[44..].copy_from_slice(holder);
+        } else {
+            preimage[12..32].copy_from_slice(holder);
+            preimage[32..].copy_from_slice(&self.slot);
+        }
+        hash(&preimage)
+    }
+}
+/// The readings of a 64-byte preimage as a holder's key: Solidity's
+/// `pad(holder) || slot`, and Vyper's `slot || pad(holder)` with a slot below
+/// 2^64. Every Vyper balance slot seen is below 40; larger ones hold the
+/// arrays of Curve gauges. Where both apply, one reading's holder is an
+/// address below 2^64 (a precompile or a system contract) and the other's is
+/// the number of a slot.
+fn readings(b: &[u8; 64]) -> [Option<(Addr, Base)>; 2] {
+    let at = |holder: &[u8], slot: &[u8], vyper| {
+        let slot = slot.try_into().unwrap();
+        (holder.try_into().unwrap(), Base { slot, vyper })
+    };
+    [
+        (b[..12] == [0; 12]).then(|| at(&b[12..32], &b[32..], false)),
+        (b[..24] == [0; 24] && b[32..44] == [0; 12]).then(|| at(&b[44..], &b[..32], true)),
+    ]
 }
 
 struct Write {
@@ -583,7 +634,8 @@ struct Tally {
     large: u32,
     /// Exact votes for flows below 10^6.
     dust: u32,
-    /// The base has its own verified 64-byte preimage: an inner mapping.
+    /// The base's slot has its own verified 64-byte preimage: an inner
+    /// mapping. Never true of a Vyper slot, which is below 2^64.
     nested: bool,
 }
 /// The net persisted delta and last new word of each key, per frame and
@@ -723,13 +775,13 @@ fn wrapped(call: &eth::Call, log: &eth::Log, keys: &BTreeMap<Word, (Net, Word)>,
     Some((holder, net))
 }
 
-fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Word, Tally>> {
-    let mut tallies = BTreeMap::<Addr, BTreeMap<Word, Tally>>::new();
+fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>> {
+    let mut tallies = BTreeMap::<Addr, BTreeMap<Base, Tally>>::new();
     for (key, (call, net)) in flows {
         // Each distinct key, and each base, is resolved once per frame.
-        let mut deltas = BTreeMap::<(Addr, Word), Net>::new();
+        let mut deltas = BTreeMap::<(Addr, Base), Net>::new();
         for (k, (d, _)) in framed.get(key).into_iter().flatten() {
-            if let Some(resolved) = preimage(call, k) {
+            for resolved in preimage64(call, k).iter().flat_map(readings).flatten() {
                 deltas.entry(resolved).or_default().merge(d);
             }
         }
@@ -740,7 +792,7 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Word, Tally>
                 continue;
             };
             let tally = t.entry(base).or_default();
-            tally.nested |= *nested.entry(base).or_insert_with(|| preimage64(call, &base).is_some());
+            tally.nested |= *nested.entry(base.slot).or_insert_with(|| preimage64(call, &base.slot).is_some());
             if *flow == delta {
                 tally.exact += 1;
                 let f = flow.abs();
@@ -761,7 +813,7 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Word, Tally>
 /// the base with the most exact votes; a tie chooses none. Inner mappings
 /// (allowances) and bases with more large mismatches than exact votes (a
 /// packed word whose other field moves) are never chosen.
-fn choose(tallies: &BTreeMap<Word, Tally>, reads: &[Read]) -> Option<Word> {
+fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
     let plain = |t: &Tally| t.exact > 0 && !t.nested;
     let base = 'base: {
         let mut keyed = reads.iter().filter(|r| r.keyed());
@@ -770,7 +822,7 @@ fn choose(tallies: &BTreeMap<Word, Tally>, reads: &[Read]) -> Option<Word> {
                 break 'base *base;
             }
         }
-        let mut best: Option<(Word, u32)> = None;
+        let mut best: Option<(Base, u32)> = None;
         let mut tied = false;
         for (base, t) in tallies.iter().filter(|(_, t)| plain(t)) {
             match best {
@@ -796,37 +848,53 @@ struct Read {
     value: Word,
     /// In a non-reverted frame: the value reflects persisted state.
     persisted: bool,
-    /// Up to two bases of the verified `pad(holder) || base` preimages
-    /// computed in the read's storage context (the frame and its DELEGATECALL
+    /// Up to two bases of the verified holder-key preimages (`pad(holder) ||
+    /// slot`, or Vyper's `slot || pad(holder)`, see [`readings`]) computed in
+    /// the read's storage context (the frame and its DELEGATECALL
     /// descendants).
-    bases: Vec<Word>,
+    bases: Vec<Base>,
     /// A call out of that storage context.
     external: bool,
 }
 impl Read {
     fn scan(&mut self, call: &eth::Call) {
         let holder = hex::encode(self.holder);
+        let zeros = |s: &[u8]| s.iter().all(|c| *c == b'0');
         for (key, value) in &call.keccak_preimages {
-            // Match the hex text of `pad(holder)` before decoding and hashing.
+            // Match the hex text of `pad(holder)` on either side before
+            // decoding and hashing.
             let v = value.as_bytes();
-            if self.bases.len() == 2 || v.len() != 128 || v[..24].iter().any(|c| *c != b'0') || !v[24..64].eq_ignore_ascii_case(holder.as_bytes()) {
+            if self.bases.len() == 2 || v.len() != 128 {
+                continue;
+            }
+            let solidity = zeros(&v[..24]) && v[24..64].eq_ignore_ascii_case(holder.as_bytes());
+            let vyper = zeros(&v[..48]) && zeros(&v[64..88]) && v[88..].eq_ignore_ascii_case(holder.as_bytes());
+            if !(solidity || vyper) {
                 continue;
             }
             let (Ok(bytes), Ok(key)) = (hex::decode(v), hex::decode(key)) else {
                 continue;
             };
-            let base: Word = bytes[32..].try_into().unwrap();
-            if hash(&bytes)[..] == key[..] && !self.bases.contains(&base) {
-                self.bases.push(base);
+            let Ok(bytes) = <[u8; 64]>::try_from(bytes) else {
+                continue;
+            };
+            if hash(&bytes)[..] != key[..] {
+                continue;
+            }
+            for (_, base) in readings(&bytes).into_iter().flatten().filter(|(h, _)| *h == self.holder) {
+                if self.bases.len() < 2 && !self.bases.contains(&base) {
+                    self.bases.push(base);
+                }
             }
         }
     }
-    /// The read computed exactly `pad(holder) || base` and called nothing else.
-    fn pure(&self, base: &Word) -> bool {
+    /// The read computed exactly the holder's key under `base` and called
+    /// nothing else.
+    fn pure(&self, base: &Base) -> bool {
         self.bases == [*base] && !self.external
     }
-    /// The read recorded a `pad(holder) || base` preimage. An unkeyed read
-    /// shows neither which mapping it read nor that it read only one.
+    /// The read recorded a holder-key preimage. An unkeyed read shows neither
+    /// which mapping it read nor that it read only one.
     fn keyed(&self) -> bool {
         !self.bases.is_empty()
     }
@@ -979,7 +1047,7 @@ fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>
 /// The end-of-block balances of one voted contract, or `None` on any doubt.
 fn decide(
     token: &Addr,
-    tallies: &BTreeMap<Word, Tally>,
+    tallies: &BTreeMap<Base, Tally>,
     writes: &[Write],
     reads: &[Read],
     holders: &BTreeSet<Addr>,
@@ -992,7 +1060,7 @@ fn decide(
     // a destruction also leaves the word at zero.
     let explained = |frame: Frame, holder: &Addr| {
         names.admin.get(&(frame, *holder)).is_some_and(|(amount, zero)| {
-            let written = framed.get(&(frame, *token)).and_then(|keys| keys.get(&mapping(holder, &base)));
+            let written = framed.get(&(frame, *token)).and_then(|keys| keys.get(&base.key(holder)));
             written.is_some_and(|(delta, last)| delta == amount && (!zero || *last == [0; 32]))
         })
     };
@@ -1026,7 +1094,7 @@ fn decide(
     let shadowed = shadow >= exact;
     let mut values = BTreeMap::new();
     for r in reads.iter().filter(|r| r.persisted) {
-        match by_key.get(&mapping(&r.holder, &base)) {
+        match by_key.get(&base.key(&r.holder)) {
             Some(ws) => {
                 // Writes to the key are in execution order.
                 if ws.get(ws.partition_point(|w| w.seq <= r.begin)).is_some_and(|w| w.seq < r.end) {
@@ -1052,13 +1120,22 @@ fn decide(
         }
     }
     for holder in holders {
-        if let Some(last) = by_key.get(&mapping(holder, &base)).and_then(|ws| ws.last()) {
+        if let Some(last) = by_key.get(&base.key(holder)).and_then(|ws| ws.last()) {
             // A third party's word changed with no balance event naming or
             // explaining it in that frame (a flag, an admin or a sync write)
             // needs its own read, traced after that write: a read before it
             // validated only the word it saw.
             let vouched = read.get(holder).is_some_and(|begin| *begin > last.seq);
-            if holder == token || names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched {
+            // The contract's own word needs no explanation, except under a
+            // Vyper base: a Yearn v3 vault's `balanceOf(self)` is its word
+            // less the shares still unlocking, which fall with time and no
+            // write, so only a read after the last write shows the balance.
+            let keep = if holder == token {
+                !base.vyper || vouched
+            } else {
+                names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched
+            };
+            if keep {
                 values.insert(*holder, last.new);
             }
         }

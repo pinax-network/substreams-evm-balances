@@ -739,7 +739,7 @@
    ],
    "selection": "every USDC transaction with at most two calls (a proxied transfer), and the bot transaction 166",
    "rule": "C1",
-   "demonstrates": "tx 166 (Block.ver 5) CALLs USDC balanceOf(0x52852bd8...) with a 68-byte input and no recorded preimage (unkeyed, as 5.5.0 producers record a read of an unchanged holder), returning the stored 5,769,348, and WETH balanceOf with a 68-byte keyed input (call 91); v0.7.3 dropped both tokens for the block, v0.7.4 keeps their rows and the unkeyed read only vetoes",
+   "demonstrates": "tx 166 (Block.ver 5) CALLs USDC balanceOf(0x52852bd8...) with a 68-byte input and no recorded preimage (unkeyed, as 5.5.0 producers record a read of an unchanged holder), returning the stored 5,769,348, and WETH balanceOf with a 68-byte keyed input (call 91); v0.7.3 dropped both tokens for the block, v0.7.4 keeps their rows and the unkeyed read only vetoes; since C6 the block's FXN (a CurveDAOToken fork, Vyper 0.3.1) rows are inferred too",
    "calls": [
     {
      "tx": 166,
@@ -760,6 +760,10 @@
      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "1399",
      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
      "0xe31a5442b29f04e84441395c78f200919c6a7f31": "0"
+    },
+    "0x365accfca291e7d3914637abf1f7635db165bb09": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "30241894882467882",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
     },
     "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "82391483762104",
@@ -844,6 +848,14 @@
     }
    },
    "added_since_v073": [
+    [
+     "0x365accfca291e7d3914637abf1f7635db165bb09",
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800"
+    ],
+    [
+     "0x365accfca291e7d3914637abf1f7635db165bb09",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7"
+    ],
     [
      "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
      "0x00a0331e75de7bb5995df5f0c8cddef2eea0d8d6"
@@ -2708,6 +2720,475 @@
      }
     },
     "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "eth-26174479-scrvusd-report.pb",
+   "chain": "eth",
+   "block": 26174479,
+   "block_hash": "0xe5884896feb9914a2c2cd4e6293e2e2035432e5a3c0c7383af2f4013821f5fb0",
+   "ver": 5,
+   "source_block_sha256": "42c436fdaec4900e3e93d6dd91143c031dd61c785b23432ce01d62d0d137c92e",
+   "fixture_sha256": "55733445cb11cc50a6b5eac3696d73e05d7aae729e88c27e4546be331d4a14c7",
+   "token": "0x0655977feb2f289a4ab78af67bab0d17aab84367",
+   "kept_transactions": [
+    178
+   ],
+   "selection": "every scrvUSD transaction (only the report transaction 178)",
+   "rule": "C6",
+   "demonstrates": "a report of scrvUSD, a Yearn v3 VaultV3 behind an EIP-1167 proxy (implementation 0xd8063123..., Vyper 0.3.7): the vault's DELEGATECALL frame (tx 178 call 51) emits Transfer(0, vault, 3615774490983119344) and writes the vault's own word under HashMap slot 18, preimage slot || pad(vault), to 5480155112664263237347 at ordinal 9603. VaultV3 computes balanceOf(self) as that word less the shares still unlocking, and no balanceOf(vault) follows the write, so under the Vyper base the vault gets no row (right after a report the word equals the RPC era, which it later does not). crvUSD (Vyper 0.3.7, slot 1) gets its two rows; v0.7.3 read neither token's preimages",
+   "calls": [
+    {
+     "tx": 178,
+     "call": 51,
+     "address": "0xd8063123bba3b480569244ae66bfe72b6c84b00d",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 178,
+     "call": 52,
+     "address": "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "input_len": 36,
+     "return_len": 32
+    }
+   ],
+   "rows": {
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x0655977feb2f289a4ab78af67bab0d17aab84367": "16270388489074394225800560",
+     "0xe8d1e2531761406af1615a6764b0d5ff52736f56": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x0655977feb2f289a4ab78af67bab0d17aab84367"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xe8d1e2531761406af1615a6764b0d5ff52736f56"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x0655977feb2f289a4ab78af67bab0d17aab84367": "16270388489074394225800560",
+      "0xe8d1e2531761406af1615a6764b0d5ff52736f56": "0"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26194925-crvusd.pb",
+   "chain": "eth",
+   "block": 26194925,
+   "block_hash": "0xa007f769e74dfa6b58c0bc22f0870b2bfe78fe529eabdce4579455bbd3f70578",
+   "ver": 5,
+   "source_block_sha256": "38a73c595252a45d12d01e2f738fa43563185a178e4177e3f34ec337ab615a4c",
+   "fixture_sha256": "a01d755ff2010955aa837391cf490923c627a809508ad9a593c56c5f3cbf4a46",
+   "token": "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+   "kept_transactions": [
+    38,
+    43
+   ],
+   "selection": "crvUSD transactions 38 and 43 (of 12), whose rows equal the full block's",
+   "rule": "C6",
+   "demonstrates": "crvUSD (Vyper 0.3.7, HashMap slot 1) in two swap transactions next to tBTC and WBTC (Solidity): crvUSD gets 6 rows, where v0.7.3 gave only the 6 Solidity rows",
+   "calls": [
+    {
+     "tx": 38,
+     "call": 14,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 43,
+     "call": 12,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0x18084fba666a33d37592fa2633fd49a74dd93a88": {
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "18103967803864128176",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "27455188446984765140"
+    },
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "7095159393",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "2604481321"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "4803108505934387689897555",
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "728001551011865175449931",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "4113680304595623327300663",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "5672530252664945538822899"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "4803108505934387689897555",
+      "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+      "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "728001551011865175449931",
+      "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "4113680304595623327300663",
+      "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+      "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "5672530252664945538822899"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26203984-3crv.pb",
+   "chain": "eth",
+   "block": 26203984,
+   "block_hash": "0x2e129e77ab9ef6b411ccf59ffb75b722da60615c00a86ad829c895c36f6b1b7c",
+   "ver": 5,
+   "source_block_sha256": "640a9338fdbbee411c02a77719a63aae6ed60a56c568b01adc88c910efb62fc4",
+   "fixture_sha256": "2ec2b5b0c1191b918d24a8e3da9915482daa99ce4b9fa349743f11e103fb65f4",
+   "token": "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+   "kept_transactions": [
+    172
+   ],
+   "selection": "every 3Crv transaction (only transaction 172)",
+   "rule": "C6",
+   "demonstrates": "Curve's 3pool LP token 3Crv (Vyper 0.2.4) moves in 13 Transfers of tx 172, with crvUSD (Vyper 0.3.7) in the same transaction; each holder's word is keyed keccak(slot || pad(holder)), so 3Crv (slot 3) gets 14 rows and crvUSD (slot 1) 3, where v0.7.3 inferred neither",
+   "calls": [
+    {
+     "tx": 172,
+     "call": 6,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+     "input_len": 68
+    }
+   ],
+   "rows": {
+    "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490": {
+     "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f": "1634575401092454343721",
+     "0x1288e3dad9deb275deb8793f5e206ab17bf11224": "1800505285872095969458",
+     "0x18e603a003e81705250ca52fc27ab44f23574a1e": "1804905869770571593539",
+     "0x33bb361ff578fa67a726a39383d430b09f259fd5": "2126086026859704923281",
+     "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e": "1993519177305138381084",
+     "0x41339d9825963515e5705df8d3b0ea98105ebb1c": "2140593370902475719584",
+     "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8": "1722518672278420231752",
+     "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9": "1741348919914155033343",
+     "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4": "1936408901984283990602",
+     "0xa464e6dcda8ac41e03616f95f4bc98a13b8922dc": "1135712324229634238612405",
+     "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19": "1965022868265937783401",
+     "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e": "2080586290569163117373",
+     "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93": "2491877682907172455867",
+     "0xf929122994e177079c924631ba13fb280f5cd1f9": "9863946980075099561804"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d": "1741438826242268398593",
+     "0x99fd1378ca799ed6772fe7bcdc9b30b389518962": "1923363141150344218971",
+     "0xd16d5ec345dd86fb63c6a9c43c517210f1027914": "278215638510745247166695"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x1288e3dad9deb275deb8793f5e206ab17bf11224"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x18e603a003e81705250ca52fc27ab44f23574a1e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x33bb361ff578fa67a726a39383d430b09f259fd5"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x41339d9825963515e5705df8d3b0ea98105ebb1c"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xa464e6dcda8ac41e03616f95f4bc98a13b8922dc"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xf929122994e177079c924631ba13fb280f5cd1f9"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x99fd1378ca799ed6772fe7bcdc9b30b389518962"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xd16d5ec345dd86fb63c6a9c43c517210f1027914"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490": {
+      "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f": "1634575401092454343721",
+      "0x1288e3dad9deb275deb8793f5e206ab17bf11224": "1800505285872095969458",
+      "0x18e603a003e81705250ca52fc27ab44f23574a1e": "1804905869770571593539",
+      "0x33bb361ff578fa67a726a39383d430b09f259fd5": "2126086026859704923281",
+      "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e": "1993519177305138381084",
+      "0x41339d9825963515e5705df8d3b0ea98105ebb1c": "2140593370902475719584",
+      "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8": "1722518672278420231752",
+      "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9": "1741348919914155033343",
+      "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4": "1936408901984283990602",
+      "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19": "1965022868265937783401",
+      "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e": "2080586290569163117373",
+      "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93": "2491877682907172455867",
+      "0xf929122994e177079c924631ba13fb280f5cd1f9": "9863946980075099561804"
+     },
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d": "1741438826242268398593",
+      "0x99fd1378ca799ed6772fe7bcdc9b30b389518962": "1923363141150344218971"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26210251-crv.pb",
+   "chain": "eth",
+   "block": 26210251,
+   "block_hash": "0xfa30f6b2056751cfb10fb2a11bd9e3fba4d03b029938c3f16dd7d12879cd66b5",
+   "ver": 5,
+   "source_block_sha256": "623532ccad55a019bdf039a4f6389110068c7aef762694848a028be7b49f57e1",
+   "fixture_sha256": "7fecb624c0cc92e333d86c4018cf6ac626a29892b94ede7ddc64bbb0d12fbfe7",
+   "token": "0xd533a949740bb3306d119cc777fa900ba034cd52",
+   "kept_transactions": [
+    109,
+    164
+   ],
+   "selection": "CRV transactions 109 and 164 (of 109, 114, 150 and 164), whose rows equal the full block's",
+   "rule": "C6",
+   "demonstrates": "CRV (CurveDAOToken, Vyper 0.2.4, HashMap slot 3) in two transactions: 16 CRV rows, and 5 crvUSD rows, where v0.7.3 inferred neither token",
+   "calls": [
+    {
+     "tx": 109,
+     "call": 10,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 164,
+     "call": 16,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "3460027492670217584",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04": "365443108088030054"
+    },
+    "0xd533a949740bb3306d119cc777fa900ba034cd52": {
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "1947042100707686456084",
+     "0x1389388d01708118b497f59521f6943be2541bb7": "99962186851054040017913",
+     "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e": "1055422954834439952324516",
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "24257890371712083162081",
+     "0x6be96d00b50375af852d63db7d55656b306f398e": "3575509936239221490246",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+     "0x7e880867363a7e321f5d260cade2b0bb2f717b02": "37715598089058605368676",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466": "190355503050141569001530",
+     "0x989aeb4d175e16225e39e87d0d97a3360524ad80": "0",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1913901478611035775341",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04": "101542394134772935",
+     "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa": "273384432678852780221162",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "469548213232187539097",
+     "0xc10fd95fd3b56535668426b2c8681ad1e15be608": "8326200487649961350479",
+     "0xcf50b810e57ac33b91dcf525c6ddd9881b139332": "1157342913650559154211058",
+     "0xf403c135812408bfbe8713b5a23a04b3d48aae31": "0"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "2103812760245306724380",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466": "217245794757595321399930",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1556883710969189077015",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "311389836250316810004"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x1389388d01708118b497f59521f6943be2541bb7"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x6be96d00b50375af852d63db7d55656b306f398e"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7e880867363a7e321f5d260cade2b0bb2f717b02"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x989aeb4d175e16225e39e87d0d97a3360524ad80"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xc10fd95fd3b56535668426b2c8681ad1e15be608"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xcf50b810e57ac33b91dcf525c6ddd9881b139332"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xf403c135812408bfbe8713b5a23a04b3d48aae31"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xd533a949740bb3306d119cc777fa900ba034cd52": {
+      "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "1947042100707686456084",
+      "0x1389388d01708118b497f59521f6943be2541bb7": "99962186851054040017913",
+      "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e": "1055422954834439952324516",
+      "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "24257890371712083162081",
+      "0x6be96d00b50375af852d63db7d55656b306f398e": "3575509936239221490246",
+      "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+      "0x7e880867363a7e321f5d260cade2b0bb2f717b02": "37715598089058605368676",
+      "0x7f50786a0b15723d741727882ee99a0bf34e3466": "190355503050141569001530",
+      "0x989aeb4d175e16225e39e87d0d97a3360524ad80": "0",
+      "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1913901478611035775341",
+      "0xabdcac13b637600bc5b954461d769ea531c8ba04": "101542394134772935",
+      "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa": "273384432678852780221162",
+      "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "469548213232187539097",
+      "0xc10fd95fd3b56535668426b2c8681ad1e15be608": "8326200487649961350479",
+      "0xcf50b810e57ac33b91dcf525c6ddd9881b139332": "1157342913650559154211058",
+      "0xf403c135812408bfbe8713b5a23a04b3d48aae31": "0"
+     },
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "2103812760245306724380",
+      "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+      "0x7f50786a0b15723d741727882ee99a0bf34e3466": "217245794757595321399930",
+      "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1556883710969189077015",
+      "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "311389836250316810004"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
    }
   }
  ]

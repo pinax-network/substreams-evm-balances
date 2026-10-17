@@ -1184,6 +1184,93 @@ fn bor_state_sync_writes_chain_in_call_order() {
     assert!(with(0).is_empty());
 }
 
+/// Vyper's `HashMap` key preimage of `holder` under the slot word `slot`:
+/// `slot || pad(holder)`, the reverse of Solidity's.
+fn vyper_preimage(holder: &[u8; 20], slot: &[u8]) -> (String, Vec<u8>) {
+    let pre = [slot.to_vec(), pad(holder)].concat();
+    (hex::encode(hash(&pre)), pre)
+}
+/// Persists `holder`'s word under Vyper `HashMap` slot `slot` with its
+/// same-frame preimage.
+fn store_vyper(c: &mut eth::Call, holder: [u8; 20], slot: &[u8], old: u64, new: u64, ordinal: u64) {
+    let (key, pre) = vyper_preimage(&holder, slot);
+    store_key(c, hex::decode(key).unwrap().try_into().unwrap(), &pre, w(old), w(new), ordinal);
+}
+/// A STATICCALL `balanceOf(holder)` of a Vyper token that reads `HashMap`
+/// slot `slot`.
+fn balance_of_vyper(index: u32, holder: [u8; 20], slot: &[u8], value: u64, ordinal: u64) -> eth::Call {
+    let mut c = balance_of(index, holder, BASE, value, ordinal);
+    let (key, pre) = vyper_preimage(&holder, slot);
+    c.keccak_preimages = [(key, hex::encode(pre))].into_iter().collect();
+    c
+}
+
+/// Vyper's `HashMap` keys a holder's word at `keccak(slot || pad(holder))`,
+/// the reverse of Solidity's order, in every release (crvUSD, CRV, Curve pools
+/// and gauges, Yearn vaults). Each order is its own base, so they never share
+/// votes or reads, and a Vyper slot is below 2^64. Under a Vyper base the
+/// contract's own word needs a keyed `balanceOf` traced after its last write:
+/// a Yearn v3 vault's `balanceOf(self)` subtracts the shares still unlocking,
+/// which fall with time and no write.
+#[test]
+fn vyper_hash_maps_key_the_slot_first() {
+    let one = w(1);
+    let transfer_under = |slot: &[u8]| {
+        let mut c = root();
+        c.logs = vec![transfer(A, B, 30 * U)];
+        store_vyper(&mut c, A, slot, 100 * U, 70 * U, 10);
+        store_vyper(&mut c, B, slot, 5 * U, 35 * U, 11);
+        c
+    };
+    let kept = vec![r(A, 70 * U), r(B, 35 * U)];
+    // v0.7.3 read these preimages only as `pad(holder) || base`, whose holder,
+    // address(1), has no flow, and inferred nothing.
+    assert_eq!(rows(&block(vec![vec![transfer_under(&one)]])), kept);
+    assert_eq!(rows(&block(vec![vec![transfer_under(&w(u64::MAX))]])), kept);
+    let mut high = w(0);
+    high[23] = 1;
+    assert!(rows(&block(vec![vec![transfer_under(&high)]])).is_empty());
+    // One exact vote in each order is a tie, not two votes for slot 1.
+    let mut mixed = root();
+    mixed.logs = vec![transfer(A, B, 30 * U)];
+    store_vyper(&mut mixed, A, &one, 100 * U, 70 * U, 10);
+    store(&mut mixed, B, 1, 5 * U, 35 * U, 11);
+    assert!(rows(&block(vec![vec![mixed]])).is_empty());
+    // Keyed reads in Vyper's order check, vouch and supply holders; a read
+    // keyed in Solidity's order reads another mapping.
+    let with = |reads: Vec<eth::Call>| rows(&block(vec![vec![transfer_under(&one)], router(reads)]));
+    assert_eq!(with(vec![balance_of_vyper(2, B, &one, 35 * U, 50)]), kept);
+    assert!(with(vec![balance_of_vyper(2, B, &one, 36 * U, 50)]).is_empty());
+    assert_eq!(
+        with(vec![balance_of_vyper(2, FROM, &one, 42, 50)]),
+        vec![r(A, 70 * U), r(B, 35 * U), r(FROM, 42)]
+    );
+    assert!(with(vec![balance_of(2, B, 1, 35 * U, 50)]).is_empty());
+    // The contract's own word, which `Transfer(0, TOKEN)` names (a Yearn v3
+    // report mints its fee shares to the vault).
+    let report = |vyper: bool| {
+        let mut c = root();
+        c.logs = vec![transfer(A, B, 30 * U), transfer([0; 20], TOKEN, 5 * U)];
+        for (holder, old, new, ordinal) in [(A, 100 * U, 70 * U, 10), (B, 5 * U, 35 * U, 11), (TOKEN, 20 * U, 25 * U, 12)] {
+            if vyper {
+                store_vyper(&mut c, holder, &one, old, new, ordinal);
+            } else {
+                store(&mut c, holder, 1, old, new, ordinal);
+            }
+        }
+        c
+    };
+    let own = [vec![r(TOKEN, 25 * U)], kept.clone()].concat();
+    assert_eq!(rows(&block(vec![vec![report(false)]])), own);
+    assert_eq!(rows(&block(vec![vec![report(true)]])), kept);
+    let read = |value: u64, ordinal: u64| router(vec![balance_of_vyper(2, TOKEN, &one, value, ordinal)]);
+    assert_eq!(rows(&block(vec![vec![report(true)], read(25 * U, 50)])), own);
+    // A read before the write saw only the earlier word.
+    assert_eq!(rows(&block(vec![read(20 * U, 5), vec![report(true)]])), kept);
+    // `balanceOf(self)` less the unlocking shares contradicts the stored word.
+    assert!(rows(&block(vec![vec![report(true)], read(24 * U, 50)])).is_empty());
+}
+
 /// Recorded preimages longer than 64 bytes are never decoded, however often
 /// their key is written.
 #[test]
@@ -1365,6 +1452,45 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
             }
         }
     }
+}
+
+/// Captured Ethereum block 26,174,479, transaction 178
+/// (`fixtures/v074/eth-26174479-scrvusd-report.pb`): a report of scrvUSD, a
+/// Yearn v3 vault (Vyper), writes the vault's own word, 5480155112664263237347
+/// shares under `HashMap` slot 18, and no `balanceOf(vault)` follows, so the
+/// vault gets no row. VaultV3 returns that word less the shares still
+/// unlocking: the RPC era's `balanceOf(vault)` fell to 325862159115270955558
+/// by block 26,214,028 with no further write. A keyed read appended after the
+/// report keeps the row when it returns the word and drops the vault's rows
+/// for the block when it returns less; crvUSD's rows stay.
+#[test]
+fn captured_yearn_v3_vault_needs_a_read_of_its_own_balance() {
+    let block = eth::Block::decode_from_slice(include_bytes!("fixtures/v074/eth-26174479-scrvusd-report.pb").as_slice()).unwrap();
+    let vault: [u8; 20] = hex::decode("0655977feb2f289a4ab78af67bab0d17aab84367").unwrap().try_into().unwrap();
+    let crvusd = hex::decode("f939e0a03fb07f59a73314e73794be0e57ac1b4e").unwrap();
+    let of = |b: &eth::Block, token: &[u8]| {
+        let rows = run(b).unwrap().balances.into_iter();
+        let rows = rows.filter(|r| r.contract.as_deref() == Some(token));
+        rows.map(|r| (hex::encode(r.address), r.amount)).collect::<Vec<_>>()
+    };
+    let stablecoin = of(&block, &crvusd);
+    assert_eq!(stablecoin.len(), 2);
+    assert!(of(&block, &vault).is_empty());
+    let read = |shares: u128| {
+        let mut b = block.clone();
+        let end = b.transaction_traces[0].end_ordinal;
+        let mut get = balance_of_vyper(2, vault, &w(18), 0, end + 2);
+        get.address = vault.to_vec();
+        get.return_data[16..].copy_from_slice(&shares.to_be_bytes());
+        let mut calls = router(vec![get]);
+        (calls[0].begin_ordinal, calls[0].end_ordinal) = (end + 1, end + 4);
+        append(&mut b, FROM, [0x99; 20], calls, (end + 1, end + 4));
+        b
+    };
+    let word: u128 = 5480155112664263237347;
+    assert_eq!(of(&read(word), &vault), vec![(hex::encode(vault), word.to_string())]);
+    assert!(of(&read(word - 1), &vault).is_empty());
+    assert_eq!(of(&read(word - 1), &crvusd), stablecoin);
 }
 
 #[test]

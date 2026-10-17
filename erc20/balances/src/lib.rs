@@ -25,12 +25,6 @@ fn hash(bytes: &[u8]) -> [u8; 32] {
     hasher.finalize(&mut result);
     result
 }
-fn mapping(owner: &[u8], position: &[u8; 32]) -> [u8; 32] {
-    let mut preimage = [0; 64];
-    preimage[12..32].copy_from_slice(owner);
-    preimage[32..].copy_from_slice(position);
-    hash(&preimage)
-}
 fn validate_block(block: &eth::Block) -> Result<(), Error> {
     require(block.detail_level == eth::block::DetailLevel::DetaillevelExtended, "Extended blocks required")?;
     require((3..=5).contains(&block.ver), "unsupported Extended producer version")?;
