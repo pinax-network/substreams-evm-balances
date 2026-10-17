@@ -575,6 +575,54 @@ fn unexplained_writes_need_the_holders_own_read() {
     assert_eq!(rows(&block(vec![vec![simple()], vec![sync], read])), vec![r(A, 70), r(B, 35), r(C, 60)]);
 }
 
+/// A keyed `balanceOf` vouches for an unexplained write only when it was
+/// traced after that write: a read before it validated only the word it saw,
+/// not a later flag, admin or sync write. Under shadowing, a read at any
+/// point still keeps a holder whose write a `Transfer` names.
+#[test]
+fn reads_vouch_only_for_writes_they_saw() {
+    let with = |txs: Vec<Vec<eth::Call>>| rows(&block(txs));
+    let mut sync = root();
+    sync.logs = vec![log(APPROVAL, &[C, D], 1)];
+    store(&mut sync, C, BASE, 50, 60, 20);
+    // v0.7.3 kept C at 60 on the earlier read of its old word.
+    let before = router(vec![balance_of(2, C, BASE, 50, 5)]);
+    assert_eq!(with(vec![before, vec![simple()], vec![sync.clone()]]), vec![r(A, 70), r(B, 35)]);
+    let after = router(vec![balance_of(2, C, BASE, 60, 50)]);
+    assert_eq!(with(vec![vec![simple()], vec![sync], after]), vec![r(A, 70), r(B, 35), r(C, 60)]);
+    // FiatToken v2.2 blacklists C after a read of its balance: the flag is no
+    // longer vouched for, so it no longer drops the token (2^128 rule).
+    let mut flag = root();
+    flag.logs = vec![eth::Log {
+        address: TOKEN.to_vec(),
+        topics: vec![hex::decode(BLACKLISTED).unwrap(), pad(&C)],
+        ..Default::default()
+    }];
+    let mut flagged = w(50 * U);
+    flagged[0] |= 0x80;
+    store_word(&mut flag, C, BASE, w(50 * U), flagged, 20);
+    let before = router(vec![balance_of(2, C, BASE, 50 * U, 5)]);
+    assert_eq!(with(vec![before, vec![simple()], vec![flag]]), vec![r(A, 70), r(B, 35)]);
+    // A shadowed block: C's write is named by its Transfers, so a read of C
+    // before it still keeps C. D's sync write is unexplained: only a read
+    // after it keeps D.
+    let mut shadowed = root();
+    shadowed.logs = vec![transfer(C, B, 30), transfer(A, C, 20)];
+    store(&mut shadowed, C, BASE, 1000, 990, 10);
+    store(&mut shadowed, B, BASE, 5, 35, 11);
+    store(&mut shadowed, A, BASE, 100, 80, 12);
+    store(&mut shadowed, C, 4, 1_000_000, 990_000, 13);
+    store(&mut shadowed, B, 4, 6_000, 36_000, 14);
+    store(&mut shadowed, A, 4, 101_000, 81_000, 15);
+    let mut sync = root();
+    sync.logs = vec![log(APPROVAL, &[D, E], 1)];
+    store(&mut sync, D, BASE, 50, 60, 20);
+    let reads = |d: eth::Call| router(vec![balance_of(2, C, BASE, 1000, 5), d]);
+    let txs = |d: eth::Call| vec![vec![shadowed.clone()], vec![sync.clone()], reads(d)];
+    assert_eq!(with(txs(balance_of(3, D, BASE, 50, 6))), vec![r(C, 990)]);
+    assert_eq!(with(txs(balance_of(3, D, BASE, 60, 50))), vec![r(C, 990), r(D, 60)]);
+}
+
 /// Recorded preimages longer than 64 bytes are never decoded, however often
 /// their key is written.
 #[test]

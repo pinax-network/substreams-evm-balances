@@ -30,8 +30,9 @@
 //! 6. Candidate holders written under the base get their last persisted word,
 //!    unless that write is unexplained: a holder other than the contract whose
 //!    last write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
-//!    naming it needs its own keyed `balanceOf`. Candidate holders without a
-//!    write get the value of a keyed `balanceOf` that read exactly the base.
+//!    naming it needs its own keyed `balanceOf`, traced after that write.
+//!    Candidate holders without a write get the value of a keyed `balanceOf`
+//!    that read exactly the base.
 //!
 //! Inference never fails a block: any detected doubt drops that contract's
 //! inferred rows for the block. Holders without a write or such a read stay
@@ -685,7 +686,12 @@ fn decide(
     if reads.iter().any(|r| if r.keyed() { !r.pure(&base) } else { r.external }) {
         return None;
     }
-    let read: BTreeSet<Addr> = reads.iter().filter(|r| r.persisted && r.keyed()).map(|r| r.holder).collect();
+    // Holders with a persisted keyed read, and the latest such read's begin.
+    let mut read = BTreeMap::<Addr, u64>::new();
+    for r in reads.iter().filter(|r| r.persisted && r.keyed()) {
+        let begin = read.entry(r.holder).or_default();
+        *begin = r.begin.max(*begin);
+    }
     // Other holder mappings that move with the event flows suggest a computed
     // balance. With two or more exact votes and no other exact mapping,
     // counter-sized mismatches are ignored.
@@ -725,14 +731,19 @@ fn decide(
     for holder in holders {
         if let Some(last) = by_key.get(&mapping(holder, &base)).and_then(|ws| ws.last()) {
             // A third party's word changed with no balance event naming it in
-            // that frame (a flag, an admin or a sync write) needs its own read.
-            if holder == token || named.contains(&(last.frame, *holder)) || read.contains(holder) {
+            // that frame (a flag, an admin or a sync write) needs its own read,
+            // traced after that write: a read before it validated only the
+            // word it saw.
+            let vouched = read.get(holder).is_some_and(|begin| *begin > last.ordinal);
+            if holder == token || named.contains(&(last.frame, *holder)) || vouched {
                 values.insert(*holder, last.new);
             }
         }
     }
+    // A read at any point shows its holder's code path; after an unexplained
+    // write, only a later read kept the holder above.
     if shadowed {
-        values.retain(|holder, _| read.contains(holder));
+        values.retain(|holder, _| read.contains_key(holder));
     }
     Some(values)
 }

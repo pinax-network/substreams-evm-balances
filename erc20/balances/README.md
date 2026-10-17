@@ -74,7 +74,8 @@ longer recorded preimages are never decoded. Per block and per contract
    word. If that write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
    naming a holder other than the contract itself (a flag such as FiatToken's
    blacklist bit, an admin or a sync write), that holder needs its own keyed
-   `balanceOf`. A candidate without a write gets the value of a keyed
+   `balanceOf`, traced after that write: a read before it saw only the earlier
+   word. A candidate without a write gets the value of a keyed
    `balanceOf` that read only the base. Everyone else stays unknown; nothing
    becomes zero.
 
