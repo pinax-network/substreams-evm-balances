@@ -2673,6 +2673,213 @@ fn the_failed_setcode_authorization_boundary_shape_is_exact() {
     assert!(fails(&t));
 }
 
+/// Arbitrum One's failed SetCode transactions whose sender authorizes itself
+/// with the transaction's own nonce, unmarked: blocks 382,234,350
+/// (`0xfb8afece…`, failed out of gas), 420,239,048 (`0x80435ffd…`),
+/// 472,773,590 (`0xc495d3c3…`) and 360,021,045 (`0x1550f5d1…`, which also
+/// carries the sender's applied authorization with the next nonce), each the
+/// only transaction of its block. Provenance in `arbitrum-setcode-v079.json`.
+fn captured_arbitrum_unapplicable_self_authorizations() -> [eth::Block; 4] {
+    let traces: [(u64, &[u8]); 4] = [
+        (382_234_350, include_bytes!("../tests/fixtures/arbitrum-382234350-failed-setcode.pb")),
+        (420_239_048, include_bytes!("../tests/fixtures/arbitrum-420239048-failed-setcode.pb")),
+        (472_773_590, include_bytes!("../tests/fixtures/arbitrum-472773590-failed-setcode.pb")),
+        (360_021_045, include_bytes!("../tests/fixtures/arbitrum-360021045-failed-setcode.pb")),
+    ];
+    traces.map(|(number, bytes)| {
+        let mut b = block();
+        b.ver = 3;
+        b.number = number;
+        if let Some(header) = b.header.as_option_mut() {
+            header.number = number;
+        }
+        b.transaction_traces = vec![eth::TransactionTrace::decode_from_slice(bytes).unwrap()];
+        b
+    })
+}
+
+#[test]
+fn captured_arbitrum_failed_setcode_with_an_unapplicable_self_authorization_pays_its_gas() {
+    // Per block: the transaction's nonce, its authorizations' nonces, the
+    // boundary no record takes, and every row as (account, old amount,
+    // amount, ordinal, records). The RPC-era row of 0x207b7745… reads
+    // 9,916,520,340,708,000 wei at block 472,773,590, and the GAS_BUY of
+    // 0xbd25f6e6… in block 382,234,353 starts from 444,793,809,196,000.
+    type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u32)];
+    let expected: [(u64, &[u64], u64, &Rows); 4] = [
+        (
+            322,
+            &[322],
+            1975,
+            &[
+                ("bd25f6e6f7544abd76170a1e895f305b01462bb8", "445690000000000", "444793809196000", 1971, 1),
+                (INFRA_FEE, "28133115874470000000", "28133116490400000000", 1981, 1),
+                (NETWORK_FEE, "173506464005699979001", "173506464222938490001", 1982, 1),
+                (L1_PRICER, "3515511460177471856", "3515511523199764856", 1983, 1),
+            ],
+        ),
+        (
+            6,
+            &[6],
+            110,
+            &[
+                ("bced5a7bf5cbca273308f1e9d95288e8a9890196", "1999378599013365", "1998299019013365", 114, 2),
+                (INFRA_FEE, "21734596104566417000", "21734597184146417000", 115, 1),
+            ],
+        ),
+        (
+            9,
+            &[9],
+            45,
+            &[
+                ("207b7745d0e6f7114e0f5b11bfdd77017cc70410", "9917505785168000", "9916520340708000", 47, 2),
+                (INFRA_FEE, "399140246576260007000", "399140247497260007000", 48, 1),
+                (NETWORK_FEE, "8464874887964341910", "8464874888885341910", 49, 1),
+                (L1_PRICER, "3514878300661454846", "3514878364184914846", 50, 1),
+            ],
+        ),
+        (
+            1,
+            &[1, 2],
+            125,
+            &[
+                ("b8b2730af0ce3f94c1bc03f128f29da8c8f673f0", "2569004943912000", "2568231296770000", 127, 2),
+                (INFRA_FEE, "25829945814010000000", "25829946399710000000", 128, 1),
+                (NETWORK_FEE, "47235588322717636972", "47235588323830466972", 129, 1),
+                (L1_PRICER, "3513878414379887850", "3513878601214199850", 130, 1),
+            ],
+        ),
+    ];
+    for (b, (nonce, authorizations, boundary, rows)) in captured_arbitrum_unapplicable_self_authorizations().iter().zip(expected) {
+        let tx = &b.transaction_traces[0];
+        assert!(persist::is_failed(tx));
+        assert_eq!(
+            (tx.r#type.as_known(), tx.calls[0].begin_ordinal, tx.nonce),
+            (Some(eth::transaction_trace::Type::TrxTypeSetCode), 0, nonce)
+        );
+        // Every authorization is the sender's, none marked discarded.
+        assert!(tx
+            .set_code_authorizations
+            .iter()
+            .all(|a| !a.discarded && a.authority.as_deref() == Some(tx.from.as_slice())));
+        assert_eq!(tx.set_code_authorizations.iter().map(|a| a.nonce).collect::<Vec<_>>(), authorizations);
+        // No record or call boundary takes the boundary, the ordinal after
+        // the sender's nonce record and the applied authorization's records.
+        assert!(!tx.calls.iter().any(|c| takes_ordinal(c, boundary)));
+        assert!(tx.calls[0].nonce_changes.iter().all(|n| n.ordinal < boundary));
+        // The shared rules refuse it, as native v0.7.8 and ERC-20 v0.7.3 do.
+        let shared = persist::collect_transaction(tx, &mut Discard).unwrap_err().to_string();
+        assert!(shared.contains("no authorization/execution ordinal boundary"), "{shared}");
+        assert_eq!(unapplicable_self_authorization(tx), Some(0));
+        // Native marks the first authorization discarded and takes the shared
+        // rules' records: the gas, and the fee transfers after the execution.
+        let records = records(b).unwrap();
+        let corrected = unapplicable_self_authorizations_discarded(b).unwrap();
+        let mut sink = Collected::default();
+        persist::collect_block(&corrected, &mut sink).unwrap();
+        assert!(sink.records.iter().all(|r| r.scope == persist::Scope::TxFailedPersistent));
+        assert_eq!(records[..sink.records.len()], sink.records[..]);
+        let changes = changes(b).unwrap();
+        assert_eq!(changes.len(), rows.len(), "block {}", b.number);
+        assert_rows(&changes, rows);
+    }
+}
+
+#[test]
+fn the_unapplicable_self_authorization_shape_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("no authorization/execution ordinal boundary")
+    }
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    let [single, _, _, mixed] = captured_arbitrum_unapplicable_self_authorizations();
+    let sender = |b: &eth::Block| b.transaction_traces[0].from.clone();
+    for b in [&single, &mixed] {
+        assert!(changes(b).is_ok());
+        // Only the sender's authorization with the transaction's nonce: with
+        // the next nonce it would apply, and its records are missing.
+        let mut t = b.clone();
+        t.transaction_traces[0].set_code_authorizations[0].nonce += 1;
+        assert!(fails(&t));
+        let mut t = b.clone();
+        t.transaction_traces[0].set_code_authorizations[0].authority = Some(vec![0x11; 20]);
+        assert!(fails(&t));
+        // Exactly one such authorization.
+        let mut t = b.clone();
+        let again = t.transaction_traces[0].set_code_authorizations[0].clone();
+        t.transaction_traces[0].set_code_authorizations.push(again);
+        assert!(fails(&t));
+        // Exactly one nonce record of the sender from the transaction's
+        // nonce to the next.
+        let mut t = b.clone();
+        let mut twice = root(&mut t).nonce_changes[0].clone();
+        twice.ordinal = 0;
+        root(&mut t).nonce_changes.push(twice);
+        assert!(fails(&t));
+        // An authority's record or a call boundary at the boundary still
+        // fails the block.
+        let boundary = if b.number == single.number { 1975 } else { 125 };
+        let mut t = b.clone();
+        root(&mut t).gas_changes.push(eth::GasChange {
+            ordinal: boundary,
+            ..Default::default()
+        });
+        assert!(fails(&t));
+        let mut t = b.clone();
+        t.transaction_traces[0].calls[0].end_ordinal = boundary;
+        assert!(fails(&t));
+        // So does a code record of the sender before it.
+        let mut t = b.clone();
+        let mut code = eth::CodeChange {
+            address: sender(b),
+            new_hash: vec![9; 32],
+            new_code: vec![0xef, 1, 0],
+            ..Default::default()
+        };
+        code.ordinal = root(&mut t).nonce_changes[0].ordinal - 1;
+        root(&mut t).code_changes.push(code);
+        assert!(fails(&t));
+        // Only of a failed transaction whose root call records no begin
+        // ordinal: with one, the shared rules take it as it is.
+        let mut t = b.clone();
+        root(&mut t).begin_ordinal = boundary;
+        assert!(unapplicable_self_authorization(&t.transaction_traces[0]).is_none());
+        assert_eq!(changes(&t).unwrap(), changes(b).unwrap());
+        // A transaction the shared rules accept is not corrected.
+        let mut t = b.clone();
+        t.transaction_traces[0].set_code_authorizations[0].discarded = true;
+        assert!(unapplicable_self_authorizations_discarded(&t).is_none());
+        assert_eq!(changes(&t).unwrap(), changes(b).unwrap());
+    }
+    // With the sender's applied authorization: its records must follow the
+    // sender's nonce record exactly.
+    let mut t = mixed.clone();
+    root(&mut t).code_changes.clear();
+    assert!(fails(&t));
+    let mut t = mixed.clone();
+    root(&mut t).nonce_changes[1].ordinal = 124;
+    root(&mut t).code_changes[0].ordinal = 125;
+    assert!(fails(&t));
+    // When only another authority's authorization would be left, the
+    // block still fails, even with that authorization's records.
+    let mut t = mixed.clone();
+    let other = vec![0x11; 20];
+    t.transaction_traces[0].set_code_authorizations[1].authority = Some(other.clone());
+    root(&mut t).nonce_changes[1].address = other.clone();
+    root(&mut t).code_changes[0].address = other;
+    assert!(persist::collect_transaction(
+        &{
+            let mut c = t.transaction_traces[0].clone();
+            c.set_code_authorizations[0].discarded = true;
+            c
+        },
+        &mut Discard
+    )
+    .is_ok());
+    assert!(fails(&t));
+}
+
 /// Arbitrum One block 52,067,707 as captured from Firehose: transactions 1
 /// and 2 whole. Transaction 1 submits ticket `0x38b8e37a…` from
 /// `0xb4b8b6f8…`, the aliased L1 token gateway; transaction 2

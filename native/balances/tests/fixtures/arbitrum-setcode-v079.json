@@ -1,0 +1,179 @@
+{
+  "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client -o bytes --bytes-encoding base64, and -o json for the same block hash",
+  "protobuf_type": "sf.ethereum.type.v2.TransactionTrace",
+  "extraction": "Sliced the selected transaction's TransactionTrace bytes (Block field 10) out of the encoded Extended block without decoding or editing them. No RPC was used.",
+  "limits": "Arbitrum One, Block.ver 3, whose root calls record begin_ordinal 0. Four failed SetCode transactions whose sender authorizes itself with the transaction's own nonce, an authorization that cannot apply and that the producer leaves unmarked; native v0.7.8 and ERC-20 v0.7.3 refuse their blocks. Not a producer matrix.",
+  "records": [
+    {
+      "block_number": 360021045,
+      "block_hash": "0x290cada8a20ca106aa100b45e8649d3589d9572cd8ef41ade5ab4ac76147e159",
+      "producer_version": 3,
+      "transaction_index": 4,
+      "transaction_hash": "0x1550f5d16eb996e2a42e0049b8612e39c7adc6f9c2d4df8bec6af104793ebaef",
+      "transaction_status": 3,
+      "transaction_nonce": 1,
+      "bytes": 1646,
+      "sha256": "d3f75ffa54373d9ac14ad070dbcb84244ad81094f1a22ae7546d427ccffc66ea",
+      "note": "two self-authorizations: the first carries the transaction nonce 1 and cannot apply, the second (nonce 2) applies; neither marked discarded",
+      "transaction_ordinals": [
+        118,
+        133
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 126,
+      "unrecorded_ordinal": 125,
+      "sender": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "authorizations": [
+        {
+          "authority": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+          "address": "0x9bbcc327f7d924e057dbc076d5455f16144261a6",
+          "nonce": 1,
+          "discarded": false
+        },
+        {
+          "authority": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+          "address": "0x9bbcc327f7d924e057dbc076d5455f16144261a6",
+          "nonce": 2,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+          "old": 1,
+          "new": 2,
+          "ordinal": 122
+        },
+        {
+          "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+          "old": 2,
+          "new": 3,
+          "ordinal": 123
+        }
+      ],
+      "root_codes": [
+        {
+          "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+          "old_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+          "new_hash": "0xb8f6cef70cb6735bf1186913a6e9487e0115e6025429f8bf0f8120b641e424e5",
+          "ordinal": 124
+        }
+      ]
+    },
+    {
+      "block_number": 382234350,
+      "block_hash": "0x88fbda0e7492693e9514eb6017e9f92406fff6d44b52d0cf33d943b3f40f1617",
+      "producer_version": 3,
+      "transaction_index": 3,
+      "transaction_hash": "0xfb8afecedd440cc00113a497591df175a2a0546a3b07dddebc65851e3770a074",
+      "transaction_status": 2,
+      "transaction_nonce": 322,
+      "bytes": 1586,
+      "sha256": "56184b30668483098a74e6dd00c917fd43e862febfe0527777f994701647f70a",
+      "note": "failed (out of gas); its only authorization is by the sender with the transaction nonce 322, cannot apply, not marked discarded; transaction 7 of the block carries the same authority and nonce, marked discarded",
+      "transaction_ordinals": [
+        1970,
+        1986
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 1980,
+      "unrecorded_ordinal": 1975,
+      "sender": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+      "authorizations": [
+        {
+          "authority": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+          "address": "0xe4b11be8fd81da755843f6ab5cca2698e20a4d04",
+          "nonce": 322,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+          "old": 322,
+          "new": 323,
+          "ordinal": 1974
+        }
+      ],
+      "root_codes": []
+    },
+    {
+      "block_number": 420239048,
+      "block_hash": "0x0930a65588e2968d0564cf6a36b4af6bf5e917fbceee2c806e8061f1febf78a5",
+      "producer_version": 3,
+      "transaction_index": 5,
+      "transaction_hash": "0x80435ffda58420773e381f4dad4592cd4d4b259300beca525478e5d75c3c8e59",
+      "transaction_status": 3,
+      "transaction_nonce": 6,
+      "bytes": 4549,
+      "sha256": "122600f5ec2134e1a188f310fc5647124be5ac1a0d8f3b4e417b918249d9aa02",
+      "note": "reverted; its only authorization is by the sender with the transaction nonce 6, cannot apply, not marked discarded",
+      "transaction_ordinals": [
+        105,
+        122
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 113,
+      "unrecorded_ordinal": 110,
+      "sender": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+      "authorizations": [
+        {
+          "authority": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+          "address": "0xca11bde05977b3631167028862be2a173976ca11",
+          "nonce": 6,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+          "old": 6,
+          "new": 7,
+          "ordinal": 109
+        }
+      ],
+      "root_codes": []
+    },
+    {
+      "block_number": 472773590,
+      "block_hash": "0x05ca29824488a71c5c9aa1e9e164420134ae618b332f7f26baef5097fb9b70ad",
+      "producer_version": 3,
+      "transaction_index": 2,
+      "transaction_hash": "0xc495d3c37d211db14fb80f8083c2c58677ae9c6bd9c71205919b7a4d3af16be8",
+      "transaction_status": 3,
+      "transaction_nonce": 9,
+      "bytes": 2013,
+      "sha256": "1bea3ed6ca686a36e103803b120aed5c775ef40391ca068fa8e08e114742e50e",
+      "note": "reverted; its only authorization (to the zero address) is by the sender with the transaction nonce 9, cannot apply, not marked discarded",
+      "transaction_ordinals": [
+        40,
+        58
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 46,
+      "unrecorded_ordinal": 45,
+      "sender": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+      "authorizations": [
+        {
+          "authority": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+          "address": "0x0000000000000000000000000000000000000000",
+          "nonce": 9,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+          "old": 9,
+          "new": 10,
+          "ordinal": 44
+        }
+      ],
+      "root_codes": []
+    }
+  ]
+}
