@@ -1,0 +1,116 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 161626224,
+ "hash": "43c3fecfb695a9f059c86f7a65f487c8b82ee4f918227bcc9c0ae8d9ae12e74a",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "05f5e100",
+ "mix_hash": "0000000000018aad00000000011f2ebd000000000000000a0000000000000000",
+ "contents": "transactions 0 (ArbOS's internal transaction) and 1 (0xd0cc7c02\u2026) whole, and the header's mix hash (ArbOS 10, before Cancun): transaction 1's root call self-destructs 0xb01f8f52\u2026 (3,304,510,818,628,470 wei) to itself, next to the sender's gas and fee records; the producer records the SUICIDE_REFUND d -> 2d at 12 and then the SUICIDE_WITHDRAW d -> 0 at 13, from the balance before the refund; in block 161,626,317 the same sender creates the account again, with no balance record, and its GAS_BUY there starts from the sender's balance after this block; the RPC-era row reads 0 for the account at block 161,626,317; the block has no other transaction and no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 0,
+   "hash": "e19074cd38cc2c58115a14bcd7bc5e600fdc3cbfcfc91d720e15f3632182f64b",
+   "type": 106,
+   "begin_ordinal": 1,
+   "end_ordinal": 4,
+   "status": 1,
+   "gas_limit": 0,
+   "gas_used": 0,
+   "gas_price": "",
+   "value": "",
+   "from": "00000000000000000000000000000000000a4b05",
+   "to": "00000000000000000000000000000000000a4b05",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "00000000000000000000000000000000000a4b05",
+     "address": "00000000000000000000000000000000000a4b05",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 3,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "hash": "d0cc7c02c78114e36be8956eaeb752b77b95d1e169f81d7982bf9f4811c9919d",
+   "type": 2,
+   "begin_ordinal": 5,
+   "end_ordinal": 20,
+   "status": 1,
+   "gas_limit": 601480,
+   "gas_used": 437722,
+   "gas_price": "05f5e100",
+   "value": "",
+   "from": "11799622f4d98a24514011e8527b969f7488ef47",
+   "to": "b01f8f528702d411d24c9bb8cc0e2fff779ec013",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "11799622f4d98a24514011e8527b969f7488ef47",
+     "address": "b01f8f528702d411d24c9bb8cc0e2fff779ec013",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 0,
+     "end_ordinal": 14,
+     "balance_changes": [
+      {
+       "address": "11799622f4d98a24514011e8527b969f7488ef47",
+       "old_value": "01e8a5fd6e964567",
+       "new_value": "01e86f492269bd67",
+       "ordinal": 6,
+       "reason": 7
+      },
+      {
+       "address": "b01f8f528702d411d24c9bb8cc0e2fff779ec013",
+       "old_value": "0bbd6f61803376",
+       "new_value": "177adec30066ec",
+       "ordinal": 12,
+       "reason": 11
+      },
+      {
+       "address": "b01f8f528702d411d24c9bb8cc0e2fff779ec013",
+       "old_value": "0bbd6f61803376",
+       "new_value": "",
+       "ordinal": 13,
+       "reason": 13
+      },
+      {
+       "address": "11799622f4d98a24514011e8527b969f7488ef47",
+       "old_value": "01e86f492269bd67",
+       "new_value": "01e87e2dec27ab67",
+       "ordinal": 15,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "1e369b1362f7355900",
+       "new_value": "1e369b15c961e7ce00",
+       "ordinal": 16,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "5c71e43c580cf20a",
+       "new_value": "5c7209a56fc9170a",
+       "ordinal": 17,
+       "reason": 5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

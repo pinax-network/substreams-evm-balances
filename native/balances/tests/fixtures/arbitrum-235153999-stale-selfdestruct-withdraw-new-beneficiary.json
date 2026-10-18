@@ -1,0 +1,129 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 235153999,
+ "hash": "b9e83a31d29290d7b41ec0e980f89c3606a9c183cbcef6c451ed34f2af2486c6",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "989680",
+ "mix_hash": "000000000001e733000000000136ca7e00000000000000140000000000000000",
+ "contents": "transactions 0 (ArbOS's internal transaction) and 1 (0xd2061702\u2026) whole, and the header's mix hash (ArbOS 20): transaction 1's root call self-destructs 0x85483824\u2026 (1,000,000,000,000,000 wei, not created in the transaction) to 0x0bb2668e\u2026: the SUICIDE_WITHDRAW at 12, the creation of the beneficiary's account at 13, its SUICIDE_REFUND at 14 and the repeated SUICIDE_WITHDRAW at 15; RPC-era rows read 0 and 1,000,000,000,000,000 wei for them at the block; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 0,
+   "hash": "fa0558f050124aec5432a219e27bd844b4ea62faa1432e7555dda24b4e7f0d5c",
+   "type": 106,
+   "begin_ordinal": 1,
+   "end_ordinal": 4,
+   "status": 1,
+   "gas_limit": 0,
+   "gas_used": 0,
+   "gas_price": "",
+   "value": "",
+   "from": "00000000000000000000000000000000000a4b05",
+   "to": "00000000000000000000000000000000000a4b05",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "00000000000000000000000000000000000a4b05",
+     "address": "00000000000000000000000000000000000a4b05",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 3,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "hash": "d20617028f1e029e4d7255efc8d85323fce64daa74ea4c0a434b380b24f2c29b",
+   "type": 2,
+   "begin_ordinal": 5,
+   "end_ordinal": 22,
+   "status": 1,
+   "gas_limit": 81434,
+   "gas_used": 74741,
+   "gas_price": "989680",
+   "value": "",
+   "from": "7d8b6ad195512b6549b141aa180460d36a3cc16b",
+   "to": "854838245429a63224aa054ac0ed73f78a068338",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "7d8b6ad195512b6549b141aa180460d36a3cc16b",
+     "address": "854838245429a63224aa054ac0ed73f78a068338",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 0,
+     "end_ordinal": 16,
+     "balance_changes": [
+      {
+       "address": "7d8b6ad195512b6549b141aa180460d36a3cc16b",
+       "old_value": "0218432abeb8043a",
+       "new_value": "0218426d2445bb3a",
+       "ordinal": 6,
+       "reason": 7
+      },
+      {
+       "address": "854838245429a63224aa054ac0ed73f78a068338",
+       "old_value": "038d7ea4c68000",
+       "new_value": "",
+       "ordinal": 12,
+       "reason": 13
+      },
+      {
+       "address": "0bb2668e26c8e17baa8e0537aac1a68946fc2a69",
+       "old_value": "",
+       "new_value": "038d7ea4c68000",
+       "ordinal": 14,
+       "reason": 11
+      },
+      {
+       "address": "854838245429a63224aa054ac0ed73f78a068338",
+       "old_value": "038d7ea4c68000",
+       "new_value": "",
+       "ordinal": 15,
+       "reason": 13
+      },
+      {
+       "address": "7d8b6ad195512b6549b141aa180460d36a3cc16b",
+       "old_value": "0218426d2445bb3a",
+       "new_value": "0218427cb99c7bba",
+       "ordinal": 17,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "78421509e1b6d400",
+       "new_value": "7842158db7a6f580",
+       "ordinal": 18,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "30c228bcd94261d2",
+       "new_value": "30c228e7086dc8d2",
+       "ordinal": 19,
+       "reason": 5
+      }
+     ],
+     "account_creations": [
+      {
+       "account": "0bb2668e26c8e17baa8e0537aac1a68946fc2a69",
+       "ordinal": 13
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

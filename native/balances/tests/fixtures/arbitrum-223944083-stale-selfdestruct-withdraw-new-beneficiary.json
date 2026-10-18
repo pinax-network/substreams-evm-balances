@@ -1,0 +1,122 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 223944083,
+ "hash": "7bf20025d93a2e4318530d97ebebd3d510e8239c544b979eff41bb3ccee469b7",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "989680",
+ "mix_hash": "000000000001db750000000001333ce100000000000000140000000000000000",
+ "contents": "transactions 0 (ArbOS's internal transaction) and 1 (0xd8ec4935\u2026) whole, and the header's mix hash (ArbOS 20): transaction 1's root call self-destructs 0x006bf202\u2026 (2,832,000,000,000,000 wei, not created in the transaction) to 0x2dafa472\u2026: the SUICIDE_WITHDRAW at 12, the creation of the beneficiary's account at 13, its SUICIDE_REFUND at 14 and the repeated SUICIDE_WITHDRAW at 15; an RPC-era row reads 0 for 0x006bf202\u2026 at the block; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 0,
+   "hash": "51363a9fb12fb8409f81ce3a9b59c538896cd54a630639f39029db2df72b1fbb",
+   "type": 106,
+   "begin_ordinal": 1,
+   "end_ordinal": 4,
+   "status": 1,
+   "gas_limit": 0,
+   "gas_used": 0,
+   "gas_price": "",
+   "value": "",
+   "from": "00000000000000000000000000000000000a4b05",
+   "to": "00000000000000000000000000000000000a4b05",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "00000000000000000000000000000000000a4b05",
+     "address": "00000000000000000000000000000000000a4b05",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 3,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "hash": "d8ec4935ecc66ee962dedad9c41d731332ee571dd8838863542c318d7804cd80",
+   "type": 0,
+   "begin_ordinal": 5,
+   "end_ordinal": 20,
+   "status": 1,
+   "gas_limit": 80000000,
+   "gas_used": 56706,
+   "gas_price": "01312d00",
+   "value": "",
+   "from": "19a59dbbb50a03afb1521bc6aed41d626653dc63",
+   "to": "006bf202e5c4d104c3739e0022011efe8b42e370",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "19a59dbbb50a03afb1521bc6aed41d626653dc63",
+     "address": "006bf202e5c4d104c3739e0022011efe8b42e370",
+     "value": "",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 0,
+     "end_ordinal": 16,
+     "balance_changes": [
+      {
+       "address": "19a59dbbb50a03afb1521bc6aed41d626653dc63",
+       "old_value": "89a36100a29c92",
+       "new_value": "86cbc87cd09c92",
+       "ordinal": 6,
+       "reason": 7
+      },
+      {
+       "address": "006bf202e5c4d104c3739e0022011efe8b42e370",
+       "old_value": "0a0fb062010000",
+       "new_value": "",
+       "ordinal": 12,
+       "reason": 13
+      },
+      {
+       "address": "2dafa47247d3fe48676111636dcdcf854cab8517",
+       "old_value": "",
+       "new_value": "0a0fb062010000",
+       "ordinal": 14,
+       "reason": 11
+      },
+      {
+       "address": "006bf202e5c4d104c3739e0022011efe8b42e370",
+       "old_value": "0a0fb062010000",
+       "new_value": "",
+       "ordinal": 15,
+       "reason": 13
+      },
+      {
+       "address": "19a59dbbb50a03afb1521bc6aed41d626653dc63",
+       "old_value": "86cbc87cd09c92",
+       "new_value": "89a2dcf939af92",
+       "ordinal": 17,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "010c86fbd6db049b00",
+       "new_value": "010c86fc5ae26d8800",
+       "ordinal": 18,
+       "reason": 5
+      }
+     ],
+     "account_creations": [
+      {
+       "account": "2dafa47247d3fe48676111636dcdcf854cab8517",
+       "ordinal": 13
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

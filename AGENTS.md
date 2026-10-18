@@ -113,24 +113,35 @@ never prints them.
   debit that a `Block.ver` 3 producer omits (Ethereum, Polygon),
   self-destruct to itself (Ethereum), the self-destruct credit of an account
   created in the transaction (Ethereum), the repeated self-destruct withdraw
-  (Arbitrum One) and the fee vault credit after a vault withdrawal (Base).
-  Reduce records by ordinal, except a recognized Polygon `Block.ver` 3
-  state-sync transaction: by depth-1 call, then ordinal. Of a failed
-  transaction, persist the shared rules' gas records and, each in its exact
-  shape with a captured fixture, what the chain keeps whatever the outcome:
-  a blob transaction's blob fee (BNB Chain); the base-fee `BURN` (Polygon);
+  (Arbitrum One) and the fee vault credit after a vault withdrawal (Base);
+  since v0.7.9 (2026-10-17, for the owner's resync of Arbitrum One and Base)
+  also the repeated withdraw of an account that self-destructs to itself
+  since ArbOS 20 and the withdraw of a self-destruct to itself before ArbOS 20
+  (Arbitrum One, the ArbOS version read from the block's internal
+  transaction and mix digest), the repeated withdraw across a new
+  beneficiary's creation (Arbitrum One) and the fee vault credit after a
+  transfer into the vault (Base). Reduce records by ordinal, except a
+  recognized Polygon `Block.ver` 3 state-sync transaction: by depth-1 call,
+  then ordinal. Of a failed transaction, persist the shared rules' gas
+  records and, each in its exact shape with a captured fixture, what the
+  chain keeps whatever the outcome: a blob transaction's blob fee (BNB
+  Chain); the base-fee `BURN` (Polygon);
   the fee transfers and the ArbOS settlements of failed retries and retryable
   submissions (Arbitrum One); a deposit's mint (OP stack). Fail the block on
   any other balance move of a failed Arbitrum deposit, submission, retry or
   internal transaction, on any other record of a failed transaction's root
   call that moves a balance outside its execution, and on a self-destruct to
   itself recorded as debit, refund and repeat (Arbitrum One's order), which
-  would chain to a wrong zero. A shape that chains with a wrong balance passes
-  every noop; only same-block RPC checks find it. The shared rules recover a
-  failed SetCode transaction's authorization boundary when its root call
-  records `begin_ordinal` 0 (Arbitrum One's `Block.ver` 3) only from the
-  exact shape of its authorization records. The versions, blocks and
-  fixtures of each rule are in the
+  would chain to a wrong zero, outside the exact shape dropped since ArbOS
+  20. A shape that chains with a wrong balance passes every noop; only
+  same-block RPC checks find it. The shared rules recover a failed SetCode
+  transaction's authorization boundary when its root call records
+  `begin_ordinal` 0 (Arbitrum One's `Block.ver` 3) only from the exact shape
+  of its authorization records. Since v0.7.9, when the shared rules refuse a
+  block, native alone takes the sender's own authorization with the
+  transaction's nonce, which cannot apply and which the producer leaves
+  unmarked, as discarded; the shared rules and ERC-20 are unchanged. The
+  versions, blocks and fixtures of each rule are in the
   [native README](native/balances/README.md#persistence-and-fail-closed-rules).
   Since v0.7.0 block 0 emits the genesis allocations when every balance
   record in it is a `GENESIS_BALANCE` from zero. Accepting a block is not
