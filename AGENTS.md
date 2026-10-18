@@ -55,9 +55,9 @@ never prints them.
   native-backed WETH9 deposit or withdrawal and a TetherToken
   `destroyBlackFunds` frame in a block where the contract has no `Transfer`
   flow (owner, 2026-10-17). It also reads Vyper's `HashMap` key order,
-  `keccak(slot || pad(holder))`, as a base of its own, under which the
-  contract's own row needs a keyed `balanceOf` traced after its last write
-  (owner, 2026-10-17). The former layout path, with its tests, fixtures and qualification
+  `keccak(slot || pad(holder))`, as a base of its own, under which a
+  contract's own row is never emitted, because Yearn v3 vaults compute
+  `balanceOf(self)` (owner, 2026-10-17). The former layout path, with its tests, fixtures and qualification
   evidence, is in git history at `9b41c7f`. Its last packed build is the
   committed `spkg/erc20-balances-v0.1.0.spkg` (2026-09-23), which predates the
   typed-path and enumerable-set source at `9b41c7f`. The inference package was
