@@ -65,6 +65,18 @@ the 1,000-block segment of every refused block. Arbitrum One and Base resync
 with it into new databases, `arbitrum-one:evm-balances-native@v0.7.9` and
 `base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8.
 
+**Unreleased: native v0.7.10.** The full-history noop of native v0.7.9 on
+Arbitrum One refused block 500,689,520 (2026-10-18): an account created in its
+transaction self-destructs to itself, and Arbitrum One's producer records the
+burn of its balance and then a repeated withdraw. v0.7.10 drops the repeat in
+that exact shape, and the account ends at zero, as the RPC-era rows read; it
+gives v0.7.9's output for every block v0.7.9 accepts
+([repeated self-destruct withdraw](../native/balances/README.md#continuity-exceptions)).
+On Arbitrum One it would write `arbitrum-one:evm-balances-native@v0.7.10`.
+Whether Arbitrum One, and Base, where it writes v0.7.9's rows, move to
+v0.7.10 databases or keep v0.7.9's is the owner's decision. It needs its CI
+spkg, its pre-release noop and the owner's OK before a tag.
+
 **Released on 2026-10-18: ERC-20 v0.7.4**
 ([PR #167](https://github.com/pinax-network/substreams-evm-balances/pull/167);
 tag `evm-balances-erc20-v0.7.4` at `e9dccbe`; `map_events` `e611c63a…`,
@@ -282,7 +294,10 @@ package's noop over that range passes (owner, 2026-10-13).
    Native v0.7.8 is backfilled on Ethereum, BSC, Polygon, Optimism, Unichain
    and HyperEVM (`<chain>:evm-balances-native@v0.7.8`). Next are ERC-20 v0.7.4
    on BSC and Ethereum (`<chain>:evm-balances-erc20@v0.7.4`) and native v0.7.9
-   on Arbitrum One and Base (`<chain>:evm-balances-native@v0.7.9`).
+   on Arbitrum One and Base (`<chain>:evm-balances-native@v0.7.9`). Native
+   v0.7.9's noop refused Arbitrum One block 500,689,520, which v0.7.10
+   (unreleased, above) accepts; which version and database Arbitrum One and
+   Base sync with is the owner's decision.
 2. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),

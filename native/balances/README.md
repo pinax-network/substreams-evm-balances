@@ -285,30 +285,37 @@ An earlier v0.7.7 build (the CI package of `0ac0c20`, module `map_events`
 `1e379e88…`) refused blocks 25,750,184, 25,869,452 and 25,920,498 in its
 pre-release noop; the released v0.7.7 accepts them.
 
-**Repeated self-destruct withdraw (v0.7.8, v0.7.9, Arbitrum One).** Arbitrum One's
+**Repeated self-destruct withdraw (v0.7.8, v0.7.9, v0.7.10, Arbitrum One).** Arbitrum One's
 producer of `Block.ver` 3 records a self-destructed account's debit, a
 `SUICIDE_WITHDRAW` from `d` to zero, and then a second one from `d` to zero
 although the account is already at zero; the chain reads zero for the account
 after the block, and the beneficiary's `SUICIDE_REFUND` credits `d` once. The
 repeat's old value breaks continuity. Native drops the repeat when a persisted
 call self-destructs the account and holds exactly one `SUICIDE_REFUND`, a
-credit of another account by `d` (positive), and that refund and the
-account's `SUICIDE_WITHDRAW` records follow one another at consecutive
-ordinals in one of three orders:
+credit of another account by `d` (positive; in the first order, since v0.7.10,
+also of the account itself), and that refund and the account's
+`SUICIDE_WITHDRAW` records follow one another at consecutive ordinals in one
+of three orders:
 - since Cancun (EIP-6780, ArbOS 20), of an account created by a CREATE in the
   transaction: the debit, the refund (two ordinals later when the call creates
   the beneficiary's account in between), a `SUICIDE_WITHDRAW` from zero to
-  zero and the repeat;
+  zero and the repeat; to the account itself, the refund from zero to `d` at
+  the ordinal after the debit, then a `SUICIDE_WITHDRAW` from `d` to zero, the
+  burn of the destroyed account, in place of that no-op;
 - before Cancun, of any account: the refund, the debit and the repeat;
 - since Cancun, of an account no CREATE of the transaction creates, which
   survives its self-destruct: the debit, the refund (since v0.7.9 also two
   ordinals later when the call creates the beneficiary's account in between)
   and the repeat.
 
-The account's last persisted record before the repeat must be the debit, the
-repeat its only persisted record at that ordinal, and no record of the account
-may follow it in the transaction. Dropping the repeat moves no balance; any
-other shape still fails the block. Sampled self-destructs of a positive
+The account's last persisted record before the repeat must be the debit (or
+the burn), the repeat its only persisted record at that ordinal, and no record
+of the account may follow it in the transaction. Dropping the repeat moves no
+balance; any other shape still fails the block. No order is gated to a
+network or an ArbOS version: an account created in its transaction ends at
+zero after its self-destruct under the legacy opcode and EIP-6780 alike, also
+to itself, unlike an account not created in it (the self-destructs to
+themselves below). Sampled self-destructs of a positive
 balance have no repeat up to block 169,366,089 and have it from block
 169,454,286. Before this rule native refused Arbitrum One blocks 187,009,069,
 200,029,376, 250,005,039, 300,007,082, 450,014,091 and 450,028,504 (the first
@@ -349,7 +356,16 @@ transactions 0 and 1 each:
 and
 [344,105,344](tests/fixtures/arbitrum-344105344-stale-selfdestruct-withdraw-new-beneficiary.json)
 (ArbOS 32, where the RPC-era rows also read the beneficiary's
-100,000,000,000,000 wei and the sender's balance at the block).
+100,000,000,000,000 wei and the sender's balance at the block). Native
+v0.7.9 refused Arbitrum One block 500,689,520 (ArbOS 61) in its full-history
+noop (2026-10-18): transaction `0x584f566f…` sends 1,000,000,000,000 wei to
+`0xe85ee3d5…`, whose CREATE deploys `0x09bb50a3…` with it, and the next call
+self-destructs `0x09bb50a3…` to itself: the debit at 128, the refund of the
+account itself from zero at 129, the burn at 130 and the repeat at 131. The
+RPC-era rows read zero for `0x09bb50a3…` and `0xe85ee3d5…` at the block.
+v0.7.10 drops the repeat, and the account ends at zero. Fixture, transactions
+0 and 3:
+[500,689,520](tests/fixtures/arbitrum-500689520-selfdestruct-created-to-self.json).
 
 **Self-destruct to itself recorded as debit, refund and repeat (v0.7.8
 refused; v0.7.9 dropped on Arbitrum One since ArbOS 20).** Since Cancun (on
@@ -380,7 +396,10 @@ refusal, which exempts only a repeat that is dropped: a gap, an extra no-op
 withdraw, another network or ArbOS before 20 still fail the block. Ethereum's
 `Block.ver` 3 shape, the refund from zero and then the withdraw, is the
 exception above, and a producer that records only the debit and the refund
-ends at `d`. The fixture is
+ends at `d`. An account created in its transaction is destroyed even when it
+self-destructs to itself: Arbitrum One records a burn before the repeat, and
+the account ends at zero (repeated self-destruct withdraw above, v0.7.10). The
+fixture is
 [326,011,151](tests/fixtures/arbitrum-326011151-selfdestruct-to-self.json)
 (both transactions and the mix hash); the tests also build the shape from
 the 514,819,388 capture, with the refund turned to the destroyed account.
@@ -901,8 +920,11 @@ v0.7.8 accepts: on Arbitrum One it drops the repeated withdraw also across a
 new beneficiary's creation, burns the balance of a self-destruct to itself
 before ArbOS 20 and keeps it since ArbOS 20, and takes the sender's own
 SetCode authorization with the transaction's nonce as discarded; on Base it
-rewrites a fee vault's credit after a transfer into the vault. None is
-live-qualified.
+rewrites a fee vault's credit after a transfer into the vault. v0.7.10
+accepts Arbitrum One block 500,689,520, which v0.7.9's full-history noop
+refused, and changes nothing for a block v0.7.9 accepts: it drops the
+repeated withdraw also of an account created in its transaction that
+self-destructs to itself, which ends at zero. None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
@@ -972,7 +994,8 @@ with the rule disabled. The self-destruct to itself recorded as debit,
 refund and repeat is captured (block 326,011,151) and also built from
 another capture, and the guard on records outside a failed transaction's
 execution runs over every captured failed-transaction shape. Every v0.7.9
-test of a new rule fails against the v0.7.8 rules. `tests/db_out.rs` covers the
+test of a new rule fails against the v0.7.8 rules, and every v0.7.10 test of
+the new shape against the v0.7.9 rules. `tests/db_out.rs` covers the
 ClickHouse rows, the manifest wiring and the embedded schema.
 
 The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);
