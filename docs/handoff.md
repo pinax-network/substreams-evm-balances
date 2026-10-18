@@ -36,19 +36,19 @@ after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet;
 the BSC shadow of the retired v0.6.1 still does until k8s-token-api-services
 #44 is merged.
 
-**Unreleased: native v0.7.8 and ERC-20 v0.7.3**
-([PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166)).
-They support eight EVM networks: Ethereum, BSC, Polygon, Arbitrum One, Base,
-Optimism, Unichain and HyperEVM (Avalanche's endpoint serves no Extended
-blocks). Optimism starts at block 105,236,000 and Arbitrum One at 22,208,000,
-the first whole 1,000-block segments of their Extended blocks
-([start blocks](../native/balances/README.md#input-and-networks)). The
-committed `spkg/evm-balances-native-v0.7.8.spkg` is the CI package of the
-first v0.7.8 build (committed in `c07f06d`, `map_events` `e44375c0…`), which
-has four of the v0.7.8 rules, and ERC-20 v0.7.3 has no spkg yet: both come
-from CI's `packages` artifact of the final source before the merge. ERC-20
-v0.7.2 (#165) was never released; its committed spkg keeps the earlier
-history schema.
+**Released on 2026-10-15: native v0.7.8 and ERC-20 v0.7.3**
+([PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166);
+tags `evm-balances-native-v0.7.8` and `evm-balances-erc20-v0.7.3` at
+`8275bce`). They support eight EVM networks: Ethereum, BSC, Polygon,
+Arbitrum One, Base, Optimism, Unichain and HyperEVM (Avalanche's endpoint
+serves no Extended blocks). Optimism starts at block 105,236,000 and
+Arbitrum One at 22,208,000, the first whole 1,000-block segments of their
+Extended blocks
+([start blocks](../native/balances/README.md#input-and-networks)). Both
+spkgs are CI's `packages` artifact of the final source (`dee6dfb`), committed
+in `3e69653`: native `map_events` `6ed24645…`, ERC-20 `map_events`
+`9ad39435…`. ERC-20 v0.7.2 (#165) was never released; its committed spkg
+keeps the earlier history schema.
 
 **ERC-20 v0.7.4 (2026-10-17, unreleased, no spkg yet)** replaces v0.7.3 for
 the resync: the owner wants the causes of stale and missing ERC-20 rows that
@@ -88,8 +88,8 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   records after the execution only, on which v0.7.6 refused Ethereum block
   25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused blocks
   25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. v0.7.8
-  (unreleased, above) handles the producer shapes the 2026-10-14 checks found
-  on each chain
+  (released on 2026-10-15, above) handles the producer shapes the
+  2026-10-14 checks found on each chain
   ([rules](../native/balances/README.md#persistence-and-fail-closed-rules)):
   on Ethereum and Polygon a self-destruct debit that the `Block.ver` 3
   producers omit in a call with other records (a wrong balance, not a refusal,
@@ -115,18 +115,20 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   decodes the block with the same 1 GiB element budget as native v0.7.4; the
   ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. v0.7.2 drops a
   contract's rows for the block when a word it chose as a balance reaches
-  2^128 (packed or computed slots); it was not released. v0.7.3 (unreleased,
-  above) takes the shared rules' SetCode boundary, on which v0.7.2 refused
-  Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows on every block
-  v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. v0.7.4
+  2^128 (packed or computed slots); it was not released. v0.7.3 (released
+  on 2026-10-15, above) takes the shared rules' SetCode boundary, on which
+  v0.7.2 refused Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows
+  on every block v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. v0.7.4
   (above) reads long `balanceOf` inputs, lets WETH9 frames and Tether
   destructions vote without a `Transfer`, explains Tether's admin writes,
   vouches for an unexplained write only with a later read, orders Polygon
   state syncs by call and reads Vyper's key order; on 131 saved blocks it
-  keeps every v0.7.3 row and adds 16,363. Not qualified. Offline, on five
-  captured BSC intervals scored against every row the RPC reference package
-  emitted for them, the inference reproduces 58.5–62.8% of
-  those rows with 99.92–100% value precision
+  keeps every v0.7.3 row and adds 16,363, and the 10,572 of its 48,108 rows
+  there that have an RPC-era 1-minute bar at their block equal it (the rest
+  were not compared). Not qualified. Offline, on five captured BSC intervals
+  scored against every row the RPC reference package emitted for them, the
+  inference source of 2026-10-05 (v0.2.0) reproduced 58.5–62.8% of those rows
+  with 99.92–100% value precision, a measurement not re-run since
   ([measured](../erc20/balances/README.md#measured) gives each interval and
   its scored holders). v0.4.0 runs in the BSC shadow below. The earlier layout
   package v0.1.0, another source, was checked on live BSC on 2026-09-23
@@ -245,14 +247,13 @@ Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
 1. Pre-release: commit the CI-built ERC-20 v0.7.4 spkg from its pull
-   request's `packages` artifact (native v0.7.8's came from PR #166's), and
-   run both packages' pre-release noop
+   request's `packages` artifact, and run its pre-release noop
    ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
    supported network: the hard-fork windows, the windows where the 2026-10-14
    refusals appeared and the latest blocks. A refusal is fixed and the noop
    rerun before the merge.
-2. Release both packages by their own tags, `evm-balances-native-v0.7.8` and
-   `evm-balances-erc20-v0.7.4`.
+2. Release ERC-20 v0.7.4 by its tag, `evm-balances-erc20-v0.7.4` (native
+   v0.7.8 was released on 2026-10-15).
 3. Resync BSC and Ethereum into new databases,
    `<chain>:evm-balances-native@v0.7.8` and
    `<chain>:evm-balances-erc20@v0.7.4`: first the full-history noop of each

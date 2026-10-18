@@ -207,6 +207,11 @@ whole shape.
 
 ## Measured
 
+Measured with the inference source of 2026-10-05 (`68fe1ce`, package v0.2.0),
+and the simulated 5.5.0 table with that of 2026-10-06 (`5a422b5`). Neither
+table was re-run for later versions, v0.7.4 included; v0.7.4 was checked on
+131 saved blocks instead ([history](#build-and-rust-tests)).
+
 Offline replays of captured Extended BSC blocks. Each interval is scored against
 every row the RPC reference package `erc20-balances-v0.3.4.spkg` (`8aaa03b5…`)
 emitted for it, that is, its per-block candidate holders whose `balanceOf` call
@@ -376,7 +381,10 @@ Polygon state syncs by depth-1 call, and reads Vyper's key order (rules 1 to
 6, [producer releases](#producer-releases), [limits](#limits)). On those
 blocks it keeps all 31,745 rows of v0.7.3 with the same value and adds 16,363:
 15,814 from long reads, 36 from WETH9 frames, 8 from Tether's admin events,
-24 from Polygon state syncs and 481 from Vyper tokens. Because its rows differ
+24 from Polygon state syncs and 481 from Vyper tokens. Of those 48,108 rows,
+the 10,572 with an RPC-era 1-minute bar at their block equal it; the other
+37,536 were not compared, among them 31,557 of the rows v0.7.3 also gives
+and 360 of the 481 Vyper rows. Because its rows differ
 from v0.7.3's for past blocks, it is written to a new database,
 `<chain>:evm-balances-erc20@v0.7.4`, by a full resync. Before v0.7.0 it was
 `erc20_balances`:
