@@ -60,12 +60,14 @@
 //!    explanation, except under a Vyper base, where the contract's own row is
 //!    never emitted, from a write or a read (owner, 2026-10-17): a Yearn v3
 //!    vault computes its own balance. A holder whose last write is unexplained
-//!    needs its own keyed `balanceOf`, traced after that write. A flag that
-//!    `balanceOf` masks, such as FiatToken v2.2's blacklist bit 255, is never
-//!    vouched this way: a read after the flag write, or before the write that
-//!    clears it, contradicts the stored word and drops the contract for the
-//!    block. Candidate holders without a write get the value of a keyed
-//!    `balanceOf` that read exactly the base.
+//!    needs its own keyed `balanceOf`, traced after that write. FiatToken
+//!    v2.2's `balanceOf` masks its blacklist flag, bit 255 of the word: a read
+//!    that returns the stored word without that bit does not contradict it
+//!    when the write that supplies the word only toggles bit 255 in a frame
+//!    whose `Blacklisted` or `UnBlacklisted` names the holder, and that holder
+//!    then gets no row. Any other masked read contradicts the stored word and
+//!    drops the contract for the block. Candidate holders without a write get
+//!    the value of a keyed `balanceOf` that read exactly the base.
 //!
 //! Writes and reads are in execution order: by ordinal, except in a
 //! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
@@ -106,6 +108,9 @@ struct Names {
     /// explain the holder's write only when the frame's net change of the
     /// holder's word under the chosen base equals that amount.
     admin: BTreeMap<(Frame, Addr), (Net, bool)>,
+    /// FiatToken v2.2 `Blacklisted`/`UnBlacklisted`: the `(frame, holder)`
+    /// pairs whose flag bit 255 the frame may set or clear.
+    flags: BTreeSet<(Frame, Addr)>,
 }
 
 const SUCCEEDED: eth::TransactionTraceStatus = eth::TransactionTraceStatus::Succeeded;
@@ -125,6 +130,11 @@ const REDEEM: Word = topic("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7e
 /// indexed, and TrueCurrency's, with the holder indexed. Both zero a
 /// blacklisted holder's balance and state the amount destroyed.
 const DESTROYED_BLACK_FUNDS: Word = topic("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6");
+/// FiatToken v2.2 `Blacklisted(address indexed)` and
+/// `UnBlacklisted(address indexed)`: they set and clear bit 255 of the
+/// holder's balance word, which its `balanceOf` masks.
+const BLACKLISTED: Word = topic("ffa4e6181777692565cf28528fc88fd1516ea86b56da075235fa575af6a4b855");
+const UNBLACKLISTED: Word = topic("117e3210bb9aa7d9baff172026820255c6f6c30ba8999d1c2fd88e2848137c4e");
 /// WETH9 `Deposit(address indexed, uint256)` and
 /// `Withdrawal(address indexed, uint256)`.
 const DEPOSIT: Word = topic("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c");
@@ -597,6 +607,12 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
                     continue;
                 };
                 let sender = || Addr::try_from(*senders_of_tx.get_or_insert_with(|| senders(tx)).get(&call.index)?).ok();
+                if log.topics.len() == 2 && log.data.is_empty() && (t0[..] == BLACKLISTED || t0[..] == UNBLACKLISTED) {
+                    if let Some(holder) = topic_address(&log.topics[1]) {
+                        named.entry(token).or_default().flags.insert((frame, holder));
+                    }
+                    continue;
+                }
                 if let Some((holder, amount, zero)) = admin(log, t0, sender) {
                     let entry = named.entry(token).or_default().admin.entry((frame, holder)).or_default();
                     entry.0.merge(&amount);
@@ -1162,6 +1178,17 @@ fn decide(
     // Then a pure `balanceOf` vouches only for its own holder's code path.
     let shadowed = shadow >= exact;
     let mut values = BTreeMap::new();
+    // A FiatToken read of a word whose flag a `Blacklisted`/`UnBlacklisted`
+    // frame set or cleared: it returns the word without bit 255. The read
+    // still checks the other 255 bits; its holder gets no row.
+    let masks = |w: &Write, stored: &Word, value: &Word, holder: &Addr| {
+        let mut flag = [0; 32];
+        flag[0] = 0x80;
+        let toggled = std::array::from_fn::<u8, 32, _>(|i| w.old[i] ^ w.new[i]) == flag;
+        let unmasked = std::array::from_fn::<u8, 32, _>(|i| value[i] | flag[i]);
+        toggled && value[0] & 0x80 == 0 && *stored == unmasked && names.flags.contains(&(w.frame, *holder))
+    };
+    let mut masked = BTreeSet::new();
     for r in reads.iter().filter(|r| r.persisted) {
         match by_key.get(&base.key(&r.holder)) {
             Some(ws) => {
@@ -1171,10 +1198,15 @@ fn decide(
                 }
                 let stored = ws[..ws.partition_point(|w| w.seq < r.begin)]
                     .last()
-                    .map(|w| w.new)
-                    .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| w.old));
-                if stored.is_some_and(|s| s != r.value) {
-                    return None;
+                    .map(|w| (*w, w.new))
+                    .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| (*w, w.old)));
+                match stored {
+                    Some((_, s)) if s == r.value => {}
+                    Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {
+                        masked.insert(r.holder);
+                    }
+                    Some(_) => return None,
+                    None => {}
                 }
             }
             // The holder's mapping word has no persisted write in the block.
@@ -1224,6 +1256,7 @@ fn decide(
     if shadowed {
         values.retain(|holder, _| read.contains_key(holder));
     }
+    values.retain(|holder, _| !masked.contains(holder));
     Some(values)
 }
 

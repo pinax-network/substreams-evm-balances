@@ -8,6 +8,7 @@ v0.7.4 (owner, 2026-10-17) changes which rows are inferred, for past blocks as w
 - In a block without a `Transfer` of the contract, a native-backed WETH9 deposit or withdrawal and a TetherToken `destroyBlackFunds` vote.
 - Tether `Issue`/`Redeem` name the sender of the emitting frame, and they and `DestroyedBlackFunds` explain the writes whose net change equals their amount.
 - A `balanceOf` vouches for an unexplained write only when it was traced after it.
+- A FiatToken v2.2 (USDC) `balanceOf` that returns a holder's word without the blacklist bit, which a write in a frame whose `Blacklisted` or `UnBlacklisted` names the holder sets or clears, no longer drops the token for the block; only that holder gets no row.
 - Polygon's state-sync transaction is ordered by its depth-1 calls.
 - Vyper's `HashMap` key order is read (crvUSD, CRV, Curve pools and gauges, Yearn vaults); under it, a contract's own row is never emitted, because a Yearn v3 vault computes its own balance.
 - A holder's word whose next or second next storage key is also written in the block is a struct field (Curve BoostV2's `Point`), and drops its contract for the block unless the holder's own `balanceOf` traced after its last write shows the word.

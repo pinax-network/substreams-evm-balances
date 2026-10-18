@@ -841,10 +841,13 @@ fn words_at_or_above_2_pow_128_drop_the_token() {
 }
 
 /// A third party's word that changes with no balance event naming it in that
-/// frame (an approval sync, FiatToken v2.2's blacklist flag in bit 255) needs
-/// the holder's own `balanceOf`; the contract's own silent fee writes do not.
-/// FiatToken's `balanceOf` masks the flag, so its read contradicts the stored
-/// word and drops the token for the block (a documented limit).
+/// frame (an approval sync, FiatToken v2.2's blacklist flag in bit 255) is
+/// unexplained, unlike the contract's own silent fee writes, and needs the
+/// holder's own `balanceOf`. FiatToken's `balanceOf` masks the flag: a read
+/// that returns the stored
+/// word without bit 255, of a flag-only write in a frame whose `Blacklisted`
+/// or `UnBlacklisted` names the holder, leaves that holder without a row and
+/// the token with its others.
 #[test]
 fn unexplained_writes_need_the_holders_own_read() {
     let mut flag = root();
@@ -857,10 +860,30 @@ fn unexplained_writes_need_the_holders_own_read() {
     flagged[0] |= 0x80;
     store_word(&mut flag, C, BASE, w(50 * U), flagged, 20);
     assert_eq!(rows(&block(vec![vec![simple()], vec![flag.clone()]])), vec![r(A, 70), r(B, 35)]);
-    // Limit: a read of C after the flag returns the masked word, which
-    // contradicts the stored one, and drops the token's rows for the block.
-    let masked = router(vec![balance_of(2, C, BASE, 50 * U, 50)]);
-    assert!(rows(&block(vec![vec![simple()], vec![flag], masked])).is_empty());
+    // A read of C after the flag returns the masked word: C gets no row, the
+    // token keeps its others. The read still checks the other 255 bits, and
+    // a flag write without the event stays a contradiction.
+    let masked = |value: u64| router(vec![balance_of(2, C, BASE, value, 50)]);
+    assert_eq!(rows(&block(vec![vec![simple()], vec![flag.clone()], masked(50 * U)])), vec![r(A, 70), r(B, 35)]);
+    assert!(rows(&block(vec![vec![simple()], vec![flag.clone()], masked(49 * U)])).is_empty());
+    let mut silent = flag.clone();
+    silent.logs.clear();
+    assert!(rows(&block(vec![vec![simple()], vec![silent], masked(50 * U)])).is_empty());
+    // A read before `unBlacklist(C)` saw the flagged word, masked.
+    let mut unflag = root();
+    unflag.logs = vec![eth::Log {
+        address: TOKEN.to_vec(),
+        topics: vec![
+            hex::decode("117e3210bb9aa7d9baff172026820255c6f6c30ba8999d1c2fd88e2848137c4e").unwrap(),
+            pad(&C),
+        ],
+        ..Default::default()
+    }];
+    let mut flagged = w(50 * U);
+    flagged[0] |= 0x80;
+    store_word(&mut unflag, C, BASE, flagged, w(50 * U), 20);
+    let early = router(vec![balance_of(2, C, BASE, 50 * U, 5)]);
+    assert_eq!(rows(&block(vec![early, vec![simple()], vec![unflag]])), vec![r(A, 70), r(B, 35)]);
     // An approval makes C a candidate; its silent sync is kept once C's own
     // balanceOf confirms the word.
     let mut sync = root();

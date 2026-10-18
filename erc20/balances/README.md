@@ -123,18 +123,20 @@ longer recorded preimages are never decoded. Per block and per contract
    word. If that write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
    naming a holder other than the contract itself (an admin, a sync or a flag
    write), that holder needs its own keyed `balanceOf`, traced after that
-   write: a read before it saw only the earlier word. A flag that `balanceOf`
-   masks, such as FiatToken v2.2's blacklist bit, is never vouched this way:
-   the read contradicts the stored word ([FiatToken blacklists](#limits)). Since v0.7.4 a Tether `Issue`/`Redeem` (for the frame's sender) or
-   `DestroyedBlackFunds` in the frame also explains the write when its amount
-   equals the frame's net change of the holder's word, a destruction also
-   leaving it at zero. The contract's own word needs no explanation, except
-   under a Vyper base since v0.7.4 (owner, 2026-10-17): there the contract's
-   own row is never emitted, from a write or a read, because a Yearn v3
-   vault's `balanceOf(self)` is its word less the shares still unlocking,
-   which fall with time and no write. A candidate without a write gets the
-   value of a keyed `balanceOf` that read only the base. Everyone else stays
-   unknown; nothing becomes zero.
+   write: a read before it saw only the earlier word. FiatToken v2.2's
+   blacklist flag, which its `balanceOf` masks, is never vouched this way:
+   since v0.7.4 a read that returns the flagged word without the flag leaves
+   that holder without a row instead of dropping the token
+   ([FiatToken blacklists](#limits)). Since v0.7.4 a Tether `Issue`/`Redeem`
+   (for the frame's sender) or `DestroyedBlackFunds` in the frame also
+   explains the write when its amount equals the frame's net change of the
+   holder's word, a destruction also leaving it at zero. The contract's own
+   word needs no explanation, except under a Vyper base since v0.7.4 (owner,
+   2026-10-17): there the contract's own row is never emitted, from a write
+   or a read, because a Yearn v3 vault's `balanceOf(self)` is its word less
+   the shares still unlocking, which fall with time and no write. A
+   candidate without a write gets the value of a keyed `balanceOf` that read
+   only the base. Everyone else stays unknown; nothing becomes zero.
 
 Writes chain, and reads compare with the stored word, in execution order: by
 ordinal, except in a recognized Polygon state-sync transaction, which is
@@ -313,13 +315,17 @@ and holders.
 - **FiatToken blacklists.** FiatToken v2.2, USDC on Ethereum, Base,
   Optimism, Polygon, Arbitrum One and Unichain, sets bit 255 of a holder's
   balance word on `blacklist` and clears it on `unBlacklist`, and its
-  `balanceOf` masks the bit. In a block where a traced `balanceOf` of the
-  holder follows the flag write, or precedes the write that clears it, the
-  read contradicts the stored word, so all of the token's rows for the block
-  are dropped: holders that changed in the block keep their earlier value
-  until a later block emits them. Without such a read, the flagged holder's
-  write is unexplained and only that holder stays unknown. Neither v0.7.3
-  nor v0.7.4 masks the bit.
+  `balanceOf` masks the bit. Since v0.7.4, a traced `balanceOf` of the
+  holder that follows the flag write, or precedes the write that clears it,
+  does not contradict the stored word when it returns the word without bit
+  255, that write changes only bit 255, and its frame emits `Blacklisted` or
+  `UnBlacklisted` naming the holder. The read still checks the other 255
+  bits; the holder gets no row in that block, and the token keeps its other
+  rows. In v0.7.3 such a read dropped all of the token's rows for the block.
+  Any other masked flag still does: holders that changed in the block keep
+  their earlier value until a later block emits them. Without such a read,
+  the flagged holder's write is unexplained and only that holder stays
+  unknown.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
   ([native](../../native/balances/README.md#execution-order-v078)). Until
