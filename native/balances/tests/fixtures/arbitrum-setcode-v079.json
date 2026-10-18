@@ -2,8 +2,46 @@
   "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client -o bytes --bytes-encoding base64, and -o json for the same block hash",
   "protobuf_type": "sf.ethereum.type.v2.TransactionTrace",
   "extraction": "Sliced the selected transaction's TransactionTrace bytes (Block field 10) out of the encoded Extended block without decoding or editing them. No RPC was used.",
-  "limits": "Arbitrum One, Block.ver 3, whose root calls record begin_ordinal 0. Four failed SetCode transactions whose sender authorizes itself with the transaction's own nonce, an authorization that cannot apply and that the producer leaves unmarked; native v0.7.8 and ERC-20 v0.7.3 refuse their blocks. Not a producer matrix.",
+  "limits": "Arbitrum One, Block.ver 3, whose root calls record begin_ordinal 0. Five failed SetCode transactions whose sender authorizes itself with the transaction's own nonce, an authorization that cannot apply and that the producer leaves unmarked; native v0.7.8 and ERC-20 v0.7.3 refuse their blocks. Not a producer matrix.",
   "records": [
+    {
+      "block_number": 358023229,
+      "block_hash": "0x8cc513b41e47551977ad373ecece44d32e0955adc4c5d6b9fb7e0eeb0d35ac20",
+      "producer_version": 3,
+      "transaction_index": 5,
+      "transaction_hash": "0x95af748ba8653d9e0487e23519203be703ee1c5ea4957360645ce8e5da78016c",
+      "transaction_status": 3,
+      "transaction_nonce": 47,
+      "bytes": 2744,
+      "sha256": "f89caf322709043fda7e755ea6a3fcee7aeaf4953a836534758242f1181bdf04",
+      "note": "reverted; its only authorization is by the sender with the transaction nonce 47, cannot apply, not marked discarded; found by a later v0.7.8 noop",
+      "transaction_ordinals": [
+        353,
+        365
+      ],
+      "root_begin_ordinal": 0,
+      "root_end_ordinal": 359,
+      "unrecorded_ordinal": 358,
+      "sender": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+      "authorizations": [
+        {
+          "authority": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+          "address": "0xf519ba3d865cd0fe5a8a927aad1fa1345fe77d94",
+          "nonce": 47,
+          "discarded": false
+        }
+      ],
+      "root_account_creations": [],
+      "root_nonces": [
+        {
+          "address": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+          "old": 47,
+          "new": 48,
+          "ordinal": 357
+        }
+      ],
+      "root_codes": []
+    },
     {
       "block_number": 360021045,
       "block_hash": "0x290cada8a20ca106aa100b45e8649d3589d9572cd8ef41ade5ab4ac76147e159",

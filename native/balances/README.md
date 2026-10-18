@@ -333,17 +333,20 @@ of accounts not created in the transaction,
 and, before Cancun,
 [176,115,455](tests/fixtures/arbitrum-176115455-stale-selfdestruct-withdraw-existing.json)
 (`0x9d4eb718…`, whose code the chain removes). Native v0.7.8 refused
-Arbitrum One blocks 223,944,083, 235,153,999 and 282,198,061 in its
-full-history noops (2026-10-17): the root call self-destructs an account not
+Arbitrum One blocks 223,944,083, 235,153,999, 282,198,061 and 344,105,344
+in its full-history noops (2026-10-17 and 18): the root call self-destructs an account not
 created in the transaction to a new account that the call creates between the
 debit and the refund (transaction `0xd2061702…` of block 235,153,999:
 `0x85483824…` to `0x0bb2668e…`, the debit at 12, the creation at 13, the
 refund at 14, the repeat at 15). The RPC-era rows read zero for the destroyed
 accounts and 0.001 ETH for `0x0bb2668e…` at their blocks, and v0.7.9 drops
 the repeat. Fixtures, transactions 0 and 1 each:
-[235,153,999](tests/fixtures/arbitrum-235153999-stale-selfdestruct-withdraw-new-beneficiary.json)
+[235,153,999](tests/fixtures/arbitrum-235153999-stale-selfdestruct-withdraw-new-beneficiary.json),
+[223,944,083](tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json)
 and
-[223,944,083](tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json).
+[344,105,344](tests/fixtures/arbitrum-344105344-stale-selfdestruct-withdraw-new-beneficiary.json)
+(ArbOS 32, where the RPC-era rows also read the beneficiary's
+100,000,000,000,000 wei and the sender's balance at the block).
 
 **Self-destruct to itself recorded as debit, refund and repeat (v0.7.8
 refused; v0.7.9 dropped on Arbitrum One since ArbOS 20).** Since Cancun (on
@@ -701,10 +704,10 @@ authorization discarded only when the root call has no unused nonce change of
 its authority from its nonce to the next, and the sender's own `n -> n + 1`
 is one, so it leaves that authorization unmarked; on Arbitrum One's
 `Block.ver` 3 the shared rules then find no records for it and refuse the
-block. Native v0.7.8 refused Arbitrum One blocks 360,021,045, 382,234,350,
-420,239,048 and 472,773,590 in its full-history noops (2026-10-17), and
-ERC-20 v0.7.3 refuses them too (checked offline on the saved blocks). In
-each, the ordinal after the sender's nonce record, or,
+block. Native v0.7.8 refused Arbitrum One blocks 358,023,229, 360,021,045,
+382,234,350, 420,239,048 and 472,773,590 in its full-history noops
+(2026-10-17 and 18), and ERC-20 v0.7.3 refuses them too (checked offline on
+the saved blocks). In each, the ordinal after the sender's nonce record, or,
 in 360,021,045, after the records of the sender's second authorization with
 nonce `n + 1`, is the only one of the transaction that no record or call
 boundary takes. Since v0.7.9 native, only when the shared rules refuse the
@@ -723,7 +726,8 @@ Native keeps no nonce or code record, and a failed transaction's balance
 records do not depend on the boundary: the senders pay their gas and the fee
 accounts are credited after the execution, as v0.7.8's fee rules give
 (`0x207b7745…` ends block 472,773,590 at the RPC-era row's
-9,916,520,340,708,000 wei). The fixtures are the four unedited
+9,916,520,340,708,000 wei, and `0x0128c9c9…` block 358,023,229 at
+1,298,193,932,352,314). The fixtures are the five unedited
 `arbitrum-*-failed-setcode.pb` transactions of
 [`tests/fixtures/`](tests/fixtures/), with their provenance in
 [`arbitrum-setcode-v079.json`](tests/fixtures/arbitrum-setcode-v079.json).
@@ -888,8 +892,8 @@ failed Arbitrum deposit, submission, retry or internal transaction that moves
 a balance, any other record of a failed transaction outside its execution
 that moves a balance, and a self-destruct to itself recorded as debit, refund
 and repeat. Its history keeps only the 1h, 4h, 1d and 1w bars. v0.7.9 accepts
-the eleven Arbitrum One and Base blocks that v0.7.8's full-history noops
-refused, each in a captured producer shape, and changes nothing for a block
+the thirteen Arbitrum One and Base blocks that v0.7.8's full-history noops
+refused up to 2026-10-18, each in a captured producer shape, and changes nothing for a block
 v0.7.8 accepts: on Arbitrum One it drops the repeated withdraw also across a
 new beneficiary's creation, burns the balance of a self-destruct to itself
 before ArbOS 20 and keeps it since ArbOS 20, and takes the sender's own

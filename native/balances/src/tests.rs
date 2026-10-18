@@ -2677,14 +2677,17 @@ fn the_failed_setcode_authorization_boundary_shape_is_exact() {
 /// with the transaction's own nonce, unmarked: blocks 382,234,350
 /// (`0xfb8afece…`, failed out of gas), 420,239,048 (`0x80435ffd…`),
 /// 472,773,590 (`0xc495d3c3…`) and 360,021,045 (`0x1550f5d1…`, which also
-/// carries the sender's applied authorization with the next nonce), each the
-/// only transaction of its block. Provenance in `arbitrum-setcode-v079.json`.
-fn captured_arbitrum_unapplicable_self_authorizations() -> [eth::Block; 4] {
-    let traces: [(u64, &[u8]); 4] = [
+/// carries the sender's applied authorization with the next nonce), and
+/// 358,023,229 (`0x95af748b…`, found by a later noop of native v0.7.8), each
+/// the only transaction of its block. Provenance in
+/// `arbitrum-setcode-v079.json`.
+fn captured_arbitrum_unapplicable_self_authorizations() -> [eth::Block; 5] {
+    let traces: [(u64, &[u8]); 5] = [
         (382_234_350, include_bytes!("../tests/fixtures/arbitrum-382234350-failed-setcode.pb")),
         (420_239_048, include_bytes!("../tests/fixtures/arbitrum-420239048-failed-setcode.pb")),
         (472_773_590, include_bytes!("../tests/fixtures/arbitrum-472773590-failed-setcode.pb")),
         (360_021_045, include_bytes!("../tests/fixtures/arbitrum-360021045-failed-setcode.pb")),
+        (358_023_229, include_bytes!("../tests/fixtures/arbitrum-358023229-failed-setcode.pb")),
     ];
     traces.map(|(number, bytes)| {
         let mut b = block();
@@ -2703,10 +2706,11 @@ fn captured_arbitrum_failed_setcode_with_an_unapplicable_self_authorization_pays
     // Per block: the transaction's nonce, its authorizations' nonces, the
     // boundary no record takes, and every row as (account, old amount,
     // amount, ordinal, records). The RPC-era row of 0x207b7745… reads
-    // 9,916,520,340,708,000 wei at block 472,773,590, and the GAS_BUY of
+    // 9,916,520,340,708,000 wei at block 472,773,590, and that of 0x0128c9c9…
+    // 1,298,193,932,352,314 wei at block 358,023,229; the GAS_BUY of
     // 0xbd25f6e6… in block 382,234,353 starts from 444,793,809,196,000.
     type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u32)];
-    let expected: [(u64, &[u64], u64, &Rows); 4] = [
+    let expected: [(u64, &[u64], u64, &Rows); 5] = [
         (
             322,
             &[322],
@@ -2747,6 +2751,16 @@ fn captured_arbitrum_failed_setcode_with_an_unapplicable_self_authorization_pays
                 (INFRA_FEE, "25829945814010000000", "25829946399710000000", 128, 1),
                 (NETWORK_FEE, "47235588322717636972", "47235588323830466972", 129, 1),
                 (L1_PRICER, "3513878414379887850", "3513878601214199850", 130, 1),
+            ],
+        ),
+        (
+            47,
+            &[47],
+            358,
+            &[
+                ("0128c9c96874c951d4b6296375ed76df6996221e", "1299256472352314", "1298193932352314", 360, 2),
+                (INFRA_FEE, "10082878601930000000", "10082879110520000000", 361, 1),
+                (L1_PRICER, "3516845196971313654", "3516845750921313654", 362, 1),
             ],
         ),
     ];
@@ -2793,7 +2807,7 @@ fn the_unapplicable_self_authorization_shape_is_exact() {
     fn root(b: &mut eth::Block) -> &mut eth::Call {
         &mut b.transaction_traces[0].calls[0]
     }
-    let [single, _, _, mixed] = captured_arbitrum_unapplicable_self_authorizations();
+    let [single, _, _, mixed, _] = captured_arbitrum_unapplicable_self_authorizations();
     let sender = |b: &eth::Block| b.transaction_traces[0].from.clone();
     for b in [&single, &mixed] {
         assert!(changes(b).is_ok());
@@ -4177,20 +4191,28 @@ const STALE_WITHDRAW_NEW_BENEFICIARY: &str = include_str!("../tests/fixtures/arb
 /// Arbitrum One block 223,944,083 in the same shape: transaction 1
 /// (`0xd8ec4935…`) self-destructs `0x006bf202…` to `0x2dafa472…`.
 const STALE_WITHDRAW_NEW_BENEFICIARY_2: &str = include_str!("../tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json");
+/// Arbitrum One block 344,105,344 (ArbOS 32) in the same shape, found by a
+/// later noop of native v0.7.8: transaction 1 (`0xed6377fe…`) sends
+/// 100,000,000,000,000 wei to `0x2cc4163b…`, which self-destructs to
+/// `0xcfc2875a…` after calls of itself with value.
+const STALE_WITHDRAW_NEW_BENEFICIARY_3: &str = include_str!("../tests/fixtures/arbitrum-344105344-stale-selfdestruct-withdraw-new-beneficiary.json");
 
 #[test]
 fn captured_arbitrum_repeated_withdraw_of_an_existing_account_to_a_new_beneficiary_is_dropped() {
     use eth::balance_change::Reason;
-    // Per block: the destroyed account and the beneficiary, d, and every row
-    // as (account, old amount, amount, first ordinal, ordinal, records). The
-    // RPC-era rows read zero for both destroyed accounts at their blocks and
-    // 1,000,000,000,000,000 wei for 0x0bb2668e… at block 235,153,999.
+    // Per block: the destroyed account and the beneficiary, d, the debit's
+    // ordinal, and every row as (account, old amount, amount, first ordinal,
+    // ordinal, records). The RPC-era rows read zero for the three destroyed
+    // accounts at their blocks, 1,000,000,000,000,000 wei for 0x0bb2668e… at
+    // block 235,153,999, and 100,000,000,000,000 wei for 0xcfc2875a… and
+    // 23,279,774,890,000,000 for the sender 0x83ab38d5… at block 344,105,344.
     type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u64, u32)];
-    let cases: [(&str, [&str; 2], &str, &Rows); 2] = [
+    let cases: [(&str, [&str; 2], &str, u64, &Rows); 3] = [
         (
             STALE_WITHDRAW_NEW_BENEFICIARY,
             ["854838245429a63224aa054ac0ed73f78a068338", "0bb2668e26c8e17baa8e0537aac1a68946fc2a69"],
             "1000000000000000",
+            12,
             &[
                 ("854838245429a63224aa054ac0ed73f78a068338", "1000000000000000", "0", 12, 12, 1),
                 ("0bb2668e26c8e17baa8e0537aac1a68946fc2a69", "0", "1000000000000000", 14, 14, 1),
@@ -4203,6 +4225,7 @@ fn captured_arbitrum_repeated_withdraw_of_an_existing_account_to_a_new_beneficia
             STALE_WITHDRAW_NEW_BENEFICIARY_2,
             ["006bf202e5c4d104c3739e0022011efe8b42e370", "2dafa47247d3fe48676111636dcdcf854cab8517"],
             "2832000000000000",
+            12,
             &[
                 ("006bf202e5c4d104c3739e0022011efe8b42e370", "2832000000000000", "0", 12, 12, 1),
                 ("2dafa47247d3fe48676111636dcdcf854cab8517", "0", "2832000000000000", 14, 14, 1),
@@ -4210,19 +4233,34 @@ fn captured_arbitrum_repeated_withdraw_of_an_existing_account_to_a_new_beneficia
                 (INFRA_FEE, "19349429749260000000", "19349430316320000000", 18, 18, 1),
             ],
         ),
+        (
+            STALE_WITHDRAW_NEW_BENEFICIARY_3,
+            ["2cc4163b6ee5e8fd8669271cadd68c729b8279d6", "cfc2875a44e58db28f32d0875c2615f04d52a419"],
+            "100000000000000",
+            43,
+            &[
+                ("2cc4163b6ee5e8fd8669271cadd68c729b8279d6", "0", "0", 13, 43, 4),
+                ("cfc2875a44e58db28f32d0875c2615f04d52a419", "0", "100000000000000", 45, 45, 1),
+                ("83ab38d578c4f7ee7413c35238bb69e4d58fa8e6", "23380998460000000", "23279774890000000", 7, 48, 3),
+                (INFRA_FEE, "3028443078600000000", "3028444219980000000", 49, 49, 1),
+                (L1_PRICER, "3514523912351582546", "3514523994541582546", 50, 50, 1),
+            ],
+        ),
     ];
-    for (fixture, accounts, d, expected) in cases {
+    for (fixture, accounts, d, o, expected) in cases {
         let b = captured_block(&serde_json::from_str(fixture).unwrap());
         let [destroyed, beneficiary] = accounts.map(|a| hex::decode(a).unwrap());
         let trx = &b.transaction_traces[1];
         assert!(trx.calls.iter().all(|c| c.call_type.as_known() != Some(eth::CallType::CREATE)));
-        // The records: the debit (12), the beneficiary's creation (13), its
-        // refund (14) and the repeat (15).
+        // The self-destruct records: the debit (o), the beneficiary's creation
+        // (o + 1), its refund (o + 2) and the repeat (o + 3).
         let root = &trx.calls[0];
         assert!(root.suicide);
+        let suicide = |c: &&eth::BalanceChange| matches!(c.reason.as_known(), Some(Reason::SuicideWithdraw | Reason::SuicideRefund));
         let recorded: Vec<_> = root
             .balance_changes
             .iter()
+            .filter(suicide)
             .filter(|c| c.address == destroyed || c.address == beneficiary)
             .map(|c| {
                 let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
@@ -4233,19 +4271,19 @@ fn captured_arbitrum_repeated_withdraw_of_an_existing_account_to_a_new_beneficia
         assert_eq!(
             recorded,
             [
-                (12, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
-                (14, false, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
-                (15, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+                (o, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+                (o + 2, false, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
+                (o + 3, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
             ]
         );
         assert_eq!(
             root.account_creations.iter().map(|a| (a.account.clone(), a.ordinal)).collect::<Vec<_>>(),
-            [(beneficiary.clone(), 13)]
+            [(beneficiary.clone(), o + 1)]
         );
         // Only the repeat is dropped; native v0.7.8 kept it, and it breaks
         // continuity.
         let persisted = records(&b).unwrap();
-        assert_eq!(stale_selfdestruct_withdraws(&b, &persisted), HashSet::from([(destroyed.clone(), 15)]));
+        assert_eq!(stale_selfdestruct_withdraws(&b, &persisted), HashSet::from([(destroyed.clone(), o + 3)]));
         assert!(selfdestruct_debits(&b).is_empty());
         assert!(selfdestruct_to_self_pairs(&b).is_empty());
         let mut kept = b.clone();
