@@ -45,8 +45,11 @@ never prints them.
   `map_events(block)` takes no params or layouts and infers transfer-guided
   balances for every contract from the block's persisted storage. It stays
   RPC-free with bounded per-block work. A block fails only when it is not a
-  complete Extended block or the persistence rules cannot resolve it; inference
-  never fails a block and drops a contract's rows for the block on any doubt.
+  complete Extended block or the persistence rules cannot resolve it, also
+  after the one retry that v0.7.4 takes outside them, as native v0.7.9 does,
+  with a failed SetCode transaction's unapplicable self-authorization marked
+  discarded; inference never fails a block and drops a contract's rows for
+  the block on any doubt.
   Undetected computed balances remain possible: its rows are measured, not
   qualified. Its candidates are the RPC reference's `(contract, holder)`
   pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender
