@@ -975,6 +975,27 @@ fn tether_admin_events_explain_exact_writes() {
     assert!(with(vec![packed]).is_empty());
 }
 
+/// Lido stETH's `ExternalSharesBurnt(uint256)` adds the emitting frame's
+/// recorded caller as a candidate, as the RPC reference does. Under stETH's
+/// proxy the DELEGATECALL frame emits it, whose recorded caller is the proxy
+/// itself, not the proxy's msg.sender (unlike Tether `Issue`/`Redeem`).
+#[test]
+fn steth_external_shares_burnt_names_the_recorded_caller() {
+    const BURNT: &str = "ad21467656c56eb8c99f7916faa12f7a657a04d8802100acec62e92451ac5606";
+    // D's keyed read supplies its value only if D is a candidate.
+    let with = |tx: Vec<eth::Call>| rows(&block(vec![vec![simple()], tx, router(vec![balance_of(2, D, BASE, 42, 50)])]));
+    let mut direct = root();
+    direct.caller = D.to_vec();
+    direct.logs = vec![unindexed(BURNT, w(5))];
+    assert_eq!(with(vec![direct]), vec![r(A, 70), r(B, 35), r(D, 42)]);
+    let mut proxy = root();
+    proxy.caller = D.to_vec();
+    let mut implementation = call(2, 1, 1, eth::CallType::Delegate, IMPL);
+    implementation.caller = TOKEN.to_vec();
+    implementation.logs = vec![unindexed(BURNT, w(5))];
+    assert_eq!(with(vec![proxy, implementation]), vec![r(A, 70), r(B, 35)]);
+}
+
 /// USDT0's `destroyBlockedFunds` burns through `Transfer(holder, 0)`, which
 /// already names the holder.
 #[test]

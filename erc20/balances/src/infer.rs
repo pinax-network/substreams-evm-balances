@@ -171,6 +171,9 @@ enum Part {
     Topics12,
     Word0,
     Words01,
+    /// The recorded caller of the frame that emitted the log, as the
+    /// reference takes it: under a DELEGATECALL, the proxy itself.
+    Caller,
     /// The msg.sender of the frame that emitted the log (see [`senders`]).
     Sender,
 }
@@ -194,7 +197,8 @@ const fn shape(topic0: &str, topics: usize, data: usize, part: Part) -> Shape {
 /// 2026-10-17) Tether `Issue`/`Redeem` name the emitting frame's sender, where
 /// the reference called `owner()`: both are owner-only and move the sender's
 /// balance. TrueCurrency's `DestroyedBlackFunds(address indexed,uint256)`, the
-/// last shape, is not one of the reference's.
+/// last shape, is not one of the reference's. stETH `ExternalSharesBurnt`
+/// names the emitting frame's recorded caller, as the reference does.
 const SHAPES: [Shape; 65] = [
     shape("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c", 2, 32, Part::Topic1), // weth.Deposit
     shape("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65", 2, 32, Part::Topic1), // weth.Withdrawal
@@ -243,7 +247,7 @@ const SHAPES: [Shape; 65] = [
     shape("9d9c909296d9c674451c0c24f02cb64981eb3b727f99865939192f880a755dcb", 3, 32, Part::Topics12), // steth.TransferShares
     shape("8b2a1e1ad5e0578c3dd82494156e985dade827a87c573b5c1c7716a32162ad64", 2, 96, Part::Topic1), // steth.SharesBurnt
     shape("ee473f96486a2f4b93ccb6729f121223e96975db6e0d6a5ef01f56477e3eab3b", 2, 32, Part::Topic1), // steth.ExternalSharesMinted
-    shape("ad21467656c56eb8c99f7916faa12f7a657a04d8802100acec62e92451ac5606", 1, 32, Part::Sender), // steth.ExternalSharesBurnt
+    shape("ad21467656c56eb8c99f7916faa12f7a657a04d8802100acec62e92451ac5606", 1, 32, Part::Caller), // steth.ExternalSharesBurnt
     shape("4ee34277c93491eeca655ad5c42ae1c193a5719e1c8837df9058af7696817cce", 1, 32, Part::Context), // steth.ExternalEtherTransferredToBuffer
     shape("4e80196ef1285462b2c4ee20f88e18e58c59e405eec6fd51f5fd1d614bc98a7f", 1, 32, Part::Context), // steth.ExternalBadDebtInternalized
     shape("13c514ee70ee403f89bdf5ab83908edba92a77e3a61e19b774670c0a2cb2d7e6", 1, 32, Part::Context), // steth.MaxExternalRatioBpSet
@@ -270,7 +274,9 @@ fn insert(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, contract: &[u8], holder: &[u
         }
     }
 }
-fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, sender: Option<&[u8]>) {
+/// One log's candidates: `frame` is the emitting call's recorded caller and
+/// msg.sender, absent for a receipt log.
+fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, frame: Option<(&[u8], &[u8])>) {
     let Some(topic0) = log.topics.first() else {
         return;
     };
@@ -281,17 +287,16 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
         }
         let topic = |i: usize| Some(&log.topics[i][12..32]);
         let word = |i: usize| Some(&log.data[i * 32 + 12..i * 32 + 32]);
-        let parts = match s.part {
-            Part::Sender => match sender {
-                Some(sender) => [Some(sender), None],
-                None => continue,
-            },
-            Part::Context => [None, None],
-            Part::Topic1 => [topic(1), None],
-            Part::Topic2 => [topic(2), None],
-            Part::Topics12 => [topic(1), topic(2)],
-            Part::Word0 => [word(0), None],
-            Part::Words01 => [word(0), word(1)],
+        let parts = match (s.part, frame) {
+            (Part::Caller, Some((caller, _))) => [Some(caller), None],
+            (Part::Sender, Some((_, sender))) => [Some(sender), None],
+            (Part::Caller | Part::Sender, None) => continue,
+            (Part::Context, _) => [None, None],
+            (Part::Topic1, _) => [topic(1), None],
+            (Part::Topic2, _) => [topic(2), None],
+            (Part::Topics12, _) => [topic(1), topic(2)],
+            (Part::Word0, _) => [word(0), None],
+            (Part::Words01, _) => [word(0), word(1)],
         };
         matched = true;
         for holder in parts.into_iter().flatten() {
@@ -307,8 +312,8 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
 /// contract. Successful transactions' logs from non-reverted calls (receipt
 /// logs when a trace has no calls) that match an event shape of [`SHAPES`] add
 /// its holders, `tx.from` and the contract; zero or non-20-byte addresses are
-/// dropped. Tether `Issue`/`Redeem` and stETH `ExternalSharesBurnt` take the
-/// emitting frame's msg.sender.
+/// dropped. Tether `Issue`/`Redeem` take the emitting frame's msg.sender, and
+/// stETH `ExternalSharesBurnt` its recorded caller.
 pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
     let mut out = BTreeMap::new();
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
@@ -319,8 +324,9 @@ pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
         }
         let senders = senders(tx);
         for call in tx.calls.iter().filter(|c| !c.state_reverted) {
+            let frame = senders.get(&call.index).map(|sender| (&call.caller[..], *sender));
             for log in &call.logs {
-                visit(&mut out, &tx.from, log, senders.get(&call.index).copied());
+                visit(&mut out, &tx.from, log, frame);
             }
         }
     }
