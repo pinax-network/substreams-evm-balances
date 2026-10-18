@@ -339,8 +339,11 @@ created in the transaction to a new account that the call creates between the
 debit and the refund (transaction `0xd2061702…` of block 235,153,999:
 `0x85483824…` to `0x0bb2668e…`, the debit at 12, the creation at 13, the
 refund at 14, the repeat at 15). The RPC-era rows read zero for the destroyed
-accounts and 0.001 ETH for `0x0bb2668e…` at their blocks, and v0.7.9 drops
-the repeat. Fixtures, transactions 0 and 1 each:
+accounts at their blocks, apart from 282,198,061: its destroyed account
+`0xbe233078…` has no row at that block, and its only RPC-era reading is zero
+at block 282,200,265, 2,204 blocks later. They read 0.001 ETH for
+`0x0bb2668e…` at block 235,153,999. v0.7.9 drops the repeat. Fixtures,
+transactions 0 and 1 each:
 [235,153,999](tests/fixtures/arbitrum-235153999-stale-selfdestruct-withdraw-new-beneficiary.json),
 [223,944,083](tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json)
 and
