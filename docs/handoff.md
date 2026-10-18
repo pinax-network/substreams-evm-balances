@@ -1,6 +1,6 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-15, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-18, for whoever picks it up next. Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -35,19 +35,20 @@ after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet;
 the BSC shadow of the retired v0.6.1 still does until k8s-token-api-services
 #44 is merged.
 
-**Unreleased: native v0.7.8 and ERC-20 v0.7.3**
-([PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166)).
+**Released: native v0.7.8 and ERC-20 v0.7.3** (2026-10-15,
+[PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166),
+tags `evm-balances-native-v0.7.8` and `evm-balances-erc20-v0.7.3`).
 They support eight EVM networks: Ethereum, BSC, Polygon, Arbitrum One, Base,
 Optimism, Unichain and HyperEVM (Avalanche's endpoint serves no Extended
 blocks). Optimism starts at block 105,236,000 and Arbitrum One at 22,208,000,
 the first whole 1,000-block segments of their Extended blocks
 ([start blocks](../native/balances/README.md#input-and-networks)). The
-committed `spkg/evm-balances-native-v0.7.8.spkg` is the CI package of the
-first v0.7.8 build (committed in `c07f06d`, `map_events` `e44375c0…`), which
-has four of the v0.7.8 rules, and ERC-20 v0.7.3 has no spkg yet: both come
-from CI's `packages` artifact of the final source before the merge. ERC-20
-v0.7.2 (#165) was never released; its committed spkg keeps the earlier
-history schema.
+committed `spkg/evm-balances-native-v0.7.8.spkg` (`map_events` `6ed24645…`,
+`db_out` `40f294cb…`) and `spkg/evm-balances-erc20-v0.7.3.spkg` (`map_events`
+`9ad39435…`, `db_out` `03f8d454…`) are CI's `packages` artifact of the final
+source, committed in `3e69653`; their pre-release noops and live checks ran
+these module hashes. ERC-20 v0.7.2 (#165) was never released; its committed
+spkg keeps the earlier history schema.
 
 **Unreleased: native v0.7.9** (2026-10-17). The full-history noops of the
 released native v0.7.8 refused thirteen Arbitrum One and Base blocks up to
@@ -96,7 +97,7 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   records after the execution only, on which v0.7.6 refused Ethereum block
   25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused blocks
   25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. v0.7.8
-  (unreleased, above) handles the producer shapes the 2026-10-14 checks found
+  (released, above) handles the producer shapes the 2026-10-14 checks found
   on each chain
   ([rules](../native/balances/README.md#persistence-and-fail-closed-rules)):
   on Ethereum and Polygon a self-destruct debit that the `Block.ver` 3
@@ -123,7 +124,7 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   decodes the block with the same 1 GiB element budget as native v0.7.4; the
   ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. v0.7.2 drops a
   contract's rows for the block when a word it chose as a balance reaches
-  2^128 (packed or computed slots); it was not released. v0.7.3 (unreleased,
+  2^128 (packed or computed slots); it was not released. v0.7.3 (released,
   above) takes the shared rules' SetCode boundary, on which v0.7.2 refused
   Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows on every block
   v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. Not
@@ -247,27 +248,27 @@ noop of the CI-built spkgs gives the release's numbers.
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Pre-release: commit the CI-built native v0.7.8 and ERC-20 v0.7.3 spkgs from
-   PR #166's `packages` artifact, and run their pre-release noop
-   ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
-   supported network: the hard-fork windows, the windows where the 2026-10-14
-   refusals appeared and the latest blocks. A refusal is fixed and the noop
-   rerun before the merge.
-2. Release both packages by their own tags, `evm-balances-native-v0.7.8` and
-   `evm-balances-erc20-v0.7.3`.
-3. Resync BSC and Ethereum into new databases,
+1. Pre-release of native v0.7.9: commit the CI-built
+   `spkg/evm-balances-native-v0.7.9.spkg` from its PR's `packages` artifact,
+   and run its pre-release noop ([AGENTS.md](../AGENTS.md#validation)) on
+   Arbitrum One and Base: the 1,000-block segment of each block v0.7.8
+   refused, the hard-fork windows and the latest blocks. A refusal is fixed
+   and the noop rerun before the merge. Then release it by its tag,
+   `evm-balances-native-v0.7.9`.
+2. Resync BSC and Ethereum into new databases,
    `<chain>:evm-balances-native@v0.7.8` and
-   `<chain>:evm-balances-erc20@v0.7.3`: first the full-history noop of each
+   `<chain>:evm-balances-erc20@v0.7.3`, and Arbitrum One and Base into
+   `<chain>:evm-balances-native@v0.7.9`: first the full-history noop of each
    released package, then the backfill from genesis of the ranges it passed
    and the live sink
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
    they replace the v0.6.1 shadow.
-4. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
+3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
    so that its native routes read the native database and its other routes
    the ERC-20 database; a side without its key keeps reading `balances`.
-5. Cut over each database on its own
+4. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
 
