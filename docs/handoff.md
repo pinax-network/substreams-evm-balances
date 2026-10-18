@@ -32,9 +32,9 @@ noops pass, and wants one release for every supported chain, each
 spot-checked and nooped before the tag. Ethereum native passed its full-history noop
 at v0.7.7 but was never backfilled; v0.7.7 keeps a wrong balance for an
 account created and self-destructed in one transaction (Ethereum `Block.ver` 3
-after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet;
-the BSC shadow of the retired v0.6.1 still does until k8s-token-api-services
-#44 is merged.
+after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet.
+The BSC shadow of the retired v0.6.1 was stopped on 2026-10-15 at the owner's
+request, and its database was dropped.
 
 **Released: native v0.7.8 and ERC-20 v0.7.3** (2026-10-15,
 [PR #166](https://github.com/pinax-network/substreams-evm-balances/pull/166),
@@ -65,13 +65,19 @@ the 1,000-block segment of every refused block. Arbitrum One and Base resync
 with it into new databases, `arbitrum-one:evm-balances-native@v0.7.9` and
 `base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8.
 
-**ERC-20 v0.7.4 (2026-10-17, unreleased)** replaces v0.7.3 for
-the resync: the owner wants the causes of stale and missing ERC-20 rows that
-the v0.7.4 investigation found in v0.7.3 fixed before the full Ethereum and
-BSC resyncs. It writes `<chain>:evm-balances-erc20@v0.7.4`, and it accepts the
-five Arbitrum One blocks with a failed SetCode self-authorization that v0.7.3
-refused, as native v0.7.9 does
-([ERC-20 history](../erc20/balances/README.md#build-and-rust-tests)).
+**Released on 2026-10-18: ERC-20 v0.7.4**
+([PR #167](https://github.com/pinax-network/substreams-evm-balances/pull/167);
+tag `evm-balances-erc20-v0.7.4` at `e9dccbe`; `map_events` `e611c63a…`,
+`db_out` `0786f2df…`). It replaces v0.7.3 for the resync: the owner wants the
+causes of stale and missing ERC-20 rows that the v0.7.4 investigation found in
+v0.7.3 fixed before the full Ethereum and BSC resyncs. It writes
+`<chain>:evm-balances-erc20@v0.7.4`, and it accepts the five Arbitrum One
+blocks with a failed SetCode self-authorization that v0.7.3 refused, as native
+v0.7.9 does
+([ERC-20 history](../erc20/balances/README.md#build-and-rust-tests)). Its
+pre-release noop passed 345 windows on the eight networks. Its same-block
+spot checks matched 815,859 of 816,963 balances; the 134 that differ are
+computed balances, in 14 contracts, that v0.7.3 writes with the same values.
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -171,13 +177,13 @@ overwrite it.
 
 ## Current deployment (BSC)
 
-The retired combined package v0.6.1 has run on BSC as a shadow since
-2026-10-13:
+The retired combined package v0.6.1 ran on BSC as a shadow from 2026-10-13
+until the owner had it stopped on 2026-10-15:
 release `v0.6.1`, database `bsc:evm-balances@v0.6.1`, filled by a backfill
 run of the sink from block 127,000,000 and by a live sink from block
 127,455,000 that runs with the Token API's BSC flags, undo buffer 5
 ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). The Token
-API still reads the RPC-era `bsc:evm-balances@v0.3.x`. The shadow runs these
+API still reads the RPC-era `bsc:evm-balances@v0.3.x`. The shadow ran these
 CI builds:
 
 | Package | Version and spkg | Module | Module hash | WASM sha256 |
@@ -191,8 +197,8 @@ Its first FINAL comparison with the RPC-era database
 over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
 balances among 10,223,501 same-block pairs (precision 0.999844)
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
-That is shadow evidence for v0.6.1, not live qualification. The sinks of
-native v0.7.8 and ERC-20 v0.7.4 replace this shadow after their noops pass.
+That is shadow evidence for v0.6.1, not live qualification. The live sinks of
+native v0.7.8 and ERC-20 v0.7.4 start after their backfills.
 
 A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
 below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had
@@ -270,28 +276,19 @@ noop of the CI-built spkgs gives the release's numbers.
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Pre-release: commit the CI-built ERC-20 v0.7.4 spkg from its pull
-   request's `packages` artifact, and run its pre-release noop
-   ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
-   supported network: the hard-fork windows, the windows where the 2026-10-14
-   and 2026-10-18 refusals appeared and the latest blocks. A refusal is fixed
-   and the noop rerun before the merge.
-2. Release ERC-20 v0.7.4 by its tag, `evm-balances-erc20-v0.7.4` (native
-   v0.7.8 was released on 2026-10-15, native v0.7.9 on 2026-10-18).
-3. Resync BSC and Ethereum into new databases,
-   `<chain>:evm-balances-native@v0.7.8` and
-   `<chain>:evm-balances-erc20@v0.7.4`, and Arbitrum One and Base into
-   `<chain>:evm-balances-native@v0.7.9`: first the full-history noop of each
-   released package, then the backfill from genesis of the ranges it passed
-   and the live sink
-   ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
-   they replace the v0.6.1 shadow.
-4. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
+1. Resync into new databases: first the full-history noop of each released
+   package, then the backfill from genesis of the ranges it passed and the
+   live sink ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
+   Native v0.7.8 is backfilled on Ethereum, BSC, Polygon, Optimism, Unichain
+   and HyperEVM (`<chain>:evm-balances-native@v0.7.8`). Next are ERC-20 v0.7.4
+   on BSC and Ethereum (`<chain>:evm-balances-erc20@v0.7.4`) and native v0.7.9
+   on Arbitrum One and Base (`<chain>:evm-balances-native@v0.7.9`).
+2. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
    so that its native routes read the native database and its other routes
    the ERC-20 database; a side without its key keeps reading `balances`.
-5. Cut over each database on its own
+3. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
 
