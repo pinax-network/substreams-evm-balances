@@ -487,6 +487,10 @@ fn long_balance_of_inputs_are_reads() {
     assert_eq!(with(vec![long(B, 35, &[0; 28])]), kept);
     assert!(with(vec![long(B, 36, &[0; 32])]).is_empty());
     assert_eq!(with(vec![long(FROM, 42, &[0; 32])]), vec![r(A, 70), r(B, 35), r(FROM, 42)]);
+    // An unkeyed long read supplies no value.
+    let mut bare = long(FROM, 42, &[0; 32]);
+    bare.keccak_preimages.clear();
+    assert_eq!(with(vec![bare]), kept);
     let mut unkeyed = long(B, 35, &[0; 32]);
     unkeyed.keccak_preimages.clear();
     let mut outside = call(3, 2, 2, eth::CallType::Static, [0x55; 20]);
@@ -1601,6 +1605,25 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
             }
             if let Some(n) = c["gas_limit"].as_u64() {
                 assert_eq!(call.gas_limit, n, "{file} {c}");
+            }
+            if let Some(keyed) = c["keyed"].as_bool() {
+                // A verified 64-byte preimage of pad(input[16..36]), in either
+                // order, in the call or its DELEGATECALL members.
+                let holder = hex::encode(&call.input[16..36]);
+                let mut context = vec![call.index];
+                for x in &tx.calls {
+                    if x.call_type == eth::CallType::Delegate && context.contains(&x.parent_index) {
+                        context.push(x.index);
+                    }
+                }
+                let recorded = tx.calls.iter().filter(|x| context.contains(&x.index)).any(|x| {
+                    x.keccak_preimages.iter().any(|(key, value)| {
+                        let named = value.len() == 128
+                            && ((value[..24] == "0".repeat(24) && value[24..64] == holder) || (value[64..88] == "0".repeat(24) && value[88..] == holder));
+                        named && hex::encode(hash(&hex::decode(value).unwrap())) == *key
+                    })
+                });
+                assert_eq!(recorded, keyed, "{file} {c}");
             }
         }
     }

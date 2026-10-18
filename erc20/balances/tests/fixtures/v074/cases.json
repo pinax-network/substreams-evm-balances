@@ -3,6 +3,7 @@
  "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits.",
  "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block (except for the earlier captures, whose full blocks are not kept); added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
  "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:, bsc: or polygon:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed. A case's rpc_era.method, where present, replaces this method.",
+ "keyed": "A calls entry's keyed, where present, states whether the call or its DELEGATECALL members record a verified 64-byte preimage of pad(input[16..36]) in either key order (pad(holder) || slot or slot || pad(holder)), so whether v0.7.4 reads it as keyed.",
  "cases": [
   {
    "file": "bsc-39960369-wbnb-long-reads.pb",
@@ -16,7 +17,7 @@
    "kept_transactions": [
     1
    ],
-   "selection": "every WBNB transaction (only the bot transaction 1)",
+   "selection": "the bot transaction 1; the block's other WBNB transactions, 12 (reverted), 16, 20 and 47, are omitted, and none of their WBNB logs names a holder of the fixture's rows",
    "rule": "C1",
    "demonstrates": "on a Block.ver 3 producer, which never cuts call data, a bot transaction CALLs WBNB balanceOf four times with 68-byte keyed inputs (calls 2, 3, 28 and 29); v0.7.3 dropped WBNB for the block, v0.7.4 reads them",
    "calls": [
@@ -24,25 +25,29 @@
      "tx": 1,
      "call": 2,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 1,
      "call": 3,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 1,
      "call": 28,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 1,
      "call": 29,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     }
    ],
    "rows": {
@@ -112,13 +117,15 @@
      "tx": 27,
      "call": 2,
      "input_len": 64,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 27,
      "call": 15,
      "input_len": 64,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     }
    ],
    "rows": {
@@ -362,27 +369,30 @@
    ],
    "selection": "every USDT transaction with one call, and the bot transaction 97",
    "rule": "C1",
-   "demonstrates": "a bot transaction (tx 97, Block.ver 5) CALLs balanceOf(0x1dd00b11...) of USDT, USDC and WETH with 68-byte inputs (pad(holder) and a leftover word of its transfer buffer) that return the stored word; v0.7.3 dropped all three tokens for the block on the input length, v0.7.4 reads each as balanceOf(input[16..36]). The USDT read (call 38) is keyed and the USDC read (call 9) is not",
+   "demonstrates": "a bot transaction (tx 97, Block.ver 5) CALLs balanceOf(0x1dd00b11...) of USDT, USDC and WETH with 68-byte inputs (pad(holder) and a leftover word of its transfer buffer) that return the stored word; v0.7.3 dropped all three tokens for the block on the input length, v0.7.4 reads each as balanceOf(input[16..36]). The USDT read (call 38) is keyed in its own frame, and the USDC read (call 9) through its DELEGATECALL to the FiatToken implementation (call 10, which records pad(holder) || 9)",
    "calls": [
     {
      "tx": 97,
      "call": 38,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 97,
      "call": 9,
      "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 97,
      "call": 45,
      "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     }
    ],
    "rows": {
@@ -709,7 +719,7 @@
    }
   },
   {
-   "file": "eth-26158474-usdc-unkeyed-long-read.pb",
+   "file": "eth-26158474-usdc-proxied-long-read.pb",
    "chain": "eth",
    "block": 26158474,
    "block_hash": "0xb8834dd73644ced0267447d542c0df09590ac3f9a4bf966b7536ed1e14d5a651",
@@ -739,20 +749,22 @@
    ],
    "selection": "every USDC transaction with at most two calls (a proxied transfer), and the bot transaction 166",
    "rule": "C1",
-   "demonstrates": "tx 166 (Block.ver 5) CALLs USDC balanceOf(0x52852bd8...) with a 68-byte input and no recorded preimage (unkeyed, as 5.5.0 producers record a read of an unchanged holder), returning the stored 5,769,348, and WETH balanceOf with a 68-byte keyed input (call 91); v0.7.3 dropped both tokens for the block, v0.7.4 keeps their rows and the unkeyed read only vetoes; since C6 the block's FXN (a CurveDAOToken fork, Vyper 0.3.1) rows are inferred too",
+   "demonstrates": "tx 166 (Block.ver 5) CALLs USDC balanceOf(0x52852bd8...) with a 68-byte input (call 96), keyed through its DELEGATECALL to the FiatToken implementation (call 97, which records pad(holder) || 9), returning the stored 5,769,348, and WETH balanceOf with a 68-byte input keyed in its own frame (call 91); v0.7.3 dropped both tokens for the block, v0.7.4 reads both and keeps their rows; since C6 the block's FXN (a CurveDAOToken fork, Vyper 0.3.1) rows are inferred too",
    "calls": [
     {
      "tx": 166,
      "call": 96,
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     },
     {
      "tx": 166,
      "call": 91,
      "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
      "input_len": 68,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     }
    ],
    "rows": {
@@ -2749,7 +2761,8 @@
      "call": 52,
      "address": "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
      "input_len": 36,
-     "return_len": 32
+     "return_len": 32,
+     "keyed": true
     }
    ],
    "rows": {
