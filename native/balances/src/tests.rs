@@ -3864,8 +3864,9 @@ fn the_stale_selfdestruct_withdraw_of_an_existing_account_is_exact() {
     root(&mut b).balance_changes[5].old_value = big(D - 1).into();
     assert!(fails(&b));
     // At consecutive ordinals, the debit first: the refund right after the
-    // debit, also when the call creates the beneficiary's account between
-    // them, and the repeat right after the refund.
+    // debit, or two ordinals later when the call creates the beneficiary's
+    // account between them (since v0.7.9), and the repeat right after the
+    // refund.
     let mut b = captured();
     root(&mut b).balance_changes[3].ordinal = 171;
     assert!(fails(&b));
@@ -3873,6 +3874,8 @@ fn the_stale_selfdestruct_withdraw_of_an_existing_account_is_exact() {
         account: hex::decode(STALE_EXISTING_BENEFICIARY).unwrap(),
         ordinal: 172,
     });
+    assert_eq!(destroyed(&b), ("0".to_string(), 171, 2));
+    root(&mut b).account_creations[0].account = hex::decode(STALE_EXISTING).unwrap();
     assert!(fails(&b));
     let mut b = captured();
     root(&mut b).balance_changes[5].ordinal = 175;
@@ -3952,6 +3955,168 @@ fn the_stale_selfdestruct_withdraw_of_an_existing_account_is_exact() {
     assert!(fails(&b));
     let mut b = before_cancun();
     call(&mut b).balance_changes.push(record(SENDER, 40, 0, 1, Reason::SuicideRefund));
+    assert!(fails(&b));
+}
+
+/// Arbitrum One block 235,153,999 (`Block.ver` 3, ArbOS 20) as captured
+/// from Firehose: transactions 0 (ArbOS's internal transaction) and 1
+/// (`0xd2061702…`) whole. Transaction 1's root call self-destructs
+/// `0x85483824…`, which holds 0.001 ETH and is not created in the
+/// transaction, to `0x0bb2668e…`, whose account the call creates between the
+/// debit and the refund.
+const STALE_WITHDRAW_NEW_BENEFICIARY: &str = include_str!("../tests/fixtures/arbitrum-235153999-stale-selfdestruct-withdraw-new-beneficiary.json");
+/// Arbitrum One block 223,944,083 in the same shape: transaction 1
+/// (`0xd8ec4935…`) self-destructs `0x006bf202…` to `0x2dafa472…`.
+const STALE_WITHDRAW_NEW_BENEFICIARY_2: &str = include_str!("../tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json");
+
+#[test]
+fn captured_arbitrum_repeated_withdraw_of_an_existing_account_to_a_new_beneficiary_is_dropped() {
+    use eth::balance_change::Reason;
+    // Per block: the destroyed account and the beneficiary, d, and every row
+    // as (account, old amount, amount, first ordinal, ordinal, records). The
+    // RPC-era rows read zero for both destroyed accounts at their blocks and
+    // 1,000,000,000,000,000 wei for 0x0bb2668e… at block 235,153,999.
+    type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u64, u32)];
+    let cases: [(&str, [&str; 2], &str, &Rows); 2] = [
+        (
+            STALE_WITHDRAW_NEW_BENEFICIARY,
+            ["854838245429a63224aa054ac0ed73f78a068338", "0bb2668e26c8e17baa8e0537aac1a68946fc2a69"],
+            "1000000000000000",
+            &[
+                ("854838245429a63224aa054ac0ed73f78a068338", "1000000000000000", "0", 12, 12, 1),
+                ("0bb2668e26c8e17baa8e0537aac1a68946fc2a69", "0", "1000000000000000", 14, 14, 1),
+                ("7d8b6ad195512b6549b141aa180460d36a3cc16b", "150944438384329786", "150943690974329786", 6, 17, 2),
+                (INFRA_FEE, "8665511765200000000", "8665512331430000000", 18, 18, 1),
+                (L1_PRICER, "3513415450866377170", "3513415632046377170", 19, 19, 1),
+            ],
+        ),
+        (
+            STALE_WITHDRAW_NEW_BENEFICIARY_2,
+            ["006bf202e5c4d104c3739e0022011efe8b42e370", "2dafa47247d3fe48676111636dcdcf854cab8517"],
+            "2832000000000000",
+            &[
+                ("006bf202e5c4d104c3739e0022011efe8b42e370", "2832000000000000", "0", 12, 12, 1),
+                ("2dafa47247d3fe48676111636dcdcf854cab8517", "0", "2832000000000000", 14, 14, 1),
+                ("19a59dbbb50a03afb1521bc6aed41d626653dc63", "38741708827171986", "38741141767171986", 6, 17, 2),
+                (INFRA_FEE, "19349429749260000000", "19349430316320000000", 18, 18, 1),
+            ],
+        ),
+    ];
+    for (fixture, accounts, d, expected) in cases {
+        let b = captured_block(&serde_json::from_str(fixture).unwrap());
+        let [destroyed, beneficiary] = accounts.map(|a| hex::decode(a).unwrap());
+        let trx = &b.transaction_traces[1];
+        assert!(trx.calls.iter().all(|c| c.call_type.as_known() != Some(eth::CallType::CREATE)));
+        // The records: the debit (12), the beneficiary's creation (13), its
+        // refund (14) and the repeat (15).
+        let root = &trx.calls[0];
+        assert!(root.suicide);
+        let recorded: Vec<_> = root
+            .balance_changes
+            .iter()
+            .filter(|c| c.address == destroyed || c.address == beneficiary)
+            .map(|c| {
+                let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+                (c.ordinal, c.address == destroyed, old, new, c.reason.to_i32())
+            })
+            .collect();
+        let (d, zero) = (d.to_string(), "0".to_string());
+        assert_eq!(
+            recorded,
+            [
+                (12, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+                (14, false, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
+                (15, true, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+            ]
+        );
+        assert_eq!(
+            root.account_creations.iter().map(|a| (a.account.clone(), a.ordinal)).collect::<Vec<_>>(),
+            [(beneficiary.clone(), 13)]
+        );
+        // Only the repeat is dropped; native v0.7.8 kept it, and it breaks
+        // continuity.
+        let persisted = records(&b).unwrap();
+        assert_eq!(stale_selfdestruct_withdraws(&b, &persisted), HashSet::from([(destroyed.clone(), 15)]));
+        assert!(selfdestruct_debits(&b).is_empty());
+        assert!(selfdestruct_to_self_pairs(&b).is_empty());
+        let mut kept = b.clone();
+        kept.transaction_traces[1].calls[0].suicide = false;
+        assert!(changes(&kept).unwrap_err().to_string().contains("discontinuous"));
+        let rows = changes(&b).unwrap();
+        assert_eq!(rows.len(), expected.len(), "block {}", b.number);
+        for &(account, old, new, first_ordinal, ordinal, records) in expected {
+            let row = row_of(&rows, &hex::decode(account).unwrap());
+            assert_eq!(
+                (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+                (old, new, first_ordinal, ordinal, records),
+                "block {} account {account}",
+                b.number
+            );
+        }
+    }
+}
+
+#[test]
+fn the_repeated_withdraw_of_an_existing_account_to_a_new_beneficiary_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Records 1 to 3 of transaction 1's root call: the debit (12), the
+    // refund (14) and the repeat (15); the beneficiary's creation at 13.
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[1].calls[0]
+    }
+    let captured = || captured_block(&serde_json::from_str(STALE_WITHDRAW_NEW_BENEFICIARY).unwrap());
+    let destroyed = hex::decode("854838245429a63224aa054ac0ed73f78a068338").unwrap();
+    let ends = |b: &eth::Block| row_of(&changes(b).unwrap(), &destroyed).amount.clone();
+    assert_eq!(ends(&captured()), "0");
+    // The call creates the beneficiary's account...
+    let mut b = captured();
+    root(&mut b).account_creations.clear();
+    assert!(fails(&b));
+    // ...and no other account...
+    let mut b = captured();
+    root(&mut b).account_creations[0].account = vec![0x11; 20];
+    assert!(fails(&b));
+    // ...at the ordinal between the debit and the refund.
+    for ordinal in [12, 14] {
+        let mut b = captured();
+        root(&mut b).account_creations[0].ordinal = ordinal;
+        assert!(fails(&b), "creation at {ordinal}");
+    }
+    // A creation in another call of the transaction does not count.
+    let mut b = captured();
+    let creation = root(&mut b).account_creations.remove(0);
+    b.transaction_traces[1].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        account_creations: vec![creation],
+        ..Default::default()
+    });
+    assert!(fails(&b));
+    // The refund at most two ordinals after the debit, and the repeat right
+    // after the refund.
+    let mut b = captured();
+    root(&mut b).balance_changes[2].ordinal = 15;
+    root(&mut b).balance_changes[3].ordinal = 16;
+    root(&mut b).account_creations[0].ordinal = 14;
+    assert!(fails(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[3].ordinal = 16;
+    assert!(fails(&b));
+    // Of an account created in the transaction, the shape with a creation
+    // gap is the debit, the refund, a no-op and the repeat: these two
+    // withdraws are not it.
+    let mut b = captured();
+    b.transaction_traces[1].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: destroyed.clone(),
+        ..Default::default()
+    });
     assert!(fails(&b));
 }
 

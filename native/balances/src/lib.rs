@@ -1188,7 +1188,15 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// `0x6beb920b…`, which holds 5,000,000,000,000 wei and keeps its code, to
 /// the sender `0x62005500…`, whose gas refund then starts from the credited
 /// balance (ordinals 451 to 453); block 367,510,845 (`0x5c179506…`) repeats
-/// it.
+/// it. Since v0.7.9 the refund may also come two ordinals after the debit
+/// when the call creates the beneficiary's account at the ordinal between,
+/// as for an account created in the transaction: in block 235,153,999 the
+/// root call of transaction `0xd2061702…` self-destructs `0x85483824…`,
+/// which holds 1,000,000,000,000,000 wei, to the new account `0x0bb2668e…`
+/// (the debit at 12, the creation at 13, the refund at 14 and the repeat at
+/// 15), and the chain reads zero and 1,000,000,000,000,000 wei for them after
+/// the block; blocks 223,944,083 (`0xd8ec4935…`, `0x006bf202…`) and
+/// 282,198,061 (`0xe97d61a3…`, `0xbe233078…`) have the same shape.
 ///
 /// Returns the repeat, as `(account, ordinal)`, so the account's other
 /// records must chain across it. Dropping it moves no balance: the account is
@@ -1200,7 +1208,9 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// CREATE in the same transaction, two in the second, and two in the third,
 /// of an account no CREATE of the transaction creates. These records are
 /// consecutive among the call's balance records and in one of the three
-/// orders above, with `d` positive. The account's last persisted record
+/// orders above, with `d` positive; in the first and the third, the refund
+/// two ordinals after the debit only when the call creates the refund's
+/// account at the ordinal between. The account's last persisted record
 /// before the repeat is the debit. The repeat is the account's only persisted
 /// record at its ordinal, since the repeat is dropped by account and ordinal:
 /// another record there is not dropped with it and still fails the block. No
@@ -1260,9 +1270,17 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
                     (debit.ordinal == refund.ordinal + 1 && repeat.ordinal == debit.ordinal + 1).then_some((debit, refund, repeat))
                 }
                 // Since Cancun, of an account not created in the transaction,
-                // which survives: the debit, the refund and the repeat.
+                // which survives: the debit, the refund (two ordinals later
+                // when the call creates the beneficiary's account in between)
+                // and the repeat.
                 (false, 2, Some(&[debit, refund, repeat, ..])) => {
-                    (refund.ordinal == debit.ordinal + 1 && repeat.ordinal == refund.ordinal + 1).then_some((debit, refund, repeat))
+                    let beneficiary_created = call
+                        .account_creations
+                        .iter()
+                        .any(|a| a.account == refund.address && a.ordinal == debit.ordinal + 1);
+                    let exact = (refund.ordinal == debit.ordinal + 1 || (refund.ordinal == debit.ordinal + 2 && beneficiary_created))
+                        && repeat.ordinal == refund.ordinal + 1;
+                    exact.then_some((debit, refund, repeat))
                 }
                 _ => None,
             };
