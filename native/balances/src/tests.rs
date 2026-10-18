@@ -5000,6 +5000,205 @@ fn the_arbitrum_selfdestruct_to_itself_repeat_is_exact() {
     assert!(refused(&b));
 }
 
+/// Arbitrum One block 500,689,520 (`Block.ver` 3, ArbOS 61) as captured from
+/// Firehose: transactions 0 and 3 whole, ArbOS's internal transaction and
+/// `0x584f566f…`, which sends 1,000,000,000,000 wei to `0xe85ee3d5…`. Its
+/// CREATE (call 2) deploys `0x09bb50a3…` with that value, and call 3
+/// self-destructs `0x09bb50a3…` to itself.
+const ARBITRUM_CREATED_TO_SELF: &str = include_str!("../tests/fixtures/arbitrum-500689520-selfdestruct-created-to-self.json");
+const CREATED_TO_SELF: &str = "09bb50a33899606f0ed3205e56cd10c5d8c4c0c9";
+const CREATED_TO_SELF_CREATOR: &str = "e85ee3d55065d4a10b50778ef1f8a9488438dca0";
+fn captured_arbitrum_created_to_self() -> eth::Block {
+    captured_block(&serde_json::from_str(ARBITRUM_CREATED_TO_SELF).unwrap())
+}
+
+#[test]
+fn captured_arbitrum_selfdestruct_to_itself_of_a_created_account_burns_the_balance() {
+    use eth::balance_change::Reason;
+    let b = captured_arbitrum_created_to_self();
+    assert_eq!(arbos_version(&b), Some(61));
+    let account = hex::decode(CREATED_TO_SELF).unwrap();
+    let trx = &b.transaction_traces[1];
+    assert!(trx
+        .calls
+        .iter()
+        .any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == account));
+    // The CREATE's value, then the debit, the refund of the account itself,
+    // the burn and the repeat at consecutive ordinals.
+    let own: Vec<_> = trx
+        .calls
+        .iter()
+        .flat_map(|c| &c.balance_changes)
+        .filter(|c| c.address == account)
+        .map(|c| {
+            let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+            (c.ordinal, old, new, c.reason.to_i32())
+        })
+        .collect();
+    let (d, zero) = ("1000000000000".to_string(), "0".to_string());
+    assert_eq!(
+        own,
+        [
+            (119, zero.clone(), d.clone(), Reason::Transfer as i32),
+            (128, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (129, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
+            (130, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (131, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+        ]
+    );
+    // The repeat's old value breaks continuity, and native v0.7.9 refused
+    // the block, as it still does without the self-destruct flag.
+    let mut unflagged = b.clone();
+    unflagged.transaction_traces[1].calls[2].suicide = false;
+    assert!(changes(&unflagged).unwrap_err().to_string().contains("discontinuous"));
+    // Only the repeat is dropped; the other self-destruct rules do not apply.
+    let persisted = records(&b).unwrap();
+    assert_eq!(stale_selfdestruct_withdraws(&b, &persisted), HashSet::from([(account.clone(), 131)]));
+    assert!(selfdestruct_to_self_repeats(&b, &persisted, Some(61)).is_empty());
+    assert!(selfdestruct_to_self_pairs(&b).is_empty());
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert!(selfdestruct_credit_shifts(&b, &persisted).is_empty());
+    assert!(legacy_selfdestruct_to_self_rewrites(&b, &persisted, Some(61)).is_empty());
+    // The destroyed account ends at zero, as does its creator: the RPC-era
+    // rows read zero for both at the block.
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 5);
+    assert_rows(
+        &rows,
+        &[
+            (CREATED_TO_SELF, "0", "0", 130, 4),
+            (CREATED_TO_SELF_CREATOR, "0", "0", 118, 2),
+            ("2fb66a7ccb448904254a88df8ce891ba19729d64", "2914594231416000", "2912004011416000", 135, 3),
+            (INFRA_FEE, "35915983541160007000", "35915985130220007000", 136, 1),
+            (L1_PRICER, "3514857668023407440", "3514857669183407440", 137, 1),
+        ],
+    );
+    assert_eq!(row_of(&rows, &account).first_ordinal, 119);
+}
+
+#[test]
+fn the_selfdestruct_to_itself_of_a_created_account_is_exact() {
+    use eth::balance_change::Reason;
+    const D: u64 = 1_000_000_000_000;
+    // Call 3 of transaction 3: the debit (128), the refund (129), the burn
+    // (130) and the repeat (131).
+    fn call(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[1].calls[2]
+    }
+    fn record(ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(CREATED_TO_SELF).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    fn set(b: &mut eth::Block, ordinal: u64, old: u64, new: u64) {
+        let c = record_at(b, ordinal);
+        (c.old_value, c.new_value) = (big(old).into(), big(new).into());
+    }
+    let discontinuous = |b: &eth::Block| changes(b).is_err_and(|e| e.to_string().contains("discontinuous"));
+    let captured = captured_arbitrum_created_to_self;
+    let account = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(CREATED_TO_SELF).unwrap());
+        (row.amount.clone(), row.ordinal, row.records)
+    };
+    let burned = ("0".to_string(), 130, 4);
+    assert_eq!(account(&captured()), burned);
+    // Not gated: an account created in its transaction ends at zero after
+    // its self-destruct under either opcode, on any network.
+    let mut elsewhere = captured();
+    elsewhere.transaction_traces.remove(0);
+    for b in [with_arbos(captured(), 10), with_arbos(captured(), 19), elsewhere] {
+        assert_eq!(account(&b), burned);
+    }
+    // Only in a self-destructing call, and only of an account that a CREATE
+    // of the transaction creates: otherwise the repeat is kept, and it
+    // breaks continuity.
+    let mut b = captured();
+    call(&mut b).suicide = false;
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    b.transaction_traces[1].calls[1].call_type = eth::CallType::CALL.into();
+    assert!(discontinuous(&b));
+    // Only of the account the call self-destructs: for a DELEGATECALL, its
+    // caller.
+    let mut b = captured();
+    call(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(discontinuous(&b));
+    // Only of a persisted call: a reverted self-destruct leaves the account
+    // with the CREATE's value.
+    let mut b = captured();
+    call(&mut b).state_reverted = true;
+    assert_eq!(account(&b), (D.to_string(), 119, 1));
+    // The refund from zero to `d`, the burn and the repeat from `d` to zero.
+    for (ordinal, old, new) in [(129, 1, D + 1), (130, D, 1), (130, D - 1, 0), (131, D - 1, 0), (131, D + 1, 0), (131, D, 1)] {
+        let mut b = captured();
+        set(&mut b, ordinal, old, new);
+        assert!(discontinuous(&b), "record {ordinal}: {old} -> {new}");
+    }
+    // A no-op in the burn's place is the shape of a refund to another
+    // account: to the account itself its records chain as recorded, and the
+    // repeat is kept, as in v0.7.9.
+    let mut b = captured();
+    set(&mut b, 130, 0, 0);
+    assert_eq!(account(&b), ("0".to_string(), 131, 4));
+    // At consecutive ordinals: with a gap anywhere the repeat is kept. Two
+    // ordinals between the debit and the refund only for another
+    // beneficiary whose account the call creates between them.
+    let mut b = captured();
+    record_at(&mut b, 128).ordinal = 127;
+    assert!(discontinuous(&b));
+    call(&mut b).account_creations.push(eth::AccountCreation {
+        account: hex::decode(CREATED_TO_SELF).unwrap(),
+        ordinal: 128,
+    });
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    record_at(&mut b, 131).ordinal = 132;
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    record_at(&mut b, 131).ordinal = 132;
+    record_at(&mut b, 130).ordinal = 131;
+    assert!(discontinuous(&b));
+    // The debit, the burn and the repeat are SUICIDE_WITHDRAWs, the refund a
+    // SUICIDE_REFUND.
+    for ordinal in [128, 129, 130] {
+        let mut b = captured();
+        record_at(&mut b, ordinal).reason = Reason::Transfer.into();
+        assert!(discontinuous(&b), "record {ordinal}");
+    }
+    // Exactly these records: with another withdraw or refund in the call the
+    // repeat is kept.
+    for extra in [
+        record(132, 0, 0, Reason::SuicideWithdraw),
+        eth::BalanceChange {
+            address: hex::decode(INFRA_FEE).unwrap(),
+            ..record(132, 0, 0, Reason::SuicideRefund)
+        },
+    ] {
+        let mut b = captured();
+        call(&mut b).balance_changes.push(extra.clone());
+        assert!(discontinuous(&b), "{extra:?}");
+    }
+    // No record of the account after the repeat in the transaction.
+    let mut b = captured();
+    b.transaction_traces[1].calls[0].balance_changes.push(record(133, 0, 5, Reason::Transfer));
+    assert!(discontinuous(&b));
+    // The repeat is the account's only persisted record at its ordinal: a
+    // credit there in a child call is not dropped with it, and the block
+    // fails.
+    let mut b = captured();
+    b.transaction_traces[1].calls.push(eth::Call {
+        index: 4,
+        parent_index: 3,
+        depth: 2,
+        balance_changes: vec![record(131, 0, 7, Reason::Transfer)],
+        ..Default::default()
+    });
+    assert!(discontinuous(&b));
+}
+
 /// Base block 5,044,695 (`Block.ver` 4) as captured from Firehose:
 /// transaction 1 (`0xe707514e…`) whole, a deposit from and to `0x82c8c1fb…`
 /// that fails outside the EVM; its root call holds only the mint.
