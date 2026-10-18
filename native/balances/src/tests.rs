@@ -4381,7 +4381,10 @@ fn the_legacy_selfdestruct_to_itself_shape_is_exact() {
 
 /// Arbitrum One block 514,819,388's self-destruct as if to itself: its
 /// refund at ordinal 173 credits `0x06bba4e1…` from zero to `d` instead of
-/// the beneficiary `0xf3359221…`. No such self-destruct is captured.
+/// the beneficiary `0xf3359221…`. The fixture carries neither ArbOS's
+/// internal transaction nor the mix hash, so it is no Arbitrum block to
+/// `arbos_version`, as a block of another network; block 326,011,151 is the
+/// captured self-destruct to itself ([`ARBITRUM_SELFDESTRUCT_TO_SELF`]).
 fn arbitrum_selfdestruct_to_itself() -> eth::Block {
     let mut b = captured_arbitrum_stale_withdraw_existing();
     b.transaction_traces[0].calls[0].balance_changes[4] = eth::BalanceChange {
@@ -4566,6 +4569,189 @@ fn the_selfdestruct_to_itself_refusal_is_exact() {
     let mut b = to_itself();
     root(&mut b).balance_changes[5].ordinal = 175;
     root(&mut b).balance_changes.insert(5, record(174, 0, 0, Reason::SuicideWithdraw));
+    assert!(refused(&b));
+}
+
+/// Arbitrum One block 326,011,151 (`Block.ver` 3, ArbOS 32) as captured from
+/// Firehose: both its transactions whole, ArbOS's internal transaction and
+/// `0x2526bf6a…`, which sends 10 wei to `0xac2e23b1…`, whose root call
+/// self-destructs it to itself.
+const ARBITRUM_SELFDESTRUCT_TO_SELF: &str = include_str!("../tests/fixtures/arbitrum-326011151-selfdestruct-to-self.json");
+const ARBITRUM_TO_SELF: &str = "ac2e23b162820f571c2bb5e2aeed31f2a453733f";
+/// A block as Nitro starts it: ArbOS's internal transaction first and the
+/// mix digest with ArbOS `version`.
+fn on_arbitrum(mut b: eth::Block, version: u64) -> eth::Block {
+    let internal = eth::TransactionTrace {
+        r#type: eth::transaction_trace::Type::TrxTypeArbitrumInternal.into(),
+        from: hex::decode("00000000000000000000000000000000000a4b05").unwrap(),
+        ..tx(eth::Call::default())
+    };
+    b.transaction_traces.insert(0, internal);
+    let mut mix = vec![0; 32];
+    mix[16..24].copy_from_slice(&version.to_be_bytes());
+    b.header.as_option_mut().unwrap().mix_hash = mix;
+    b
+}
+
+#[test]
+fn captured_arbitrum_selfdestruct_to_itself_since_cancun_keeps_the_balance() {
+    use eth::balance_change::Reason;
+    let b = captured_block(&serde_json::from_str(ARBITRUM_SELFDESTRUCT_TO_SELF).unwrap());
+    assert_eq!(arbos_version(&b), Some(32));
+    let account = hex::decode(ARBITRUM_TO_SELF).unwrap();
+    let trx = &b.transaction_traces[1];
+    assert!(trx.calls.iter().all(|c| c.call_type.as_known() != Some(eth::CallType::CREATE)));
+    // The call's value, then the debit, the refund of the account itself
+    // and the repeat at consecutive ordinals.
+    let own: Vec<_> = trx.calls[0]
+        .balance_changes
+        .iter()
+        .filter(|c| c.address == account)
+        .map(|c| {
+            let [old, new] = [&c.old_value, &c.new_value].map(|v| amount(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+            (c.ordinal, old, new, c.reason.to_i32())
+        })
+        .collect();
+    let (d, zero) = ("10".to_string(), "0".to_string());
+    assert_eq!(
+        own,
+        [
+            (12, zero.clone(), d.clone(), Reason::Transfer as i32),
+            (14, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32),
+            (15, zero.clone(), d.clone(), Reason::SuicideRefund as i32),
+            (16, d.clone(), zero.clone(), Reason::SuicideWithdraw as i32)
+        ]
+    );
+    // Native v0.7.8 refused it, as every other network and ArbOS before 20
+    // still do.
+    let error = "unrecognized self-destruct to itself: 0xac2e23b162820f571c2bb5e2aeed31f2a453733f in transaction \
+                 0x2526bf6a4fdb88807aec3ecaf34201d0d3e2fe1c1b0818e6e0c63acbb202b044";
+    let mut elsewhere = b.clone();
+    elsewhere.transaction_traces.remove(0);
+    for refused in [with_arbos(b.clone(), 19), elsewhere] {
+        assert!(changes(&refused).unwrap_err().to_string().contains(error));
+    }
+    // Only the repeat is dropped; the other self-destruct rules do not apply.
+    let persisted = records(&b).unwrap();
+    assert_eq!(selfdestruct_to_self_repeats(&b, &persisted, Some(32)), HashSet::from([(account.clone(), 16)]));
+    assert!(stale_selfdestruct_withdraws(&b, &persisted).is_empty());
+    assert!(selfdestruct_to_self_pairs(&b).is_empty());
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert!(legacy_selfdestruct_to_self_rewrites(&b, &persisted, Some(32)).is_empty());
+    // The account keeps its 10 wei, as the RPC-era row reads at the block.
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 4);
+    assert_rows(
+        &rows,
+        &[
+            (ARBITRUM_TO_SELF, "0", "10", 15, 3),
+            ("771471d484418c1663010e25ea0688011d894529", "121322545131950", "121017325131940", 18, 3),
+            (INFRA_FEE, "17515288148580000000", "17515288414970000000", 19, 1),
+            (L1_PRICER, "3514356546125618893", "3514356584955618893", 20, 1),
+        ],
+    );
+    assert_eq!(row_of(&rows, &account).first_ordinal, 12);
+}
+
+#[test]
+fn the_arbitrum_selfdestruct_to_itself_repeat_is_exact() {
+    use eth::balance_change::Reason;
+    // Records 3 to 5 of transaction 1's root call: the debit (14), the
+    // refund (15) and the repeat (16).
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[1].calls[0]
+    }
+    fn record(ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(ARBITRUM_TO_SELF).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    let refused = refused_as_selfdestruct_to_itself;
+    let captured = || captured_block(&serde_json::from_str(ARBITRUM_SELFDESTRUCT_TO_SELF).unwrap());
+    let account = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(ARBITRUM_TO_SELF).unwrap());
+        (row.amount.clone(), row.records)
+    };
+    assert_eq!(account(&captured()), ("10".to_string(), 3));
+    // Since ArbOS 20 only, in an Arbitrum block.
+    for version in [20, 51, 60] {
+        assert_eq!(account(&with_arbos(captured(), version)), ("10".to_string(), 3));
+    }
+    for version in [0, 10, 19] {
+        assert!(refused(&with_arbos(captured(), version)), "ArbOS {version}");
+    }
+    // At consecutive ordinals: with a gap anywhere the block still fails.
+    for (index, ordinal) in [(3, 13), (5, 17)] {
+        let mut b = captured();
+        root(&mut b).balance_changes[index].ordinal = ordinal;
+        assert!(refused(&b), "record {index} at {ordinal}");
+    }
+    // Exactly these three self-destruct records in the call, no-ops
+    // included: with one more the block still fails.
+    for extra in [
+        record(13, 0, 0, Reason::SuicideWithdraw),
+        record(17, 0, 0, Reason::SuicideWithdraw),
+        record(13, 0, 0, Reason::SuicideRefund),
+        eth::BalanceChange {
+            address: hex::decode(INFRA_FEE).unwrap(),
+            ..record(17, 0, 0, Reason::SuicideRefund)
+        },
+    ] {
+        let mut b = captured();
+        root(&mut b).balance_changes.push(extra.clone());
+        assert!(refused(&b), "{extra:?}");
+    }
+    // No record of the account after the repeat in the transaction.
+    let mut b = captured();
+    root(&mut b).balance_changes.push(record(21, 0, 1, Reason::Transfer));
+    assert!(refused(&b));
+    // The values: the refund from zero to the debited amount, the repeat from
+    // it to zero; other values do not chain, or end at another balance.
+    let mut b = captured();
+    root(&mut b).balance_changes[4].new_value = big(11).into();
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+    let mut b = captured();
+    root(&mut b).balance_changes[5].new_value = big(1).into();
+    assert_eq!(account(&b), ("1".to_string(), 4));
+    // A created account is destroyed: its records end at zero, its balance.
+    let mut b = captured();
+    b.transaction_traces[1].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(ARBITRUM_TO_SELF).unwrap(),
+        ..Default::default()
+    });
+    assert_eq!(account(&b), ("0".to_string(), 4));
+    // Only of a persisted call of a succeeded transaction.
+    let mut b = captured();
+    root(&mut b).suicide = false;
+    assert_eq!(account(&b), ("0".to_string(), 4));
+    // The same holds for the shape the tests built from block 514,819,388,
+    // once it is an Arbitrum block since ArbOS 20.
+    let to_itself = || on_arbitrum(arbitrum_selfdestruct_to_itself(), 51);
+    assert!(refused(&arbitrum_selfdestruct_to_itself()));
+    let rows = changes(&to_itself()).unwrap();
+    let row = row_of(&rows, &hex::decode(STALE_EXISTING).unwrap());
+    assert_eq!((row.amount.as_str(), row.records), ("3495043890571", 3));
+    assert!(refused(&on_arbitrum(arbitrum_selfdestruct_to_itself(), 19)));
+    let mut b = to_itself();
+    b.transaction_traces[1].calls[0].balance_changes[3].ordinal = 171;
+    assert!(refused(&b));
+    let mut b = to_itself();
+    let call = &mut b.transaction_traces[1].calls[0];
+    call.balance_changes[5].ordinal = 175;
+    call.balance_changes.insert(
+        5,
+        eth::BalanceChange {
+            address: hex::decode(STALE_EXISTING).unwrap(),
+            ..record(174, 0, 0, Reason::SuicideWithdraw)
+        },
+    );
     assert!(refused(&b));
 }
 
