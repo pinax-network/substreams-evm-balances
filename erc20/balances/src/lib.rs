@@ -55,8 +55,10 @@ impl persist::Sink for Discard {
 /// The `map_events` body. A block fails only when it is not a complete
 /// Extended block or the persistence rules cannot resolve it. Inference never
 /// fails a block: on any doubt it drops that contract's rows for the block.
-/// `block_len` is the length of the block's delivered encoding, one bound on
-/// where a producer could have cut call data.
+/// `block_len` is the length of the block's delivered encoding (the bytes of
+/// `Any.value`), one bound on where a producer could have cut call data. The
+/// block's own re-encoding also counts: with 0 or a re-encoded length, the
+/// bound uses that re-encoding, which drops unknown fields.
 pub fn run(block: &eth::Block, block_len: usize) -> Result<balances_pb::Events, Error> {
     validate_block(block)?;
     persist::collect_block(block, &mut Discard)?;

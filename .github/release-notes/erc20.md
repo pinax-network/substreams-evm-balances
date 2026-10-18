@@ -11,6 +11,7 @@ v0.7.4 (owner, 2026-10-17) changes which rows are inferred, for past blocks as w
 - Polygon's state-sync transaction is ordered by its depth-1 calls.
 - Vyper's `HashMap` key order is read (crvUSD, CRV, Curve pools and gauges, Yearn vaults); under it, a contract's own row needs a `balanceOf` of the contract after its last write, because a Yearn v3 vault computes its own balance.
 - A holder's word whose next or second next storage key is also written in the block is a struct field (Curve BoostV2's `Point`), and drops its contract for the block unless the holder's own `balanceOf` traced after its last write shows the word.
+- For programs that call the Rust crate: `erc20_balances::run(block, block_len)` now takes the byte length of the delivered block (`Any.value`), one bound on where the tracer could have cut call data. With 0 or a re-encoded length, the bound uses the block's re-encoding, which drops unknown fields.
 
 ## Included
 

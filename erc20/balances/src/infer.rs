@@ -78,6 +78,7 @@ mod bor;
 
 use crate::{eth, hash, persist};
 use bor::Seq;
+use buffa::Message;
 use std::collections::{BTreeMap, BTreeSet};
 
 type Addr = [u8; 20];
@@ -1042,19 +1043,17 @@ const CUT_TX_INPUT: usize = 25 << 20;
 const CUT_TX_RETURN: usize = 25 << 19;
 const CUT_BLOCK_LEN: usize = 64 << 20;
 const CUT_BLOCK_GAS: u64 = 150_000_000;
-/// Whether a producer could have cut call data in `tx`; `block_len` is the
-/// length of the block's delivered encoding.
-fn cut_possible(block: &eth::Block, block_len: usize, tx: &eth::TransactionTrace) -> bool {
+/// Whether a producer could have cut call data in `tx`; `len` gives the
+/// length of the block's encoding, and runs only when the other bounds do not
+/// decide.
+fn cut_possible(block: &eth::Block, len: &mut impl FnMut() -> usize, tx: &eth::TransactionTrace) -> bool {
     if block.ver < 5 {
         return false;
     }
     let gas = block.header.as_option().map_or(0, |h| h.gas_used);
-    if block_len >= CUT_BLOCK_LEN || gas >= CUT_BLOCK_GAS {
-        return true;
-    }
     let internal = tx.calls.iter().filter(|c| c.depth > 0);
     let (input, output) = internal.fold((0, 0), |(i, r), c| (i + c.input.len(), r + c.return_data.len()));
-    input > CUT_TX_INPUT || output > CUT_TX_RETURN
+    gas >= CUT_BLOCK_GAS || input > CUT_TX_INPUT || output > CUT_TX_RETURN || len() >= CUT_BLOCK_LEN
 }
 /// Voted contracts with a successful CALL or STATICCALL of `balanceOf` that
 /// keeps only its 4-byte selector or has no return data, the shape a cut
@@ -1065,6 +1064,12 @@ fn cut_possible(block: &eth::Block, block_len: usize, tx: &eth::TransactionTrace
 /// nothing.
 fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>) -> BTreeSet<Addr> {
     let mut out = BTreeSet::new();
+    // The larger of the delivered length that the caller passes and the
+    // block's re-encoding (which drops unknown fields), so that a caller that
+    // passes 0 or a re-encoded length keeps the bound. Computed at most once
+    // per block, and only where the other bounds do not decide.
+    let mut encoded = None;
+    let mut len = || *encoded.get_or_insert_with(|| block_len.max(block.try_encoded_len().map_or(usize::MAX, |n| n as usize)));
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
         let mut possible = None;
         for call in &tx.calls {
@@ -1075,7 +1080,7 @@ fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>
             let Some(token) = Addr::try_from(call.address.as_slice()).ok().filter(|a| shape && tokens.contains_key(a)) else {
                 continue;
             };
-            if *possible.get_or_insert_with(|| cut_possible(block, block_len, tx)) {
+            if *possible.get_or_insert_with(|| cut_possible(block, &mut len, tx)) {
                 out.insert(token);
             }
         }
