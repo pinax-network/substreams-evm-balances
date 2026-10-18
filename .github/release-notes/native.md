@@ -13,7 +13,7 @@ v0.7.9 accepts the thirteen Arbitrum One and Base blocks that v0.7.8's full-hist
 - **Arbitrum One:** a repeated self-destruct withdraw when the call creates the beneficiary's account between the debit and the refund is dropped (blocks 223,944,083, 235,153,999, 282,198,061, 344,105,344); a self-destruct to itself burns the balance before ArbOS 20 (136,808,179, 161,626,224) and keeps it since ArbOS 20 (326,011,151); a failed SetCode transaction's self-authorization with the transaction's own nonce, which cannot apply, counts as discarded (358,023,229, 360,021,045, 382,234,350, 420,239,048, 472,773,590). The ArbOS version comes from the block itself, not from a parameter.
 - **Base:** a fee vault's credit after a transfer into the vault during the execution starts from the transferred balance (47,424,842).
 
-Arbitrum One and Base sync into new databases, `arbitrum-one:${PACKAGE}@${VERSION}` and `base:${PACKAGE}@${VERSION}`. Ethereum, BSC, Polygon, Optimism, Unichain and HyperEVM get the same rows from this release as from v0.7.8, so their v0.7.8 databases can stay on v0.7.8: the module hash differs, and the sinks run with `--on-module-hash-mistmatch=error`. ERC-20 is unchanged and still refuses the five Arbitrum One SetCode blocks.
+Arbitrum One and Base sync into new databases, `arbitrum-one:${PACKAGE}@${VERSION}` and `base:${PACKAGE}@${VERSION}`. Ethereum, BSC, Polygon, Optimism, Unichain and HyperEVM get the same rows from this release as from v0.7.8, so their v0.7.8 databases can stay on v0.7.8: the module hash differs, and the sinks run with `--on-module-hash-mistmatch=error`. ERC-20 v0.7.3 refuses the five Arbitrum One SetCode blocks; ERC-20 v0.7.4 takes the same correction in its own crate.
 
 ## ClickHouse tables
 
