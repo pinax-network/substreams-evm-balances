@@ -106,7 +106,14 @@ longer recorded preimages are never decoded. Per block and per contract
    cut was possible ([producer releases](#producer-releases)). A `balanceOf`
    input of more than 36 bytes is read as `balanceOf(input[16..36])`, as the
    ABI decoder reads it; a shorter one, or a longer one with nonzero upper
-   address bytes, only vetoes.
+   address bytes, only vetoes. Since v0.7.4, a candidate's written word under
+   the base whose next or second next key is also written in the block is a
+   struct field, such as Curve BoostV2's `Point` (bias, slope, ts), which
+   need not be the balance: it excludes the contract unless the holder's own
+   keyed `balanceOf` traced after its last write shows the word. Of the
+   48,108 rows v0.7.4 gives on the 131 saved blocks, one is such a word, and
+   that read shows it: a holder of an ERC-4626 vault of USDT at Ethereum block
+   23,892,123, which keeps the holder's index snapshot next to its shares.
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
@@ -281,9 +288,17 @@ and holders.
 - **Vyper tokens.** Since v0.7.4, Curve gauges and st-yETH move other holder
   maps (working balances, reward and weight maps) with every flow, so their
   rows are usually dropped as shadowed or tied: missing, not wrong. Curve's
-  BoostV2 computes every holder's balance; its `balanceOf` calls the voting
-  escrow, which vetoes. A Yearn v3 vault computes only its own balance, which
-  rule 6 guards. Yearn v3's Solidity TokenizedStrategy computes its own
+  BoostV2 computes every holder's balance from the voting escrow and two
+  `Point` structs (bias, slope, ts). Its `boost` frames are shadowed: the
+  delegated points mismatch the flows. Its `checkpoint_user` frames lower a
+  received bias by exactly the `Transfer(user, 0)` they emit, but also write
+  the point's ts (and slope) right after it, which excludes the contract
+  (rule 4); a traced `balanceOf` calls the voting escrow, which vetoes. No
+  saved block has a BoostV2 write. A Yearn v3 vault computes only its own
+  balance, which rule 6 guards. A traced keyed `balanceOf(vault)` after the
+  vault's last write that returns less than its word (shares still
+  unlocking) contradicts it and drops all of the vault's rows for the block,
+  not only its own. Yearn v3's Solidity TokenizedStrategy computes its own
   balance the same way, and keeps its own row like any Solidity contract. On
   Ethereum blocks 26,174,479, 26,194,925, 26,203,984 and 26,210,251, the 123
   rows of Vyper tokens include 121 that equal the RPC era at the block; its

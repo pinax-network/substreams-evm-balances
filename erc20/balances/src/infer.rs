@@ -43,7 +43,10 @@
 //!    cut was possible (see [`cut_possible`]). A `balanceOf` input of more than
 //!    36 bytes is read as `balanceOf(input[16..36])`, as the ABI decoder reads
 //!    it; a shorter one, or a longer one with nonzero upper address bytes, only
-//!    vetoes.
+//!    vetoes. It is also excluded when a candidate holder's written word under
+//!    the base has a written word one or two keys after it, a struct field
+//!    such as Curve BoostV2's `Point` (bias, slope, ts), unless the holder's
+//!    own keyed `balanceOf` traced after its last write shows the word.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
@@ -1080,6 +1083,22 @@ fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>
     out
 }
 
+/// The words after a holder's word that a struct value occupies: Curve's
+/// BoostV2 keeps a `Point` (bias, slope, ts) at a holder's key and the two
+/// keys after it, and its `balanceOf` is not the bias.
+const STRUCT_WORDS: u8 = 2;
+/// `key + i`, wrapping: the storage key of field `i` of a struct at `key`.
+fn after(key: &Word, i: u8) -> Word {
+    let mut out = *key;
+    let mut carry = u16::from(i);
+    for byte in out.iter_mut().rev() {
+        let sum = u16::from(*byte) + carry;
+        *byte = sum as u8;
+        carry = sum >> 8;
+    }
+    out
+}
+
 /// The end-of-block balances of one voted contract, or `None` on any doubt.
 fn decide(
     token: &Addr,
@@ -1156,12 +1175,19 @@ fn decide(
         }
     }
     for holder in holders {
-        if let Some(last) = by_key.get(&base.key(holder)).and_then(|ws| ws.last()) {
+        let key = base.key(holder);
+        if let Some(last) = by_key.get(&key).and_then(|ws| ws.last()) {
             // A third party's word changed with no balance event naming or
             // explaining it in that frame (a flag, an admin or a sync write)
             // needs its own read, traced after that write: a read before it
             // validated only the word it saw.
             let vouched = read.get(holder).is_some_and(|begin| *begin > last.seq);
+            // A word with a written word right after it is a struct field,
+            // which may not be the balance (Curve's BoostV2 `Point`: bias,
+            // slope, ts). Without such a read the contract is dropped.
+            if !vouched && (1..=STRUCT_WORDS).any(|i| by_key.contains_key(&after(&key, i))) {
+                return None;
+            }
             // The contract's own word needs no explanation, except under a
             // Vyper base: a Yearn v3 vault's `balanceOf(self)` is its word
             // less the shares still unlocking, which fall with time and no

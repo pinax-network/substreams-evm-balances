@@ -1271,6 +1271,80 @@ fn vyper_hash_maps_key_the_slot_first() {
     assert!(rows(&block(vec![vec![report(true)], read(24 * U, 50)])).is_empty());
 }
 
+/// Curve's BoostV2 (Vyper) keeps `received[user]` as a `Point` (bias, slope,
+/// ts) at the user's key and the two words after it. Its `checkpoint_user`
+/// emits `Transfer(user, 0, dbias)` and lowers the bias by exactly dbias, but
+/// its `balanceOf` is the voting escrow's balance less the delegated point
+/// plus the received one. A holder's word with a written word right after it
+/// is a struct field, which may not be the balance: unless the holder's own
+/// keyed `balanceOf` traced after its last write shows the word (an ERC-4626
+/// vault that keeps a holder index next to the shares, ETH 23,892,123), the
+/// contract is dropped for the block. BoostV2's `balanceOf` calls the voting
+/// escrow, which vetoes.
+#[test]
+fn struct_values_are_not_balances() {
+    let six = w(6);
+    let key: [u8; 32] = hex::decode(vyper_preimage(&C, &six).0).unwrap().try_into().unwrap();
+    let after = |i: u8| {
+        let mut out = key;
+        let (sum, carry) = out[31].overflowing_add(i);
+        out[31] = sum;
+        assert!(!carry);
+        out
+    };
+    // `checkpoint_user(C)`: the bias, then the given words after it (slope 1,
+    // ts 2), in one frame.
+    let frame = |fields: &[u8]| {
+        let mut c = root();
+        c.logs = vec![transfer(C, [0; 20], 5 * U)];
+        store_vyper(&mut c, C, &six, 50 * U, 45 * U, 20);
+        for (ordinal, i) in (21..).zip(fields) {
+            c.storage_changes.push(eth::StorageChange {
+                address: TOKEN.to_vec(),
+                key: after(*i).to_vec(),
+                old_value: w(1),
+                new_value: w(2),
+                ordinal,
+            });
+        }
+        c
+    };
+    let checkpoint = |fields: &[u8]| rows(&block(vec![vec![frame(fields)]]));
+    assert_eq!(checkpoint(&[]), vec![r(C, 45 * U)]);
+    assert!(checkpoint(&[1, 2]).is_empty());
+    // Without a slope change only the ts moves.
+    assert!(checkpoint(&[2]).is_empty());
+    assert!(checkpoint(&[1]).is_empty());
+    // A keyed read of C after the write shows the word; one before it does not.
+    let read = |ordinal: u64| router(vec![balance_of_vyper(2, C, &six, 45 * U, ordinal)]);
+    assert_eq!(rows(&block(vec![vec![frame(&[1, 2])], read(50)])), vec![r(C, 45 * U)]);
+    let mut early = read(5);
+    early[1].return_data = w(50 * U);
+    assert!(rows(&block(vec![early, vec![frame(&[1, 2])]])).is_empty());
+    // A struct under Solidity's order, and a field written in another frame.
+    let mut solidity = simple();
+    let (b_key, _) = preimage(&B, BASE);
+    let mut field: [u8; 32] = hex::decode(b_key).unwrap().try_into().unwrap();
+    field[31] = field[31].wrapping_add(1);
+    let mut other = root();
+    other.storage_changes.push(eth::StorageChange {
+        address: TOKEN.to_vec(),
+        key: field.to_vec(),
+        old_value: w(1),
+        new_value: w(2),
+        ordinal: 30,
+    });
+    assert!(rows(&block(vec![vec![solidity.clone()], vec![other]])).is_empty());
+    solidity.storage_changes.push(eth::StorageChange {
+        address: TOKEN.to_vec(),
+        key: field.to_vec(),
+        old_value: w(1),
+        new_value: w(2),
+        ordinal: 12,
+    });
+    assert!(rows(&block(vec![vec![solidity]])).is_empty());
+}
+
 /// A holder whose address is the number of the mapping's slot, such as
 /// address(3) under slot 3 or address(0) under slot 0, has the preimage
 /// `pad(x) || pad(x)`, which reads as its key in both orders. Both readings
