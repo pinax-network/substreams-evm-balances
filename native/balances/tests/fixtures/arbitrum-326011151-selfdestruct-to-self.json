@@ -1,0 +1,137 @@
+{
+ "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 326011151,
+ "hash": "abec028c9cc0bbade7269c1742e8b0220e464e8f8ec5b47698a9bc655f321e69",
+ "ver": 3,
+ "coinbase": "a4b000000000000000000073657175656e636572",
+ "base_fee_per_gas": "989680",
+ "mix_hash": "0000000000022fa5000000000153af6400000000000000200000000000000000",
+ "contents": "both transactions whole, ArbOS's internal transaction and 0x2526bf6a\u2026, and the header's mix hash (ArbOS 32, since Cancun): transaction 1 sends 10 wei to 0xac2e23b1\u2026, whose root call self-destructs it to itself: SUICIDE_WITHDRAW 10 -> 0, SUICIDE_REFUND 0 -> 10, SUICIDE_WITHDRAW 10 -> 0 at ordinals 14 to 16; no call of the transaction is a CREATE; the RPC-era row reads 10 wei for the account at the block; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 0,
+   "hash": "c8cae7aa8836665aa317f8246d933795d44de631a9b82070aab1cbff0a4787b0",
+   "type": 106,
+   "begin_ordinal": 1,
+   "end_ordinal": 4,
+   "status": 1,
+   "gas_limit": 0,
+   "gas_used": 0,
+   "gas_price": "",
+   "value": "",
+   "from": "00000000000000000000000000000000000a4b05",
+   "to": "00000000000000000000000000000000000a4b05",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "00000000000000000000000000000000000a4b05",
+     "address": "00000000000000000000000000000000000a4b05",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 3,
+     "balance_changes": []
+    }
+   ]
+  },
+  {
+   "index": 1,
+   "hash": "2526bf6a4fdb88807aec3ecaf34201d0d3e2fe1c1b0818e6e0c63acbb202b044",
+   "type": 2,
+   "begin_ordinal": 5,
+   "end_ordinal": 23,
+   "status": 1,
+   "gas_limit": 32222,
+   "gas_used": 30522,
+   "gas_price": "989680",
+   "value": "0a",
+   "from": "771471d484418c1663010e25ea0688011d894529",
+   "to": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "771471d484418c1663010e25ea0688011d894529",
+     "address": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+     "value": "0a",
+     "state_reverted": false,
+     "suicide": true,
+     "begin_ordinal": 0,
+     "end_ordinal": 17,
+     "balance_changes": [
+      {
+       "address": "771471d484418c1663010e25ea0688011d894529",
+       "old_value": "6e579b34b1ae",
+       "new_value": "6e0c9565aeae",
+       "ordinal": 6,
+       "reason": 7
+      },
+      {
+       "address": "771471d484418c1663010e25ea0688011d894529",
+       "old_value": "6e0c9565aeae",
+       "new_value": "6e0c9565aea4",
+       "ordinal": 11,
+       "reason": 5
+      },
+      {
+       "address": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+       "old_value": "",
+       "new_value": "0a",
+       "ordinal": 12,
+       "reason": 5
+      },
+      {
+       "address": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+       "old_value": "0a",
+       "new_value": "",
+       "ordinal": 14,
+       "reason": 13
+      },
+      {
+       "address": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+       "old_value": "",
+       "new_value": "0a",
+       "ordinal": 15,
+       "reason": 11
+      },
+      {
+       "address": "ac2e23b162820f571c2bb5e2aeed31f2a453733f",
+       "old_value": "0a",
+       "new_value": "",
+       "ordinal": 16,
+       "reason": 13
+      },
+      {
+       "address": "771471d484418c1663010e25ea0688011d894529",
+       "old_value": "6e0c9565aea4",
+       "new_value": "6e108aad18a4",
+       "ordinal": 18,
+       "reason": 9
+      },
+      {
+       "address": "bf5041fc07e1c866d15c749156657b8eed0fb649",
+       "old_value": "f312cdc56ab86100",
+       "new_value": "f312ce0370cd3280",
+       "ordinal": 19,
+       "reason": 5
+      },
+      {
+       "address": "a4b00000000000000000000000000000000000f6",
+       "old_value": "30c580a8a9e2decd",
+       "new_value": "30c580b1b455a64d",
+       "ordinal": 20,
+       "reason": 5
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
