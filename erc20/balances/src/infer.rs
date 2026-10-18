@@ -1261,8 +1261,11 @@ fn decide(
 }
 
 /// Inferred end-of-block balances, by `(contract, holder)`. `block_len` is
-/// the length of the block's delivered encoding.
-pub(crate) fn rows(block: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr), Word> {
+/// the length of the block's delivered encoding. `resolved` is the block
+/// whose persisted records the shared rules collect: `block` itself, or its
+/// copy with each unapplicable SetCode self-authorization marked discarded
+/// (see `crate::setcode`), which differs from it in nothing else.
+pub(crate) fn rows(block: &eth::Block, resolved: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr), Word> {
     let mut out = BTreeMap::new();
     let candidates = candidates(block);
     if candidates.is_empty() {
@@ -1277,7 +1280,7 @@ pub(crate) fn rows(block: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr
         writes: BTreeMap::new(),
         doubt: BTreeSet::new(),
     };
-    if persist::collect_block(block, &mut persisted).is_err() {
+    if persist::collect_block(resolved, &mut persisted).is_err() {
         return out;
     }
     let Persisted { mut writes, mut doubt, .. } = persisted;

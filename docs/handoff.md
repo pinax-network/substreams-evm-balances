@@ -122,7 +122,10 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   (above) reads long `balanceOf` inputs, lets WETH9 frames and Tether
   destructions vote without a `Transfer`, explains Tether's admin writes,
   vouches for an unexplained write only with a later read, orders Polygon
-  state syncs by call and reads Vyper's key order; on 131 saved blocks it
+  state syncs by call and reads Vyper's key order, and retries a block that
+  the persistence rules refuse with a failed SetCode transaction's
+  unapplicable self-authorization marked discarded, as native v0.7.9 does,
+  so it accepts five Arbitrum One blocks that v0.7.3 refused; on 131 saved blocks it
   keeps every v0.7.3 row and adds 16,363, and the 10,572 of its 48,108 rows
   there that have an RPC-era 1-minute bar at their block equal it (the rest
   were not compared). Not qualified. Offline, on five captured BSC intervals

@@ -33,8 +33,11 @@ the preserved historical package from the package built in this repository.
 
 A block fails only when it is not a complete Extended block (detail level,
 producer version 3–5, block identity, transaction status and calls) or when the
-embedded [persistence rules](src/persist.rs) cannot resolve it. Inference itself
-never fails a block: any doubt drops that contract's rows for the block. Work
+embedded [persistence rules](src/persist.rs) cannot resolve it. Since v0.7.4 a
+block they refuse is retried once, with each failed SetCode transaction's
+self-authorization that cannot apply marked discarded
+([producer releases](#producer-releases)); any other refusal stands. Inference
+itself never fails a block: any doubt drops that contract's rows for the block. Work
 per block is bounded by the block's calls, logs, writes and 64-byte preimages;
 longer recorded preimages are never decoded. Per block and per contract
 ([`src/infer.rs`](src/infer.rs)):
@@ -206,6 +209,32 @@ their provenance in
 [`arbitrum-setcode.json`](tests/fixtures/arbitrum-setcode.json); the
 [native README](../../native/balances/README.md#failed-transactions) gives the
 whole shape.
+
+Since v0.7.4 a block that the rules refuse is retried once, outside them
+([`src/setcode.rs`](src/setcode.rs)), as native v0.7.9 does in its own crate.
+Geth and Nitro increment the sender's nonce from the transaction's nonce `n`
+before they apply the authorization list, so the sender's own authorization
+with nonce `n` never applies and leaves no record, and the Firehose tracer
+leaves it unmarked because the root call has the sender's nonce change
+`n -> n + 1`. The retry marks that authorization discarded on a copy of the
+block when the shape is exact: a failed SetCode transaction whose root call
+records `begin_ordinal` 0 and that the rules refuse; exactly one unmarked
+authorization of the sender with the transaction's nonce; exactly one nonce
+record of the sender from `n` to `n + 1`, at a positive ordinal; and then
+either the rules accept the sender's other authorizations, or none is left
+and the ordinal after the sender's nonce record is free, before the root
+call's end, with no other nonce or code record of the sender before it. The
+unchanged rules then resolve the copy, and inference takes their records of
+it; a shape where only other authorities' authorizations are left still
+fails, and blocks the rules accept never reach the retry. A failed
+transaction persists no storage write or log, so the retry changes no row of
+the block's other transactions. v0.7.3 failed Arbitrum One blocks
+358,023,229, 360,021,045, 382,234,350, 420,239,048 and 472,773,590 on it;
+v0.7.4 gives them 2, 4, 24, 4 and 0 rows, and the 4 of those 34 rows with an
+RPC-era 1-minute bar at their block equal it. The five captured transactions
+are the `arbitrum-*-failed-setcode.pb` fixtures in
+[`tests/fixtures/v074/`](tests/fixtures/v074/), with their provenance in
+[`cases.json`](tests/fixtures/v074/cases.json) (`setcode_transactions`).
 
 ## Measured
 
@@ -384,7 +413,11 @@ where a cut was possible, lets native-backed WETH9 frames and TetherToken
 destructions vote in a block without a `Transfer`, explains Tether's admin
 writes, vouches for an unexplained write only with a later read, orders
 Polygon state syncs by depth-1 call, and reads Vyper's key order (rules 1 to
-6, [producer releases](#producer-releases), [limits](#limits)). On those
+6, [producer releases](#producer-releases), [limits](#limits)). It also
+retries a block that the persistence rules refuse with a failed SetCode
+transaction's unapplicable self-authorization marked discarded, and so
+accepts five Arbitrum One blocks that v0.7.3 refused
+([producer releases](#producer-releases)). On those
 blocks it keeps all 31,745 rows of v0.7.3 with the same value and adds 16,363:
 15,814 from long reads, 36 from WETH9 frames, 8 from Tether's admin events,
 24 from Polygon state syncs and 481 from Vyper tokens. Of those 48,108 rows,
@@ -424,7 +457,9 @@ the 383 preimages a 5.5.0 producer would not record
 ([`bsc-122260950-5.5.0-dropped-preimages.json`](tests/fixtures/bsc-122260950-5.5.0-dropped-preimages.json)),
 13 of its `balanceOf` calls lose their holder's preimage and all 164 rows stay
 the same. The tests of the embedded persistence rules also cover the captured
-Arbitrum One SetCode transactions. The v0.7.4 captures in
+Arbitrum One SetCode transactions, and `tests/setcode.rs` the five whose
+self-authorization cannot apply, which v0.7.3 refused: each block gives no
+row alone and a token transfer's rows when it holds one. The v0.7.4 captures in
 [`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum, BSC and Polygon
 blocks cut to one token's transactions, with their provenance and the RPC-era values at
 each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded

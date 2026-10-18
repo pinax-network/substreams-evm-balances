@@ -12,6 +12,7 @@ v0.7.4 (owner, 2026-10-17) changes which rows are inferred, for past blocks as w
 - Polygon's state-sync transaction is ordered by its depth-1 calls.
 - Vyper's `HashMap` key order is read (crvUSD, CRV, Curve pools and gauges, Yearn vaults); under it, a contract's own row is never emitted, because a Yearn v3 vault computes its own balance.
 - A holder's word whose next or second next storage key is also written in the block is a struct field (Curve BoostV2's `Point`), and drops its contract for the block unless the holder's own `balanceOf` traced after its last write shows the word.
+- A block that the persistence rules refuse is retried once, as native v0.7.9 does, with each failed SetCode (EIP-7702) transaction's self-authorization that cannot apply (the sender's own, with the transaction's nonce, which the producer leaves unmarked) marked discarded; any other refusal stands. v0.7.3 refused Arbitrum One blocks 358,023,229, 360,021,045, 382,234,350, 420,239,048 and 472,773,590 on it ([producer releases](https://github.com/${REPO}/blob/${TAG}/erc20/balances/README.md#producer-releases)).
 - For programs that call the Rust crate: `erc20_balances::run(block)` is unchanged. The new `erc20_balances::run_sized(block, block_len)`, which `map_events` calls, also takes the byte length of the delivered block (`Any.value`), one bound on where the tracer could have cut call data; `run` bounds by the block's re-encoding, which drops unknown fields.
 
 ## Included

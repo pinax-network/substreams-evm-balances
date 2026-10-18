@@ -5,6 +5,7 @@
 pub mod db_out;
 mod infer;
 pub mod persist;
+mod setcode;
 
 use proto::pb::evm::balances::v1 as balances_pb;
 use substreams::{errors::Error, scalar::BigInt};
@@ -53,8 +54,12 @@ impl persist::Sink for Discard {
 }
 
 /// The `map_events` body. A block fails only when it is not a complete
-/// Extended block or the persistence rules cannot resolve it. Inference never
-/// fails a block: on any doubt it drops that contract's rows for the block.
+/// Extended block or the persistence rules cannot resolve it. Since v0.7.4,
+/// when they refuse a block as it is, they get one retry: on a copy with each
+/// failed SetCode transaction's self-authorization that cannot apply marked
+/// discarded (`setcode` module), whose records inference then takes; any
+/// other refusal stands. Inference never fails a block: on any doubt it drops
+/// that contract's rows for the block.
 ///
 /// One bound on where a producer could have cut call data is the length of
 /// the block's encoding; `run` takes the block's re-encoding, which drops
@@ -70,8 +75,8 @@ pub fn run(block: &eth::Block) -> Result<balances_pb::Events, Error> {
 /// so a `block_len` of 0 or a re-encoded length gives [`run`]'s rows.
 pub fn run_sized(block: &eth::Block, block_len: usize) -> Result<balances_pb::Events, Error> {
     validate_block(block)?;
-    persist::collect_block(block, &mut Discard)?;
-    let balances = infer::rows(block, block_len)
+    let corrected = corrected(block)?;
+    let balances = infer::rows(block, corrected.as_ref().unwrap_or(block), block_len)
         .into_iter()
         .map(|((contract, address), value)| balances_pb::Balance {
             contract: Some(contract.to_vec()),
@@ -80,6 +85,18 @@ pub fn run_sized(block: &eth::Block, block_len: usize) -> Result<balances_pb::Ev
         })
         .collect();
     Ok(balances_pb::Events { balances })
+}
+/// `None` when the persistence rules resolve the block as it is. When they
+/// refuse it, the block with each unapplicable SetCode self-authorization
+/// marked discarded, if it has one and the rules resolve that copy;
+/// otherwise the rules' error.
+fn corrected(block: &eth::Block) -> Result<Option<eth::Block>, Error> {
+    let Err(error) = persist::collect_block(block, &mut Discard) else {
+        return Ok(None);
+    };
+    let corrected = setcode::unapplicable_self_authorizations_discarded(block).ok_or(error)?;
+    persist::collect_block(&corrected, &mut Discard)?;
+    Ok(Some(corrected))
 }
 /// The element memory one block decode may materialize: 1 GiB.
 ///
