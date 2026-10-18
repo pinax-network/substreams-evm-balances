@@ -49,6 +49,20 @@ from CI's `packages` artifact of the final source before the merge. ERC-20
 v0.7.2 (#165) was never released; its committed spkg keeps the earlier
 history schema.
 
+**Unreleased: native v0.7.9** (2026-10-17). The full-history noops of the
+released native v0.7.8 refused eleven Arbitrum One and Base blocks. v0.7.9
+accepts them, each in a captured producer shape, and gives v0.7.8's output for
+every block v0.7.8 accepts
+([continuity exceptions](../native/balances/README.md#continuity-exceptions),
+[SetCode self-authorization](../native/balances/README.md#failed-transactions)).
+Arbitrum One and Base resync with it into new databases,
+`arbitrum-one:evm-balances-native@v0.7.9` and
+`base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8. Its spkg
+comes from CI's `packages` artifact before the tag. ERC-20 is unchanged and
+still refuses Arbitrum One blocks 360,021,045, 382,234,350, 420,239,048 and
+472,773,590, failed SetCode transactions whose sender authorizes itself with
+the transaction's own nonce.
+
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
 | [`native/balances`](../native/balances/README.md) | `evm-balances-native-v<version>` | `bsc:evm-balances-native@<version>` | `evm.balances.v1.NativeEvents` |

@@ -79,16 +79,16 @@ data is ambiguous, incomplete or in a shape no rule pins:
 | Block 0 with a balance change that is not a `GENESIS_BALANCE` from zero | `genesis block carries a balance change that is not a genesis allocation` |
 | Transaction without status 1–3 or without calls | `incomplete transaction persistence data` |
 | Failed/reverted transaction whose root call carries a reason other than the three gas reasons, a blob transaction's `REWARD_BLOB_FEE`, a failed deposit's `INCREASE_MINT` in its exact shape, or the reasons known to revert (`TRANSFER`, `TOUCH_ACCOUNT`, `SUICIDE_REFUND`, `SUICIDE_WITHDRAW`, `CALL_BALANCE_OVERRIDE`, `BURN`) | `failed transaction carries a balance-change reason without pinned persistence semantics` |
-| Failed SetCode transaction whose root call records `begin_ordinal` 0 and whose authorization records are not in the exact shape that gives the boundary (shared rules) | `failed SetCode transaction has no authorization/execution ordinal boundary` |
+| Failed SetCode transaction whose root call records `begin_ordinal` 0 and whose authorization records are not in the exact shape that gives the boundary (shared rules), also once the sender's own authorization with the transaction's nonce, which cannot apply, is taken as discarded (v0.7.9) | `failed SetCode transaction has no authorization/execution ordinal boundary` |
 | A transaction with the signature of a Polygon `Block.ver` 3 state-sync transaction, outside the recognized shape, whose depth-1 subtrees' records do not follow call order | `unrecognized Bor state-sync ordinal layout` |
 | Failed Arbitrum `ArbitrumRetryTx` (type 104) whose root call moves a balance outside the exact ArbOS settlement | `failed Arbitrum retry transaction without the exact ArbOS settlement shape` |
 | Failed Arbitrum deposit, retryable submission or internal transaction (types 100, 105, 106) with a record that moves a balance, other than a gas record of its root call or an exact submission settlement | `failed Arbitrum deposit, retryable submission or internal transaction carries balance records that ArbOS keeps` |
-| A persisted call self-destructs an account that no CREATE of its transaction creates, and that account's `SUICIDE_WITHDRAW` and `SUICIDE_REFUND` records, no-ops left out, are exactly `d -> 0`, `0 -> d` and `d -> 0` in ordinal order, `d` positive ([continuity exceptions](#continuity-exceptions)) | `unrecognized self-destruct to itself: 0x<account> in transaction 0x<hash> is recorded as debited, credited and debited again to zero, but an account not created in its transaction keeps its balance (EIP-6780)` |
+| A persisted call self-destructs an account that no CREATE of its transaction creates, and that account's `SUICIDE_WITHDRAW` and `SUICIDE_REFUND` records, no-ops left out, are exactly `d -> 0`, `0 -> d` and `d -> 0` in ordinal order, `d` positive, other than the exact shape native drops on Arbitrum since ArbOS 20 (v0.7.9; [continuity exceptions](#continuity-exceptions)) | `unrecognized self-destruct to itself: 0x<account> in transaction 0x<hash> is recorded as debited, credited and debited again to zero, but an account not created in its transaction keeps its balance (EIP-6780)` |
 | Address not 20 bytes | `invalid native account address` |
 | Persisted record with ordinal 0 | `persisted native balance change has no execution ordinal` |
 | Value longer than 32 bytes | `native balance exceeds uint256` |
 | Two records of one account at the same place in execution order (the ordinal; in a recognized Polygon state-sync transaction, the depth-1 call, then the ordinal) | `ambiguous native balance execution order` |
-| A record's old value differs from the account's previous new value, apart from the seven [continuity exceptions](#continuity-exceptions) | `discontinuous native balance changes within block` |
+| A record's old value differs from the account's previous new value, apart from the nine [continuity exceptions](#continuity-exceptions) | `discontinuous native balance changes within block` |
 | A record of a failed transaction's root call that moves a balance and does not persist, after the execution (past the root call's end ordinal) or before it (at a positive ordinal below the root call's begin ordinal); checked after the reduction, so the errors above come first | `failed transaction carries a balance record after its execution without pinned persistence semantics` / `failed transaction carries a balance record before its execution without pinned persistence semantics` |
 | The same, for a root call without an end ordinal in a transaction with one | `failed transaction carries a balance record that its root call's missing end ordinal cannot place` |
 
@@ -101,15 +101,18 @@ same source ran the spot checks.
 
 ### Continuity exceptions
 
-Seven producer shapes are exceptions to the continuity check, each with
-captured fixtures: the self-transfer pair, the self-destruct to itself and
-Arbitrum One's repeated self-destruct withdraw are dropped; the fee pool
-payout and the self-destruct debit are restored; the beneficiary's records
-after a self-destruct of an account created in the transaction are shifted;
-and Base's fee vault credit after a vault withdrawal is rewritten. Every other
-record of the account must still chain across them. One related shape, a
-self-destruct to itself that would chain to a wrong zero, fails the block
-instead (below).
+Nine producer shapes are exceptions to the continuity check, each with
+captured fixtures: the self-transfer pair, the self-destruct to itself,
+Arbitrum One's repeated self-destruct withdraw and its repeated withdraw of
+an account that self-destructs to itself since ArbOS 20 are dropped; the fee
+pool payout and the self-destruct debit are restored; the beneficiary's
+records after a self-destruct of an account created in the transaction are
+shifted; and Base's fee vault credit after the vault's transfers during the
+execution and Arbitrum One's withdraw of a legacy self-destruct to itself
+are rewritten. Every other record of the account must still chain across
+them. One related shape, a self-destruct to itself that would chain to a
+wrong zero, fails the block instead (below), outside the exact shape that
+native v0.7.9 drops on Arbitrum One.
 
 **Self-transfer pair (v0.2.2, v0.7.8).** A value transfer from an account to itself,
 a CALLCODE with value or a CALL whose caller is its address, does not move the
@@ -282,7 +285,7 @@ An earlier v0.7.7 build (the CI package of `0ac0c20`, module `map_events`
 `1e379e88…`) refused blocks 25,750,184, 25,869,452 and 25,920,498 in its
 pre-release noop; the released v0.7.7 accepts them.
 
-**Repeated self-destruct withdraw (v0.7.8, Arbitrum One).** Arbitrum One's
+**Repeated self-destruct withdraw (v0.7.8, v0.7.9, Arbitrum One).** Arbitrum One's
 producer of `Block.ver` 3 records a self-destructed account's debit, a
 `SUICIDE_WITHDRAW` from `d` to zero, and then a second one from `d` to zero
 although the account is already at zero; the chain reads zero for the account
@@ -298,7 +301,9 @@ ordinals in one of three orders:
   zero and the repeat;
 - before Cancun, of any account: the refund, the debit and the repeat;
 - since Cancun, of an account no CREATE of the transaction creates, which
-  survives its self-destruct: the debit, the refund and the repeat.
+  survives its self-destruct: the debit, the refund (since v0.7.9 also two
+  ordinals later when the call creates the beneficiary's account in between)
+  and the repeat.
 
 The account's last persisted record before the repeat must be the debit, the
 repeat its only persisted record at that ordinal, and no record of the account
@@ -327,29 +332,91 @@ of accounts not created in the transaction,
 [367,502,338](tests/fixtures/arbitrum-367502338-stale-selfdestruct-withdraw-existing.json)
 and, before Cancun,
 [176,115,455](tests/fixtures/arbitrum-176115455-stale-selfdestruct-withdraw-existing.json)
-(`0x9d4eb718…`, whose code the chain removes).
+(`0x9d4eb718…`, whose code the chain removes). Native v0.7.8 refused
+Arbitrum One blocks 223,944,083, 235,153,999 and 282,198,061 in its
+full-history noops (2026-10-17): the root call self-destructs an account not
+created in the transaction to a new account that the call creates between the
+debit and the refund (transaction `0xd2061702…` of block 235,153,999:
+`0x85483824…` to `0x0bb2668e…`, the debit at 12, the creation at 13, the
+refund at 14, the repeat at 15). The RPC-era rows read zero for the destroyed
+accounts and 0.001 ETH for `0x0bb2668e…` at their blocks, and v0.7.9 drops
+the repeat. Fixtures, transactions 0 and 1 each:
+[235,153,999](tests/fixtures/arbitrum-235153999-stale-selfdestruct-withdraw-new-beneficiary.json)
+and
+[223,944,083](tests/fixtures/arbitrum-223944083-stale-selfdestruct-withdraw-new-beneficiary.json).
 
-**Self-destruct to itself recorded as debit, refund and repeat (v0.7.8,
-refused).** Since Cancun (on Arbitrum One ArbOS 20, from block 190,301,731)
-an account not created in the transaction keeps its balance `d` when it
-self-destructs to itself. Arbitrum One's producer records the self-destruct of
-such an account to another beneficiary as the debit, the beneficiary's
-refund and the repeat (above); to itself, that order would be a
-`SUICIDE_WITHDRAW` from `d` to zero, a `SUICIDE_REFUND` of the account from
-zero to `d` and the repeat from `d` to zero. These records chain and end at
-zero while the chain keeps `d`, so no continuity check would see the wrong
-balance. No such self-destruct was found in the samples of about 8.5M Arbitrum
-One blocks scanned on 2026-10-14, and none is captured, so on any network a
-persisted call that self-destructs an account no CREATE of its transaction
-creates fails the block when that account's `SUICIDE_WITHDRAW` and
-`SUICIDE_REFUND` records, no-ops left out, are exactly these three in ordinal
-order, `d` positive (gaps between their ordinals do not matter). Ethereum's
+**Self-destruct to itself recorded as debit, refund and repeat (v0.7.8
+refused; v0.7.9 dropped on Arbitrum One since ArbOS 20).** Since Cancun (on
+Arbitrum One ArbOS 20, from block 190,301,731) an account not created in the
+transaction keeps its balance `d` when it self-destructs to itself. Arbitrum
+One's producer records the self-destruct of such an account to another
+beneficiary as the debit, the beneficiary's refund and the repeat (above); to
+itself, that order is a `SUICIDE_WITHDRAW` from `d` to zero, a
+`SUICIDE_REFUND` of the account from zero to `d` and the repeat from `d` to
+zero. These records chain and end at zero while the chain keeps `d`, so no
+continuity check would see the wrong balance. Native v0.7.8, with no capture,
+refused the shape on any network: a persisted call that self-destructs an
+account no CREATE of its transaction creates fails the block when that
+account's `SUICIDE_WITHDRAW` and `SUICIDE_REFUND` records, no-ops left out,
+are exactly these three in ordinal order, `d` positive (gaps between their
+ordinals do not matter). Its full-history noop refused Arbitrum One block
+326,011,151 (2026-10-17): transaction `0x2526bf6a…` sends 10 wei to
+`0xac2e23b1…`, whose root call self-destructs it to itself at ordinals 14 to
+16, and the RPC-era row reads 10 wei for it at the block. Since v0.7.9 native
+drops the repeat, and the account ends at `d`, only in an Arbitrum block
+since ArbOS 20 (read from the block itself, as for the legacy self-destruct
+to itself below) and only when the call's `SUICIDE_WITHDRAW` and
+`SUICIDE_REFUND` records, no-ops included, are exactly these three, all of
+the account, at consecutive ordinals, the refund the account's last persisted
+record before the repeat and no record of it after the repeat in the
+transaction. The drop is computed before the
+refusal, which exempts only a repeat that is dropped: a gap, an extra no-op
+withdraw, another network or ArbOS before 20 still fail the block. Ethereum's
 `Block.ver` 3 shape, the refund from zero and then the withdraw, is the
 exception above, and a producer that records only the debit and the refund
-ends at `d`. The tests build the refused shape from the 514,819,388 capture,
-with the refund turned to the destroyed account.
+ends at `d`. The fixture is
+[326,011,151](tests/fixtures/arbitrum-326011151-selfdestruct-to-self.json)
+(both transactions and the mix hash); the tests also build the shape from
+the 514,819,388 capture, with the refund turned to the destroyed account.
 
-**Fee vault credit after a vault withdrawal (v0.7.8, Base).** An OP-stack
+**Legacy self-destruct to itself (v0.7.9, Arbitrum One before ArbOS 20).**
+Before Cancun a self-destruct credits the account's balance `d` to its
+beneficiary and then zeroes the account; to itself, Nitro's `opSelfdestruct`
+burns the balance. Arbitrum One's producer records that as a `SUICIDE_REFUND`
+of the account from `d` to `2d` and then, at the next ordinal, a
+`SUICIDE_WITHDRAW` from `d` to zero, the balance the opcode read before the
+credit, so the withdraw's old value breaks continuity. Native v0.7.8 refused
+Arbitrum One blocks 136,808,179 and 161,626,224 on it in its full-history
+noops (2026-10-17). In block 161,626,224 the root call of transaction
+`0xd0cc7c02…` from `0x11799622…` self-destructs `0xb01f8f52…`, which holds
+3,304,510,818,628,470 wei, to itself next to the sender's gas and fee
+records; in block 161,626,317 the same sender creates the account again with
+no balance record, the RPC-era row reads zero for it there, and the sender's
+`GAS_BUY` starts from its balance after block 161,626,224. In block
+136,808,179 a nested call of `0x585194b7…` self-destructs `0xe37e799d…`
+(1 wei) to itself. Since v0.7.9 native rewrites the withdraw to go from `2d`
+to zero, so the continuity check verifies the refund's `d`, and the account
+ends at zero. It does so only in an Arbitrum block before ArbOS 20: native
+reads the version from the block itself (the block's first transaction is
+Nitro's `ArbitrumInternalTx`, type 106, from ArbOS `0x…0a4b05`, and the
+header's mix digest holds the send count, the L1 block number, the ArbOS
+version and zero, eight bytes each), which is neither a parameter nor a
+network allowlist. On every other network, and from ArbOS 20, the pair keeps
+v0.7.8's refusal: a producer that computes both records from the prior
+balance after EIP-6780 would record the same pair for an account that keeps
+`d`. The shape is exact: exactly one refund and one withdraw in the call,
+both of the destroyed account, at consecutive ordinals, `d` positive, the
+refund the account's last persisted record before the withdraw, and no
+record of it after the withdraw in the transaction. Fixtures:
+[161,626,224](tests/fixtures/arbitrum-161626224-legacy-selfdestruct-to-self-root.json)
+(the whole block) and
+[136,808,179](tests/fixtures/arbitrum-136808179-legacy-selfdestruct-to-self.json)
+(transactions 0 and 5), each with the mix hash. A legacy self-destruct to
+itself between the repeat era's start (about block 169.4M) and ArbOS 20
+would also carry the repeat; none is captured, and it still fails the block.
+
+**Fee vault credit after a vault withdrawal (v0.7.8) or a transfer into it
+(v0.7.9, Base).** An OP-stack
 transaction pays its fee after the execution, in the root call: after the
 sender's `GAS_REFUND`, `REWARD_TRANSACTION_FEE` credits of the coinbase, the
 SequencerFeeVault `0x4200…0011` (the tip), of the BaseFeeVault `0x4200…0019`
@@ -379,7 +446,22 @@ stopped at block 50,024,530. The fixtures are
 (transaction `0xbae6554e…` withdraws `0x4200…0011` and `0x4200…0019`) and
 [50,326,929](tests/fixtures/base-50326929-fee-vault-stale-credits.json)
 (`0x39a5e05e…` withdraws all three vaults, and the next transaction's credits
-start from the fees).
+start from the fees). The producer does the same after a transfer into the
+vault: in block 47,424,842, transaction `0x0d38b7d2…` sends
+200,000,000,000,000 wei to the L1FeeVault, its credit after the execution
+starts from the balance before the transaction, and the next transaction's
+credit starts from the transferred balance plus the fee; native v0.7.8
+refused the block in its full-history noop (2026-10-17). Since v0.7.9 native
+rewrites the credit to go from the vault's last balance during the
+execution, `l`, to `l` plus the fee whenever `l` differs from the balance
+before the transaction (a withdrawal is `l` zero); when `l` is not zero, a
+later persisted record of the vault in the block must check the rewritten
+credit, or the block still fails. The vault ends block 47,424,842 at
+346,953,702,305,146 wei, and the producer's records of blocks 47,424,843 to
+47,424,846 chain from there to the RPC-era close at block 47,424,846. The
+fixture is
+[47,424,842](tests/fixtures/base-47424842-fee-vault-credit-after-transfer.json)
+(transactions 71 and 72).
 
 ### Execution order (v0.7.8)
 
@@ -610,6 +692,42 @@ their provenance in
 native's tests check the payers' and fee accounts' rows of blocks 350,048,039
 and 514,791,024.
 
+**Unapplicable SetCode self-authorization (v0.7.9, native only).** Geth and
+Nitro increment the sender's nonce from the transaction's nonce `n` before
+they apply the authorization list, and an authorization applies only with its
+authority's current nonce, so the sender's own authorization with nonce `n`
+never applies and leaves no record. The Firehose tracer marks an
+authorization discarded only when the root call has no unused nonce change of
+its authority from its nonce to the next, and the sender's own `n -> n + 1`
+is one, so it leaves that authorization unmarked; on Arbitrum One's
+`Block.ver` 3 the shared rules then find no records for it and refuse the
+block. Native v0.7.8 refused Arbitrum One blocks 360,021,045, 382,234,350,
+420,239,048 and 472,773,590 in its full-history noops (2026-10-17), and
+ERC-20 v0.7.3 refuses them too (checked offline on the saved blocks). In
+each, the ordinal after the sender's nonce record, or,
+in 360,021,045, after the records of the sender's second authorization with
+nonce `n + 1`, is the only one of the transaction that no record or call
+boundary takes. Since v0.7.9 native, only when the shared rules refuse the
+block as it is, marks such an authorization discarded and takes the unchanged
+shared rules' records of the corrected block. The shape is exact: a failed
+SetCode transaction whose root call records `begin_ordinal` 0, exactly one
+unmarked authorization of the sender with the transaction's nonce, exactly
+one nonce record of the sender from that nonce to the next at a positive
+ordinal, and then either the shared walk accepts the sender's other
+authorizations, or none is left and the ordinal after the sender's nonce
+record is free, before the root call's end, with no other nonce or code
+record of the sender before it; where only other authorities'
+authorizations would be left, the block still fails. `common/persist` and
+ERC-20's copy are unchanged, so ERC-20 v0.7.3 still refuses these blocks.
+Native keeps no nonce or code record, and a failed transaction's balance
+records do not depend on the boundary: the senders pay their gas and the fee
+accounts are credited after the execution, as v0.7.8's fee rules give
+(`0x207b7745…` ends block 472,773,590 at the RPC-era row's
+9,916,520,340,708,000 wei). The fixtures are the four unedited
+`arbitrum-*-failed-setcode.pb` transactions of
+[`tests/fixtures/`](tests/fixtures/), with their provenance in
+[`arbitrum-setcode-v079.json`](tests/fixtures/arbitrum-setcode-v079.json).
+
 **Records outside a failed transaction's execution (v0.7.8, refused).** Some
 failed retries and the failed submissions above gave wrong balances without a
 refusal: the shared rules keep only a failed root call's gas records, the
@@ -669,7 +787,11 @@ version gate were removed. `Block.ver` does not control acceptance: the map
 checks the block's identity, complete transaction traces, persisted effects,
 execution ordinals and balance continuity instead. Version 3, 4, 5 and an
 unknown version are covered by synthetic regression tests using the same
-valid and ambiguous records.
+valid and ambiguous records. Since v0.7.9 two Arbitrum One rules depend on the
+ArbOS version, which native reads from the block itself: Nitro's internal
+transaction first and the version in the header's mix digest
+([continuity exceptions](#continuity-exceptions)). It is chain semantics
+read from block data, not a parameter or a network allowlist.
 
 `network: bsc` remains a CLI endpoint default, not an admission gate. There
 are no per-network parameters or network allowlist, and `db_out` takes no
@@ -765,7 +887,14 @@ for Arbitrum One's `Block.ver` 3, as ERC-20 v0.7.3 does. It refuses any other
 failed Arbitrum deposit, submission, retry or internal transaction that moves
 a balance, any other record of a failed transaction outside its execution
 that moves a balance, and a self-destruct to itself recorded as debit, refund
-and repeat. Its history keeps only the 1h, 4h, 1d and 1w bars. None is
+and repeat. Its history keeps only the 1h, 4h, 1d and 1w bars. v0.7.9 accepts
+the eleven Arbitrum One and Base blocks that v0.7.8's full-history noops
+refused, each in a captured producer shape, and changes nothing for a block
+v0.7.8 accepts: on Arbitrum One it drops the repeated withdraw also across a
+new beneficiary's creation, burns the balance of a self-destruct to itself
+before ArbOS 20 and keeps it since ArbOS 20, and takes the sender's own
+SetCode authorization with the transaction's nonce as discarded; on Base it
+rewrites a fee vault's credit after a transfer into the vault. None is
 live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
@@ -832,9 +961,11 @@ shape of the [rules](#persistence-and-fail-closed-rules) has its captured
 transactions under [`tests/fixtures/`](tests/fixtures/) (Ethereum, BSC,
 Polygon, Arbitrum One, Base, Optimism, Unichain and HyperEVM), with exact
 expected rows and a test that mutates its shape; each rule's tests fail
-with the rule disabled. The refused self-destruct to itself is built from a
-capture, and the guard on records outside a failed transaction's execution
-runs over every captured failed-transaction shape. `tests/db_out.rs` covers the
+with the rule disabled. The self-destruct to itself recorded as debit,
+refund and repeat is captured (block 326,011,151) and also built from
+another capture, and the guard on records outside a failed transaction's
+execution runs over every captured failed-transaction shape. Every v0.7.9
+test of a new rule fails against the v0.7.8 rules. `tests/db_out.rs` covers the
 ClickHouse rows, the manifest wiring and the embedded schema.
 
 The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);
