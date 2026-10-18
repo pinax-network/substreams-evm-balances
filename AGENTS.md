@@ -141,9 +141,10 @@ never prints them.
   transaction's authorization boundary when its root call records
   `begin_ordinal` 0 (Arbitrum One's `Block.ver` 3) only from the exact shape
   of its authorization records. Since v0.7.9, when the shared rules refuse a
-  block, native alone takes the sender's own authorization with the
-  transaction's nonce, which cannot apply and which the producer leaves
-  unmarked, as discarded; the shared rules and ERC-20 are unchanged. The
+  block, native takes the sender's own authorization with the transaction's
+  nonce, which cannot apply and which the producer leaves unmarked, as
+  discarded, outside the shared rules, which are unchanged; ERC-20 v0.7.4
+  takes the same correction in its own crate. The
   versions, blocks and fixtures of each rule are in the
   [native README](native/balances/README.md#persistence-and-fail-closed-rules).
   Since v0.7.0 block 0 emits the genesis allocations when every balance
