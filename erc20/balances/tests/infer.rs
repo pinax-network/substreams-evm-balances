@@ -841,8 +841,10 @@ fn words_at_or_above_2_pow_128_drop_the_token() {
 }
 
 /// A third party's word that changes with no balance event naming it in that
-/// frame (FiatToken v2.2 sets a blacklist flag in bit 255) needs the holder's
-/// own `balanceOf`; the contract's own silent fee writes do not.
+/// frame (an approval sync, FiatToken v2.2's blacklist flag in bit 255) needs
+/// the holder's own `balanceOf`; the contract's own silent fee writes do not.
+/// FiatToken's `balanceOf` masks the flag, so its read contradicts the stored
+/// word and drops the token for the block (a documented limit).
 #[test]
 fn unexplained_writes_need_the_holders_own_read() {
     let mut flag = root();
@@ -854,7 +856,11 @@ fn unexplained_writes_need_the_holders_own_read() {
     let mut flagged = w(50 * U);
     flagged[0] |= 0x80;
     store_word(&mut flag, C, BASE, w(50 * U), flagged, 20);
-    assert_eq!(rows(&block(vec![vec![simple()], vec![flag]])), vec![r(A, 70), r(B, 35)]);
+    assert_eq!(rows(&block(vec![vec![simple()], vec![flag.clone()]])), vec![r(A, 70), r(B, 35)]);
+    // Limit: a read of C after the flag returns the masked word, which
+    // contradicts the stored one, and drops the token's rows for the block.
+    let masked = router(vec![balance_of(2, C, BASE, 50 * U, 50)]);
+    assert!(rows(&block(vec![vec![simple()], vec![flag], masked])).is_empty());
     // An approval makes C a candidate; its silent sync is kept once C's own
     // balanceOf confirms the word.
     let mut sync = root();

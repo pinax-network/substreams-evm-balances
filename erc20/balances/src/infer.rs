@@ -60,9 +60,12 @@
 //!    explanation, except under a Vyper base, where it always needs a keyed
 //!    `balanceOf` of the contract traced after its last write: a Yearn v3
 //!    vault computes its own balance. A holder whose last write is unexplained
-//!    needs its own keyed `balanceOf`, traced after that write. Candidate
-//!    holders without a write get the value of a keyed `balanceOf` that read
-//!    exactly the base.
+//!    needs its own keyed `balanceOf`, traced after that write. A flag that
+//!    `balanceOf` masks, such as FiatToken v2.2's blacklist bit 255, is never
+//!    vouched this way: a read after the flag write, or before the write that
+//!    clears it, contradicts the stored word and drops the contract for the
+//!    block. Candidate holders without a write get the value of a keyed
+//!    `balanceOf` that read exactly the base.
 //!
 //! Writes and reads are in execution order: by ordinal, except in a
 //! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
