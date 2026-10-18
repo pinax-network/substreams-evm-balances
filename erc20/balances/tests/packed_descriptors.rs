@@ -3,7 +3,7 @@
 use buffa::{UnknownFieldData, UnknownFields};
 use std::collections::{BTreeMap, BTreeSet};
 
-const PACKAGE: &[u8] = include_bytes!("../../../spkg/evm-balances-erc20-v0.7.3.spkg");
+const PACKAGE: &[u8] = include_bytes!("../../../spkg/evm-balances-erc20-v0.7.4.spkg");
 const SQL_FILE: &str = "sf/substreams/sink/sql/v1/deprecated.proto";
 const DATABASE_FILE: &str = "sf/substreams/sink/database/v1/database.proto";
 
