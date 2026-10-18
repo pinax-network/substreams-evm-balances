@@ -1318,6 +1318,122 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
     stale
 }
 
+/// ArbOS's address, `0x…0a4b05`, the sender of the internal transaction that
+/// starts every Arbitrum (Nitro) block.
+const ARBOS_ADDRESS: [u8; 20] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x0a, 0x4b, 0x05];
+/// ArbOS 20 (Atlas), Nitro's Cancun: from it a self-destruct follows EIP-6780
+/// (Nitro's `opSelfdestruct6780`). Arbitrum One runs it from block
+/// 190,301,731.
+const ARBOS_CANCUN: u64 = 20;
+
+/// The ArbOS version of an Arbitrum (Nitro) block, read from the block. Nitro
+/// starts every block with an `ArbitrumInternalTx` (type 106) from ArbOS,
+/// `0x…0a4b05`, and writes the header's mix digest as the send count, the L1
+/// block number, the ArbOS version and zero, eight big-endian bytes each
+/// (`types.HeaderInfo`). Every captured Arbitrum One block has both; the
+/// version reads 10 at blocks 136,808,179 and 161,626,224, 20 at 223,944,083
+/// and 235,153,999, 32 at 282,198,061 and 326,011,151, 40 at 360,021,045 and
+/// 382,234,350, and 51 at 420,239,048 and 472,773,590. `None` for any other
+/// block, such as those of the other supported networks, whose first
+/// transaction is never of that type and sender.
+fn arbos_version(block: &eth::Block) -> Option<u64> {
+    let first = block.transaction_traces.first()?;
+    let mix = block.header.as_option()?.mix_hash.as_slice();
+    let nitro = first.r#type == eth::transaction_trace::Type::TrxTypeArbitrumInternal && first.from == ARBOS_ADDRESS;
+    if !nitro || mix.len() != 32 || mix[24..].iter().any(|b| *b != 0) {
+        return None;
+    }
+    Some(u64::from_be_bytes(mix[16..24].try_into().ok()?))
+}
+
+/// Before Cancun (on Arbitrum One before ArbOS 20, block 190,301,731) a
+/// self-destruct credits the account's balance `d` to its beneficiary and
+/// then zeroes the account; to itself, the account is credited to `2d` and
+/// zeroed ("Arbitrum: calling selfdestruct(this) burns the balance", Nitro's
+/// `opSelfdestruct`). Arbitrum One's producer of `Block.ver` 3 records that
+/// as a `SUICIDE_REFUND` of the account from `d` to `2d` and then, at the
+/// next ordinal, a `SUICIDE_WITHDRAW` from `d` to zero, the balance the opcode
+/// read before the credit: the withdraw's old value breaks continuity. In
+/// block 161,626,224 the root call of transaction `0xd0cc7c02…` from
+/// `0x11799622…` self-destructs `0xb01f8f52…`, which holds
+/// 3,304,510,818,628,470 wei, to itself (ordinals 12 and 13), next to the
+/// sender's gas and fee records; in block 161,626,317 the same sender
+/// creates the account again, with no balance record, and the RPC-era row
+/// reads zero for it there. In block 136,808,179 a nested call of
+/// transaction `0x585194b7…` self-destructs `0xe37e799d…`, which holds 1 wei,
+/// to itself (ordinals 447 and 448), and the RPC-era row reads zero for it at
+/// block 136,808,944, its next one.
+///
+/// Returns, by `(account, ordinal)`, the old and new values that the
+/// withdraw stands for: from `2d` to zero. The continuity check then verifies
+/// the refund's `d` against the account's previous balance. Without the
+/// rewrite the withdraw breaks continuity, so the rewrite changes only blocks
+/// native v0.7.8 refuses. Only this exact shape is recognized, and only in an
+/// Arbitrum block before ArbOS 20 ([`arbos_version`]), whose opcode is the
+/// legacy one: a persisted call (non-reverted, in a succeeded transaction)
+/// that self-destructs an account and holds exactly one `SUICIDE_REFUND` and
+/// exactly one `SUICIDE_WITHDRAW`, the refund of the destroyed account from
+/// `d` to `2d` at a positive ordinal and the withdraw of it from `d` to zero
+/// at the next ordinal, `d` positive. The refund is the account's last
+/// persisted record before the withdraw, the withdraw its only persisted
+/// record at that ordinal, and no record of the account follows the withdraw
+/// in the transaction (before its end ordinal). The call's other records are
+/// not part of the shape. The destroyed account is resolved as in
+/// `selfdestruct_debits`. Ethereum's `Block.ver` 3 records a self-destruct to
+/// itself after Cancun with the refund from zero (`selfdestruct_to_self_pairs`),
+/// which this shape does not match; other producers' self-destructs to
+/// themselves are not captured and keep their continuity check.
+fn legacy_selfdestruct_to_self_rewrites(block: &eth::Block, records: &[Record], arbos: Option<u64>) -> Rewrites {
+    use eth::balance_change::Reason;
+    let mut rewrites = HashMap::new();
+    if !arbos.is_some_and(|version| version < ARBOS_CANCUN) {
+        return rewrites;
+    }
+    let zero = [0; 32];
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
+            let destroyed = match call.call_type.as_known() {
+                Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
+                _ => &call.address,
+            };
+            let of = |reason| call.balance_changes.iter().filter(move |c| c.reason.as_known() == Some(reason));
+            let (refunds, withdraws): (Vec<_>, Vec<_>) = (of(Reason::SuicideRefund).collect(), of(Reason::SuicideWithdraw).collect());
+            let ([refund], [withdraw]) = (refunds.as_slice(), withdraws.as_slice()) else {
+                continue;
+            };
+            if refund.address != *destroyed || withdraw.address != *destroyed || refund.ordinal == 0 || withdraw.ordinal != refund.ordinal + 1 {
+                continue;
+            }
+            let words = (
+                value(refund.old_value.as_option().map(|v| v.bytes.as_slice())),
+                value(refund.new_value.as_option().map(|v| v.bytes.as_slice())),
+                value(withdraw.old_value.as_option().map(|v| v.bytes.as_slice())),
+                value(withdraw.new_value.as_option().map(|v| v.bytes.as_slice())),
+            );
+            let (Ok(d), Ok(credited), Ok(withdraw_old), Ok(withdraw_new)) = words else {
+                continue;
+            };
+            let [moved, doubled] = [d, credited].map(|w| BigInt::from_unsigned_bytes_be(&w));
+            if d == zero || withdraw_old != d || withdraw_new != zero || doubled != moved.clone() + moved {
+                continue;
+            }
+            // The refund comes right before the withdraw among the account's
+            // persisted records, and the withdraw is its only one at that
+            // ordinal and its last in the transaction.
+            let persisted = || records.iter().filter(|r| r.address == *destroyed);
+            let last = persisted().filter(|r| r.ordinal < withdraw.ordinal).max_by_key(|r| r.ordinal);
+            if !last.is_some_and(|r| r.ordinal == refund.ordinal)
+                || persisted().filter(|r| r.ordinal == withdraw.ordinal).count() != 1
+                || persisted().any(|r| r.ordinal > withdraw.ordinal && r.ordinal < trx.end_ordinal)
+            {
+                continue;
+            }
+            rewrites.insert((destroyed.clone(), withdraw.ordinal), (credited.to_vec(), zero.to_vec()));
+        }
+    }
+    rewrites
+}
+
 /// Since Cancun (EIP-6780; on Arbitrum One ArbOS 20, from block 190,301,731)
 /// a self-destruct to itself of an account not created in the same
 /// transaction moves nothing: geth debits the balance `d`, credits it back,
@@ -1934,7 +2050,7 @@ fn execution_order(record: &Record) -> Order {
 /// transaction (`bor_state_sync`), where it is the depth-1 call, then the
 /// ordinal (`execution_order`). Ambiguous or discontinuous producer data fails
 /// the block, as does a failed transaction's record outside its execution that
-/// no rule persists (`validate_failed_records_outside_execution`). Seven
+/// no rule persists (`validate_failed_records_outside_execution`). Eight
 /// producer shapes are exceptions. The self-transfer pair
 /// (`self_transfer_pairs`), the EIP-6780 self-destruct to itself
 /// (`selfdestruct_to_self_pairs`) and Arbitrum's repeated withdraw of a
@@ -1951,7 +2067,10 @@ fn execution_order(record: &Record) -> Order {
 /// credit, so the account must chain through it. An OP-stack fee vault's fee
 /// credit after the execution of a transaction that withdrew the vault
 /// (`fee_vault_credit_rewrites`) is rewritten to start from the withdrawn
-/// vault's zero, so the vault's next record must chain from the fee. A
+/// vault's zero, so the vault's next record must chain from the fee. The
+/// withdraw of an account that self-destructs to itself before ArbOS 20
+/// (`legacy_selfdestruct_to_self_rewrites`) is rewritten to start from the
+/// refund's doubled balance, so the account must chain through it. A
 /// self-destruct to itself whose records chain to zero although the account
 /// keeps its balance fails the block (`validate_selfdestructs_to_self`).
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
@@ -1960,10 +2079,18 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     // keeps that error.
     let outside_execution = validate_failed_records_outside_execution(block, &records);
     validate_selfdestructs_to_self(block)?;
+    let arbos = arbos_version(block);
     let mut pairs = self_transfer_pairs(block);
     pairs.extend(selfdestruct_to_self_pairs(block));
     pairs.extend(stale_selfdestruct_withdraws(block, &records));
     records.retain(|r| !(r.scope == persist::Scope::Tx && pairs.contains(&(r.address.clone(), r.ordinal))));
+    let legacy = legacy_selfdestruct_to_self_rewrites(block, &records, arbos);
+    for record in records.iter_mut().filter(|r| !legacy.is_empty() && r.scope == persist::Scope::Tx) {
+        if let Some((old, new)) = legacy.get(&(record.address.clone(), record.ordinal)) {
+            record.old_value = Some(old.clone());
+            record.new_value = Some(new.clone());
+        }
+    }
     records.extend(fee_pool_payouts(block));
     records.extend(selfdestruct_debits(block));
     // After the restored records, so the beneficiary's last balance during the

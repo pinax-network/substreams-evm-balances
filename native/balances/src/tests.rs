@@ -1061,7 +1061,8 @@ fn captured_fee_pool_payouts() -> Vec<eth::Block> {
     let f: Value = serde_json::from_str(FEE_POOL_PAYOUTS).unwrap();
     f["blocks"].as_array().unwrap().iter().map(captured_block).collect()
 }
-/// A captured block of a fixture: its number, `Block.ver`, coinbase,
+/// A captured block of a fixture: its number, `Block.ver`, coinbase, mix
+/// hash (kept since v0.7.9; Arbitrum's carries the ArbOS version),
 /// block-level records and transactions; a transaction without a `type` is
 /// legacy, and one without a `from`, `to` or `value` has none.
 fn captured_block(c: &Value) -> eth::Block {
@@ -1073,6 +1074,7 @@ fn captured_block(c: &Value) -> eth::Block {
     b.header = buffa::MessageField::some(eth::BlockHeader {
         number,
         coinbase: hex::decode(c["coinbase"].as_str().unwrap()).unwrap(),
+        mix_hash: account(&c["mix_hash"]),
         base_fee_per_gas: c["base_fee_per_gas"].as_str().and_then(|_| hex_big(&c["base_fee_per_gas"])).into(),
         ..b.header.as_option().unwrap().clone()
     });
@@ -4118,6 +4120,263 @@ fn the_repeated_withdraw_of_an_existing_account_to_a_new_beneficiary_is_exact() 
         ..Default::default()
     });
     assert!(fails(&b));
+}
+
+/// Arbitrum One block 161,626,224 (`Block.ver` 3, ArbOS 10) as captured from
+/// Firehose: both its transactions whole, ArbOS's internal transaction and
+/// `0xd0cc7c02…`, whose root call self-destructs `0xb01f8f52…` to itself.
+const LEGACY_SELFDESTRUCT_TO_SELF: &str = include_str!("../tests/fixtures/arbitrum-161626224-legacy-selfdestruct-to-self-root.json");
+/// Arbitrum One block 136,808,179 (ArbOS 10): transactions 0 and 5
+/// (`0x585194b7…`) whole; call 4 of transaction 5 self-destructs
+/// `0xe37e799d…` to itself.
+const LEGACY_SELFDESTRUCT_TO_SELF_NESTED: &str = include_str!("../tests/fixtures/arbitrum-136808179-legacy-selfdestruct-to-self.json");
+const LEGACY_TO_SELF: &str = "b01f8f528702d411d24c9bb8cc0e2fff779ec013";
+/// Sets the ArbOS version in an Arbitrum block's mix hash.
+fn with_arbos(mut b: eth::Block, version: u64) -> eth::Block {
+    if let Some(header) = b.header.as_option_mut() {
+        header.mix_hash[16..24].copy_from_slice(&version.to_be_bytes());
+    }
+    b
+}
+
+#[test]
+fn the_arbos_version_is_read_from_arbitrum_blocks_only() {
+    let fixture = |f: &str| captured_block(&serde_json::from_str(f).unwrap());
+    for (f, version) in [
+        (LEGACY_SELFDESTRUCT_TO_SELF_NESTED, 10),
+        (LEGACY_SELFDESTRUCT_TO_SELF, 10),
+        (STALE_WITHDRAW_NEW_BENEFICIARY_2, 20),
+        (STALE_WITHDRAW_NEW_BENEFICIARY, 20),
+    ] {
+        let b = fixture(f);
+        assert_eq!(arbos_version(&b), Some(version), "block {}", b.number);
+        assert_eq!(arbos_version(&with_arbos(b, 51)), Some(51));
+    }
+    // Only with ArbOS's internal transaction first...
+    let b = fixture(LEGACY_SELFDESTRUCT_TO_SELF);
+    let mut t = b.clone();
+    t.transaction_traces.remove(0);
+    assert_eq!(arbos_version(&t), None);
+    let mut t = b.clone();
+    t.transaction_traces.swap(0, 1);
+    assert_eq!(arbos_version(&t), None);
+    let mut t = b.clone();
+    t.transaction_traces[0].from = vec![0x11; 20];
+    assert_eq!(arbos_version(&t), None);
+    let mut t = b.clone();
+    t.transaction_traces[0].r#type = eth::transaction_trace::Type::TrxTypeArbitrumDeposit.into();
+    assert_eq!(arbos_version(&t), None);
+    // ...and Nitro's mix digest.
+    let mut t = b.clone();
+    t.header.as_option_mut().unwrap().mix_hash[31] = 1;
+    assert_eq!(arbos_version(&t), None);
+    let mut t = b.clone();
+    t.header.as_option_mut().unwrap().mix_hash.pop();
+    assert_eq!(arbos_version(&t), None);
+    // Other networks' blocks have none.
+    for f in [
+        SELFDESTRUCT_TO_SELF,
+        BASE_FEE_VAULT_CREDITS,
+        POLYGON_SELFDESTRUCT_CREATED,
+        HYPEREVM_SELF_TRANSFER,
+    ] {
+        assert_eq!(arbos_version(&fixture(f)), None);
+    }
+    assert_eq!(arbos_version(&eth::Block::decode_from_slice(FIXTURE_BLOCK).unwrap()), None);
+}
+
+#[test]
+fn captured_arbitrum_legacy_selfdestruct_to_itself_burns_the_balance() {
+    use eth::balance_change::Reason;
+    // Per block: the self-destructing call, the account, d, the rewritten
+    // withdraw's ordinal, and every row as (account, old amount, amount,
+    // first ordinal, ordinal, records). The RPC-era rows read zero for
+    // 0xb01f8f52… at block 161,626,317, after the same sender creates it
+    // again without a balance record, and for 0xe37e799d… at block
+    // 136,808,944. The sender's GAS_BUY in block 161,626,317 starts from its
+    // amount here.
+    type Rows<'a> = [(&'a str, &'a str, &'a str, u64, u64, u32)];
+    let cases: [(&str, usize, &str, &str, u64, &Rows); 2] = [
+        (
+            LEGACY_SELFDESTRUCT_TO_SELF,
+            0,
+            LEGACY_TO_SELF,
+            "3304510818628470",
+            13,
+            &[
+                (LEGACY_TO_SELF, "3304510818628470", "0", 12, 13, 2),
+                ("11799622f4d98a24514011e8527b969f7488ef47", "137542296535450983", "137498524335450983", 6, 15, 2),
+                (INFRA_FEE, "557337082226500000000", "557337084865400000000", 16, 16, 1),
+                (L1_PRICER, "6661356271684088330", "6661397404984088330", 17, 17, 1),
+            ],
+        ),
+        (
+            LEGACY_SELFDESTRUCT_TO_SELF_NESTED,
+            3,
+            "e37e799d5077682fa0a244d46e5649f71457bd09",
+            "1",
+            448,
+            &[
+                ("e37e799d5077682fa0a244d46e5649f71457bd09", "1", "0", 447, 448, 2),
+                (
+                    "11799622f4d98a24514011e8527b969f7488ef47",
+                    "150801797835450983",
+                    "150696165035450983",
+                    422,
+                    457,
+                    2,
+                ),
+                (INFRA_FEE, "2286587649727400000000", "2286587656302800000000", 458, 458, 1),
+                (L1_PRICER, "3132293909802631104", "3132392967202631104", 459, 459, 1),
+            ],
+        ),
+    ];
+    for (fixture, call, account, d, withdraw, expected) in cases {
+        let b = captured_block(&serde_json::from_str(fixture).unwrap());
+        let account = hex::decode(account).unwrap();
+        // The refund of the account from d to 2d, then the withdraw from d to
+        // zero at the next ordinal.
+        let suicide = &b.transaction_traces[1].calls[call];
+        assert!(suicide.suicide && suicide.address == account);
+        let own: Vec<_> = suicide
+            .balance_changes
+            .iter()
+            .filter(|c| c.address == account)
+            .map(|c| {
+                let [old, new] =
+                    [&c.old_value, &c.new_value].map(|v| BigInt::from_unsigned_bytes_be(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+                (c.ordinal, old, new, c.reason.to_i32())
+            })
+            .collect();
+        let d = BigInt::from_str(d).unwrap();
+        assert_eq!(
+            own,
+            [
+                (withdraw - 1, d.clone(), d.clone() + d.clone(), Reason::SuicideRefund as i32),
+                (withdraw, d.clone(), BigInt::from(0), Reason::SuicideWithdraw as i32)
+            ]
+        );
+        // From ArbOS 20 the opcode is EIP-6780's, and the records keep native
+        // v0.7.8's refusal, as in a block of another network.
+        for refused in [with_arbos(b.clone(), 20), {
+            let mut t = b.clone();
+            t.transaction_traces.remove(0);
+            t
+        }] {
+            assert!(changes(&refused).unwrap_err().to_string().contains("discontinuous"));
+        }
+        // No other self-destruct rule takes the records.
+        let persisted = records(&b).unwrap();
+        assert!(stale_selfdestruct_withdraws(&b, &persisted).is_empty());
+        assert!(selfdestruct_to_self_pairs(&b).is_empty());
+        assert!(selfdestruct_debits(&b).is_empty());
+        let doubled = word(&(d.clone() + d).to_bytes_be().1).unwrap().to_vec();
+        assert_eq!(
+            legacy_selfdestruct_to_self_rewrites(&b, &persisted, arbos_version(&b)),
+            HashMap::from([((account.clone(), withdraw), (doubled, vec![0; 32]))])
+        );
+        let rows = changes(&b).unwrap();
+        assert_eq!(rows.len(), expected.len(), "block {}", b.number);
+        for &(account, old, new, first_ordinal, ordinal, records) in expected {
+            let row = row_of(&rows, &hex::decode(account).unwrap());
+            assert_eq!(
+                (row.old_amount.as_str(), row.amount.as_str(), row.first_ordinal, row.ordinal, row.records),
+                (old, new, first_ordinal, ordinal, records),
+                "block {} account {account}",
+                b.number
+            );
+        }
+    }
+}
+
+#[test]
+fn the_legacy_selfdestruct_to_itself_shape_is_exact() {
+    use eth::balance_change::Reason;
+    const D: u64 = 3_304_510_818_628_470;
+    fn discontinuous(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    // Records 1 and 2 of transaction 1's root call: the refund (12) and the
+    // withdraw (13).
+    fn root(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[1].calls[0]
+    }
+    fn record(address: &str, ordinal: u64, old: u64, new: u64, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            reason: reason.into(),
+            ..change(0, ordinal, Some(old), Some(new))
+        }
+    }
+    let captured = || captured_block(&serde_json::from_str(LEGACY_SELFDESTRUCT_TO_SELF).unwrap());
+    let account = |b: &eth::Block| {
+        let rows = changes(b).unwrap();
+        let row = row_of(&rows, &hex::decode(LEGACY_TO_SELF).unwrap());
+        (row.amount.clone(), row.records)
+    };
+    assert_eq!(account(&captured()), ("0".to_string(), 2));
+    // Before ArbOS 20 only, in an Arbitrum block.
+    for version in [0, 19] {
+        assert_eq!(account(&with_arbos(captured(), version)), ("0".to_string(), 2));
+    }
+    for version in [20, 21, 51] {
+        assert!(discontinuous(&with_arbos(captured(), version)), "ArbOS {version}");
+    }
+    // The refund doubles the balance the withdraw starts from.
+    let mut b = captured();
+    root(&mut b).balance_changes[1].new_value = big(2 * D + 1).into();
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[1].old_value = big(D - 1).into();
+    root(&mut b).balance_changes[1].new_value = big(2 * D - 2).into();
+    assert!(discontinuous(&b));
+    // The withdraw to zero, at the ordinal right after the refund.
+    let mut b = captured();
+    root(&mut b).balance_changes[2].new_value = big(1).into();
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes[2].ordinal = 14;
+    assert!(discontinuous(&b));
+    // A withdraw from the doubled balance already chains, and is not
+    // rewritten.
+    let mut b = captured();
+    root(&mut b).balance_changes[2].old_value = big(2 * D).into();
+    assert!(legacy_selfdestruct_to_self_rewrites(&b, &records(&b).unwrap(), arbos_version(&b)).is_empty());
+    assert_eq!(account(&b), ("0".to_string(), 2));
+    // Exactly one refund and one withdraw in the call, both of the account
+    // the call self-destructs.
+    let mut b = captured();
+    root(&mut b).balance_changes.push(record(LEGACY_TO_SELF, 14, 0, 0, Reason::SuicideWithdraw));
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    root(&mut b).balance_changes.push(record(INFRA_FEE, 14, 0, 0, Reason::SuicideRefund));
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    root(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(discontinuous(&b));
+    let mut b = captured();
+    root(&mut b).suicide = false;
+    assert!(discontinuous(&b));
+    for reason in [Reason::Transfer, Reason::SuicideWithdraw] {
+        let mut b = captured();
+        root(&mut b).balance_changes[1].reason = reason.into();
+        assert!(discontinuous(&b), "{reason:?}");
+    }
+    // No record of the account after the withdraw in the transaction.
+    let mut b = captured();
+    root(&mut b).balance_changes.push(record(LEGACY_TO_SELF, 18, 0, 5, Reason::Transfer));
+    assert!(discontinuous(&b));
+    // The legacy opcode zeroes an account created in the transaction too.
+    let mut b = captured();
+    b.transaction_traces[1].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(LEGACY_TO_SELF).unwrap(),
+        ..Default::default()
+    });
+    assert_eq!(account(&b), ("0".to_string(), 2));
 }
 
 /// Arbitrum One block 514,819,388's self-destruct as if to itself: its
