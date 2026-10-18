@@ -5365,13 +5365,19 @@ fn the_fee_vault_credit_shape_is_exact() {
     record_at(&mut b, 14344).old_value = wei(FEE + 1).into();
     record_at(&mut b, 14344).new_value = wei(1_246_980_000_001).into();
     assert!(fails(&b));
-    // Only after a TRANSFER to zero during the execution: a withdrawal that
-    // leaves 1 wei is not rewritten, even when the next record would chain.
+    // Only after TRANSFERs during the execution. Since v0.7.9 also when they
+    // leave the vault a balance: a withdrawal that leaves 1 wei is rewritten
+    // from it, and the next record must chain from it plus the fee.
     let mut b = captured_fee_vault_credits();
     record_at(&mut b, 14265).new_value = wei(1).into();
+    assert!(fails(&b));
     record_at(&mut b, 14344).old_value = wei(FEE + 1).into();
     record_at(&mut b, 14344).new_value = wei(1_246_980_000_001).into();
-    assert!(fails(&b));
+    let rows = changes(&b).unwrap();
+    assert_eq!(
+        row_values(&rows, BASE_FEE_VAULT),
+        values(&[("79578610751248996038", "1246980000001", 14265, 14344, 3)])[0]
+    );
     let mut b = captured_fee_vault_credits();
     record_at(&mut b, 14265).reason = eth::balance_change::Reason::CallBalanceOverride.into();
     assert!(fails(&b));
@@ -5398,6 +5404,123 @@ fn the_fee_vault_credit_shape_is_exact() {
     // that no mutation reaches: with `b` zero the credit already chains and
     // the rewrite would be the identity, and a failed transaction persists no
     // vault `TRANSFER` during the execution.
+}
+
+/// Base block 47,424,842 (`Block.ver` 5) as captured from Firehose:
+/// transactions 71 (`0x0d38b7d2…`) and 72 (`0x1296be5d…`) whole. Transaction
+/// 71 sends 200,000,000,000,000 wei to the L1FeeVault during its execution;
+/// transaction 72 pays the vault its fee.
+fn captured_fee_vault_credit_after_transfer() -> eth::Block {
+    captured_block(&serde_json::from_str(include_str!("../tests/fixtures/base-47424842-fee-vault-credit-after-transfer.json")).unwrap())
+}
+
+#[test]
+fn captured_base_fee_vault_credit_after_a_transfer_into_it_starts_from_the_transferred_balance() {
+    let b = captured_fee_vault_credit_after_transfer();
+    let vault = hex::decode(L1_FEE_VAULT).unwrap();
+    assert_eq!(arbos_version(&b), None);
+    // The vault's records: the transfer into it (3,050), the credit after the
+    // execution from its balance before the transaction (3,057), and
+    // transaction 72's credit from the transferred balance plus the fee
+    // (3,170).
+    let recorded: Vec<_> = records(&b)
+        .unwrap()
+        .iter()
+        .filter(|r| r.address == vault)
+        .map(|r| {
+            let [old, new] = [&r.old_value, &r.new_value].map(|v| amount(&value(v.as_deref()).unwrap()));
+            (r.ordinal, old, new)
+        })
+        .collect();
+    let owned = |rows: &[(u64, &str, &str)]| rows.iter().map(|&(o, old, new)| (o, old.to_string(), new.to_string())).collect::<Vec<_>>();
+    assert_eq!(
+        recorded,
+        owned(&[
+            (3050, "146562993915847", "346562993915847"),
+            (3057, "146562993915847", "146564027611135"),
+            (3170, "346564027611135", "346565061306423"),
+        ])
+    );
+    // The L1 fee: the GAS_BUY debit less gas_limit * gas_price.
+    let trx = &b.transaction_traces[0];
+    let gas_price = BigInt::from_unsigned_bytes_be(&trx.gas_price.as_option().unwrap().bytes);
+    let l1_fee = BigInt::from(711_223_695_288u64) - BigInt::from(trx.gas_limit) * gas_price;
+    assert_eq!(l1_fee, BigInt::from(1_033_695_288u64));
+    // Native v0.7.8 rewrote only a credit after a withdrawal to zero and
+    // refused the block; the credit is rewritten from the transferred balance.
+    let persisted = records(&b).unwrap();
+    let from = word(&BigInt::from(346_562_993_915_847u64).to_bytes_be().1).unwrap().to_vec();
+    let to = word(&BigInt::from(346_564_027_611_135u64).to_bytes_be().1).unwrap().to_vec();
+    assert_eq!(fee_vault_credit_rewrites(&b, &persisted), HashMap::from([((vault.clone(), 3057), (from, to))]));
+    let rows = changes(&b).unwrap();
+    assert_eq!(rows.len(), 5);
+    assert_eq!(
+        [
+            L1_FEE_VAULT,
+            SEQUENCER_FEE_VAULT,
+            BASE_FEE_VAULT,
+            "1b4c289c4f6e0565f1e432654254485c490679e9",
+            "a57fcee8db30a62b1fe8fab0431ac2d2a6abbafb"
+        ]
+        .map(|a| row_values(&rows, a))
+        .to_vec(),
+        values(&[
+            ("146562993915847", "346565061306423", 3050, 3170, 3),
+            ("138216394674619682", "138217671171625312", 3055, 3168, 2),
+            ("22843397775000000", "22844453755000000", 3056, 3169, 2),
+            ("528590867900801", "328122536205513", 3046, 3054, 3),
+            ("4208820586211256", "4206954373510338", 3060, 3167, 2),
+        ])
+    );
+}
+
+#[test]
+fn the_fee_vault_credit_after_a_transfer_into_it_is_exact() {
+    fn fails(b: &eth::Block) -> bool {
+        changes(b).unwrap_err().to_string().contains("discontinuous")
+    }
+    let captured = captured_fee_vault_credit_after_transfer;
+    assert!(changes(&captured()).is_ok());
+    // A later record of the vault in the block checks the rewritten credit:
+    // without transaction 72 the credit is not rewritten.
+    let mut b = captured();
+    b.transaction_traces.pop();
+    assert!(fails(&b));
+    // A later block-level record of the vault checks it as well.
+    let mut b = captured();
+    b.transaction_traces.pop();
+    b.balance_changes.push(eth::BalanceChange {
+        address: hex::decode(L1_FEE_VAULT).unwrap(),
+        old_value: wei(346_564_027_611_135).into(),
+        new_value: wei(346_564_027_611_136).into(),
+        ordinal: 4000,
+        reason: eth::balance_change::Reason::Transfer.into(),
+    });
+    let rows = changes(&b).unwrap();
+    assert_eq!(row_values(&rows, L1_FEE_VAULT).1, "346564027611136");
+    // ...and the later record must chain from the rewritten credit.
+    let mut b = captured();
+    record_at(&mut b, 3170).old_value = wei(146_564_027_611_135).into();
+    assert!(fails(&b));
+    // Only from the vault's balance before the transaction, and only the L1
+    // fee.
+    let mut b = captured();
+    record_at(&mut b, 3057).old_value = wei(146_562_993_915_846).into();
+    assert!(fails(&b));
+    let mut b = captured();
+    record_at(&mut b, 3057).new_value = wei(146_564_027_611_136).into();
+    assert!(fails(&b));
+    // Only after TRANSFERs during the execution.
+    let mut b = captured();
+    record_at(&mut b, 3050).reason = eth::balance_change::Reason::CallBalanceOverride.into();
+    assert!(fails(&b));
+    // A credit that already starts from the transferred balance chains and
+    // is not rewritten.
+    let mut b = captured();
+    record_at(&mut b, 3057).old_value = wei(346_562_993_915_847).into();
+    record_at(&mut b, 3057).new_value = wei(346_564_027_611_135).into();
+    assert!(fee_vault_credit_rewrites(&b, &records(&b).unwrap()).is_empty());
+    assert_eq!(changes(&b).unwrap(), changes(&captured()).unwrap());
 }
 
 /// Polygon block 70,044,000 (`Block.ver` 3) as captured from Firehose:

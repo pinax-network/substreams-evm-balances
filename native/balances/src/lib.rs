@@ -1937,22 +1937,35 @@ const OP_L1_FEE_VAULT: [u8; 20] = [0x42, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
 /// (withdrawals in blocks 15,248,533, 25,227,739, 35,206,936, 44,278,936 and
 /// 45,174,097) and the Optimism (block 155,196,870, `0x316c6c1f…`) and
 /// Unichain (block 61,187,535, `0x2995bdc3…`) producers of `Block.ver` 5
-/// record the credit from zero.
+/// record the credit from zero. The same producer records the credit from
+/// the balance before the transaction after a transfer into the vault
+/// during the execution: in block 47,424,842 transaction `0x0d38b7d2…`
+/// (transaction 71) sends 200,000,000,000,000 wei to the L1FeeVault, whose
+/// credit after the execution then reads 146,562,993,915,847 to
+/// 146,564,027,611,135 wei, while transaction 72's credit starts from
+/// 346,564,027,611,135, the transferred balance plus the fee. Native v0.7.8
+/// refused that block; the vault's records in blocks 47,424,843 to
+/// 47,424,846 chain from the rewritten balance to the RPC-era close at block
+/// 47,424,846.
 ///
 /// Returns, by `(vault, ordinal)`, the old and new values that such a credit
-/// stands for: from the vault's last balance during the execution, zero, to
-/// the fee. The continuity check then verifies the vault's next record
-/// against the fee. Without the rewrite the credit breaks continuity, so the
-/// rewrite changes only blocks native refuses without this rule (v0.7.7 and
-/// earlier). Only this exact shape is recognized, for these two vaults: in a
-/// succeeded transaction, the vault's persisted records up to the root call's
-/// end ordinal are `TRANSFER`s during the execution, the last of them to
-/// zero, and its only record after the execution is a
+/// stands for: from the vault's last balance during the execution, `l`
+/// (zero after a withdrawal), to `l` plus the fee. The continuity check then
+/// verifies the vault's next record against it. Without the rewrite the
+/// credit breaks continuity, so the rewrite changes only blocks native
+/// refuses without this rule (v0.7.7 and earlier, and v0.7.8 when `l` is
+/// not zero). Only this exact shape is recognized, for these two vaults: in
+/// a succeeded transaction, the vault's persisted records up to the root
+/// call's end ordinal are `TRANSFER`s during the execution, the last of them
+/// to `l`, and its only record after the execution is a
 /// `REWARD_TRANSACTION_FEE` from `b`, the old value of its first record in
-/// the transaction, positive, to `b` plus the fee: `gas_used * base_fee` for
-/// the BaseFeeVault and, for the L1FeeVault, the debit of the root call's
-/// only `GAS_BUY` less `gas_limit * gas_price`, each positive. A credit that
-/// already starts from zero chains and is not rewritten. The two vaults'
+/// the transaction, positive and other than `l`, to `b` plus the fee:
+/// `gas_used * base_fee` for the BaseFeeVault and, for the L1FeeVault, the
+/// debit of the root call's only `GAS_BUY` less `gas_limit * gas_price`,
+/// each positive. When `l` is not zero, the vault also has a persisted
+/// record later in the block, which checks the rewritten credit; without
+/// one the credit stays as recorded, and the block fails. A credit that
+/// already starts from `l` chains and is not rewritten. The two vaults'
 /// records are indexed in one pass, and only a transaction in which a vault
 /// has a `TRANSFER` record during the execution is examined, so a block
 /// without one costs that pass alone.
@@ -2010,21 +2023,21 @@ fn fee_vault_credit_rewrites(block: &eth::Block, records: &[Record]) -> Rewrites
             _ => None,
         };
         let base = Some(BigInt::from(trx.gas_used) * base_fee.clone());
-        for ((vault, mine), fee) in vaults.iter().zip([base, l1_fee]) {
+        for ((vault, all), fee) in vaults.iter().zip([base, l1_fee]) {
             let Some(fee) = fee.filter(|fee| *fee > zero) else {
                 continue;
             };
             // The vault's persisted records in the transaction, split at the
             // end of the execution.
-            let start = mine.partition_point(|r| r.ordinal <= trx.begin_ordinal);
-            let end = mine.partition_point(|r| r.ordinal < trx.end_ordinal).max(start);
-            let mine = &mine[start..end];
+            let start = all.partition_point(|r| r.ordinal <= trx.begin_ordinal);
+            let end = all.partition_point(|r| r.ordinal < trx.end_ordinal).max(start);
+            let mine = &all[start..end];
             let split = mine.partition_point(|r| r.ordinal <= root.end_ordinal);
             let (during, after) = mine.split_at(split);
             let (Some(first), Some(last), [credit]) = (during.first(), during.last(), after) else {
                 continue;
             };
-            let withdrawn = first.ordinal > root.begin_ordinal && during.iter().all(|r| r.reason == Reason::Transfer as i32);
+            let transferred = first.ordinal > root.begin_ordinal && during.iter().all(|r| r.reason == Reason::Transfer as i32);
             let (Some((before, _)), Some((_, left)), Some((old, new))) = (
                 words(first.old_value.as_deref(), first.new_value.as_deref()),
                 words(last.old_value.as_deref(), last.new_value.as_deref()),
@@ -2032,10 +2045,21 @@ fn fee_vault_credit_rewrites(block: &eth::Block, records: &[Record]) -> Rewrites
             ) else {
                 continue;
             };
-            if !withdrawn || !left.is_zero() || credit.reason != Reason::RewardTransactionFee as i32 || before.is_zero() || old != before || new - old != fee {
+            // A vault the execution leaves with a balance (since v0.7.9) only
+            // with a later record of it in the block, which then checks the
+            // rewritten credit.
+            let checked = left.is_zero() || all[end..].iter().any(|r| r.ordinal > credit.ordinal);
+            if !transferred
+                || left == before
+                || !checked
+                || credit.reason != Reason::RewardTransactionFee as i32
+                || before.is_zero()
+                || old != before
+                || new - old != fee
+            {
                 continue;
             }
-            // From the vault's balance after the withdrawal.
+            // From the vault's balance after the execution.
             let (Ok(from), Ok(to)) = (word(&left.to_bytes_be().1), word(&(left.clone() + fee).to_bytes_be().1)) else {
                 continue;
             };
@@ -2314,9 +2338,10 @@ fn execution_order(record: &Record) -> Order {
 /// chain through it. The debit of an account destroyed by an EIP-6780
 /// self-destruct (`selfdestruct_debits`) is restored from its beneficiary's
 /// credit, so the account must chain through it. An OP-stack fee vault's fee
-/// credit after the execution of a transaction that withdrew the vault
-/// (`fee_vault_credit_rewrites`) is rewritten to start from the withdrawn
-/// vault's zero, so the vault's next record must chain from the fee. The
+/// credit after the execution of a transaction that moved value out of or
+/// into the vault (`fee_vault_credit_rewrites`) is rewritten to start from
+/// the vault's balance after the execution, so the vault's next record must
+/// chain from it plus the fee. The
 /// withdraw of an account that self-destructs to itself before ArbOS 20
 /// (`legacy_selfdestruct_to_self_rewrites`) is rewritten to start from the
 /// refund's doubled balance, so the account must chain through it. A
