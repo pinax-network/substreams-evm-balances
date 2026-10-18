@@ -68,8 +68,10 @@ never prints them.
   firehose-tracer 5.5.0 and later keep `Block.ver` 5 but record only the Keccak
   preimages that explain a storage write, and cut call data past
   per-transaction limits (#116). At the owner's direction (2026-10-06),
-  `erc20/balances` lets a `balanceOf` without a `pad(holder) || base` preimage
-  only veto (on a call out or a contradicted stored word). It drops a
+  `erc20/balances` lets a `balanceOf` without a preimage of the holder's key
+  under a base (Solidity's `pad(holder) || slot` or, since v0.7.4, Vyper's
+  `slot || pad(holder)`; owner, 2026-10-17) only veto (on a call out or a
+  contradicted stored word). It drops a
   contract's rows for the block on a successful `balanceOf` call that keeps
   only its 4-byte selector or has no return data, the shape a producer leaves
   when it cuts a call, only where a cut was possible: a `Block.ver` 5
