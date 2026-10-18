@@ -114,9 +114,21 @@ longer recorded preimages are never decoded. Per block and per contract
    struct field, such as Curve BoostV2's `Point` (bias, slope, ts), which
    need not be the balance: it excludes the contract unless the holder's own
    keyed `balanceOf` traced after its last write shows the word. Of the
-   48,108 rows v0.7.4 gives on the 131 saved blocks, one is such a word, and
+   48,106 rows v0.7.4 gives on the 131 saved blocks, one is such a word, and
    that read shows it: a holder of an ERC-4626 vault of USDT at Ethereum block
    23,892,123, which keeps the holder's index snapshot next to its shares.
+   Since v0.7.4 a traced `scaledBalanceOf(holder)` (`0x1da24f3e`: a completed
+   CALL or STATICCALL with at least 36 bytes of input, a padded address
+   argument and a 32-byte return) excludes the contract when it reads the
+   chosen mapping: keyed to exactly the holder's key under the base with no
+   call out, or, in a non-reverted frame, returning the holder's stored word
+   at its ordinal. The word is then a scaled balance that `balanceOf`
+   converts, such as the shares of Liquorice's lending-pool tokens
+   ([computed balances](#limits)). Scaled reads play no other part: they
+   never choose the base, vouch, supply a value or veto otherwise. On the 131
+   saved blocks this removes exactly two rows, the share words of Liquorice's
+   LLCUSDC and LDWETH at Ethereum block 25,852,210, which v0.7.3 emitted at
+   about 1000 times the RPC era's `balanceOf`.
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
@@ -315,7 +327,35 @@ and holders.
   constant-default balances are excluded only when the block shows it. On
   5.5.0 blocks it shows less: a `balanceOf` that also reads a second holder
   mapping usually keeps only the base's preimage. Only a tracer option that
-  keeps read preimages would restore that exclusion.
+  keeps read preimages would restore that exclusion. Tokens whose
+  `balanceOf` is a function of the stored word (shares times a rate, credits
+  divided by a rate, time decay, vesting) while every `Transfer` matches the
+  stored delta vote exactly for that word, and their rows are wrong. A traced
+  `balanceOf` in the block drops them, because it calls out or contradicts
+  the word, and since v0.7.4 so does a traced `scaledBalanceOf` that reads
+  the word (rule 4). Otherwise nothing in the block separates them from a
+  plain token without a contract list, a code-hash list or RPC, all outside
+  this package. Liquorice's lending-pool tokens (LLC* locked collateral, LD*
+  debt) store and transfer shares, and their `balanceOf` is
+  shares × (pool total + 1) / (supply + 1000), about a thousandth of the
+  word. Their pool reads `scaledBalanceOf` on every repay, borrow,
+  liquidation and locked-collateral withdrawal or transfer; from its code
+  paths, that covers 3,672 of the 3,881 Liquorice token-blocks from
+  2026-07-01 to Ethereum block 26,210,920 (94.6%). The other 209, a
+  locked-collateral mint alone, still emit the share word. In seven sampled
+  windows of 48,000–60,000 Ethereum blocks (about 1.3% of history), compared
+  with the RPC era by `(contract, holder, block)` (read-only, 2026-10-17),
+  twelve other contracts of this class had latest v0.7.3 rows that differ
+  from the RPC era's, 3,832 of them at the RPC row's block; a lower bound:
+
+  | Family | Contracts | `balanceOf` | Latest rows: differ / comparable (at the same block) |
+  | --- | --- | --- | --- |
+  | Shares × internal rate | gMOVE `0xc78dfe95…`, mMOVE `0x248c647d…`, fstMOVE `0xc7b26dbf…` | `_shares × shareRate() / BASE` | 437/618 (437), 143/145 (143), 280/358 (280) |
+  | | Bracket brETH `0x3588e6cb…`, BBOR1 `0x7a859b5a…` | `convertToAssets(sharesOf(a), assetsPerShare())` | 548/567 (545), 407/407 (405) |
+  | | Amplol `0xeadf1de2…` | `super.balanceOf × tvlBase() / 1e18` | 1193/2737 (1192) |
+  | Mixed credits | OUSD `0x2a8e1e67…`, OETH `0x856c4efb…` | credits × 1e18 / credits per token (1e18 for non-rebasing accounts) | 526/761 (120), 502/884 (156) |
+  | Time or vesting | DBR `0xad038eb6…` | balance − accrued dues − debt × elapsed / 365 days | 630/1149 (198) |
+  | | DICK `0xfdca7994…`, BENCH `0xf4e21623…`, ONE DAY `0xe216daf9…` (ERC-7660) | balance + releasable | 105/175 (76), 663/783 (267), 15/17 (13) |
 - **Certification by exact votes alone.** When the real balance key is
   neither `pad(holder) || slot` nor Vyper's `slot || pad(holder)` (struct
   offsets, assembly hashing), another mapping that moves exactly, such as a
@@ -418,12 +458,15 @@ retries a block that the persistence rules refuse with a failed SetCode
 transaction's unapplicable self-authorization marked discarded, and so
 accepts five Arbitrum One blocks that v0.7.3 refused
 ([producer releases](#producer-releases)). On those
-blocks it keeps all 31,745 rows of v0.7.3 with the same value and adds 16,363:
-15,814 from long reads, 36 from WETH9 frames, 8 from Tether's admin events,
-24 from Polygon state syncs and 481 from Vyper tokens. Of those 48,108 rows,
-the 10,572 with an RPC-era 1-minute bar at their block equal it; the other
-37,536 were not compared, among them 31,557 of the rows v0.7.3 also gives
-and 360 of the 481 Vyper rows. Because its rows differ
+blocks it keeps 31,743 of the 31,745 rows of v0.7.3 with the same value,
+drops the other two, the share words of Liquorice's LLCUSDC and LDWETH at
+Ethereum block 25,852,210, whose RPC-era values are 7,975,146,307 and
+563,115,926,388,786,128 (rule 4), and adds 16,363: 15,814 from long reads,
+36 from WETH9 frames, 8 from Tether's admin events, 24 from Polygon state
+syncs and 481 from Vyper tokens. Of those 48,106 rows, the 10,572 with an
+RPC-era 1-minute bar at their block equal it; the other 37,534 were not
+compared, among them 31,555 of the rows v0.7.3 also gives and 360 of the
+481 Vyper rows. Because its rows differ
 from v0.7.3's for past blocks, it is written to a new database,
 `<chain>:evm-balances-erc20@v0.7.4`, by a full resync. Before v0.7.0 it was
 `erc20_balances`:
@@ -471,7 +514,9 @@ frames are WETH9 deposits or withdrawals, three Polygon state-sync blocks
 whose tokens v0.7.3 dropped, and four blocks of Vyper tokens (scrvUSD, 3Crv,
 CRV and crvUSD) that v0.7.3 did not infer, one of them a Yearn v3 report
 whose vault gets no row of its own, even when a read after the report is
-added. The same test reads two
+added, and the Liquorice transaction of Ethereum block 25,852,210, whose two
+share tokens get no row because the pool's `scaledBalanceOf` calls read
+their words. The same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
 deposit and a withdrawal without a `Transfer`.

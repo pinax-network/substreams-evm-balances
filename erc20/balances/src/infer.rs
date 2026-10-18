@@ -46,7 +46,13 @@
 //!    vetoes. It is also excluded when a candidate holder's written word under
 //!    the base has a written word one or two keys after it, a struct field
 //!    such as Curve BoostV2's `Point` (bias, slope, ts), unless the holder's
-//!    own keyed `balanceOf` traced after its last write shows the word.
+//!    own keyed `balanceOf` traced after its last write shows the word. Since
+//!    v0.7.4 it is also excluded when a traced `scaledBalanceOf(holder)` (see
+//!    [`scaled_balance_of`]) reads the chosen mapping: keyed to exactly the
+//!    holder's key under it with no call out, or in a non-reverted frame
+//!    returning the holder's stored word. The word is then a scaled balance
+//!    that `balanceOf` converts, such as the shares of Liquorice's
+//!    lending-pool tokens. Scaled reads play no other part.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
@@ -118,6 +124,10 @@ const CALL: eth::CallType = eth::CallType::Call;
 const STATIC: eth::CallType = eth::CallType::Static;
 const DELEGATE: eth::CallType = eth::CallType::Delegate;
 const BALANCE_OF: [u8; 4] = [0x70, 0xa0, 0x82, 0x31];
+/// `scaledBalanceOf(address)`: the stored share or scaled word of a token
+/// whose `balanceOf` converts it (Liquorice's lending-pool tokens, Aave's
+/// aTokens).
+const SCALED_BALANCE_OF: [u8; 4] = [0x1d, 0xa2, 0x4f, 0x3e];
 /// TetherToken `destroyBlackFunds(address)`.
 const DESTROY_BLACK_FUNDS: [u8; 4] = [0xf3, 0xbd, 0xc2, 0x28];
 const ZERO: Addr = [0; 20];
@@ -896,7 +906,8 @@ fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
     (tallies[&base].large <= tallies[&base].exact).then_some(base)
 }
 
-/// A traced `balanceOf(holder)` call to a contract.
+/// A traced `balanceOf(holder)` or `scaledBalanceOf(holder)` call to a
+/// contract.
 struct Read {
     holder: Addr,
     /// The places of the call's begin and end in execution order.
@@ -963,6 +974,15 @@ impl Read {
         !self.bases.is_empty()
     }
 }
+/// The traced reads of one contract in a block.
+#[derive(Default)]
+struct Reads {
+    /// `balanceOf` calls (see [`balance_of`]).
+    balance: Vec<Read>,
+    /// `scaledBalanceOf` calls (see [`scaled_balance_of`]): they only drop
+    /// the contract when they read the chosen mapping (see [`decide`]).
+    scaled: Vec<Read>,
+}
 /// A traced `balanceOf(address)`: a completed CALL or STATICCALL with
 /// selector `0x70a08231`, more input than the selector and a 32-byte return,
 /// with the holder of its zero-extended first argument word, as the ABI
@@ -990,14 +1010,38 @@ fn balance_of(call: &eth::Call) -> Option<(Addr, bool)> {
     let clean = input.len() >= 36 && argument[..12] == [0; 12];
     (clean || input.len() != 36).then(|| (argument[12..].try_into().unwrap(), clean))
 }
-/// Traced `balanceOf(address)` calls of voted contracts (see [`balance_of`])
-/// in successful transactions. Only a clean read's storage context is scanned
-/// for preimages, so only a clean read can be keyed.
-fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::StateSync>) -> BTreeMap<Addr, Vec<Read>> {
-    let mut out = BTreeMap::<Addr, Vec<Read>>::new();
+/// A traced `scaledBalanceOf(address)`: a completed CALL or STATICCALL with
+/// selector `0x1da24f3e`, at least 36 bytes of input whose first argument
+/// word is a padded address (`input[4..16]` zero) and a 32-byte return, with
+/// the holder of that word. Like a clean `balanceOf`, its storage context is
+/// scanned for preimages.
+fn scaled_balance_of(call: &eth::Call) -> Option<Addr> {
+    let input = &call.input;
+    let read = !call.status_failed
+        && (call.call_type == CALL || call.call_type == STATIC)
+        && input.len() >= 36
+        && input[..4] == SCALED_BALANCE_OF
+        && input[4..16] == [0; 12]
+        && call.return_data.len() == 32
+        && call.begin_ordinal != 0;
+    read.then(|| input[16..36].try_into().unwrap())
+}
+/// A traced read of a holder: its holder, whether it is clean (see
+/// [`balance_of`]) and whether it is a `scaledBalanceOf`.
+fn read_of(call: &eth::Call) -> Option<(Addr, bool, bool)> {
+    balance_of(call)
+        .map(|(holder, clean)| (holder, clean, false))
+        .or_else(|| scaled_balance_of(call).map(|holder| (holder, true, true)))
+}
+/// Traced `balanceOf(address)` and `scaledBalanceOf(address)` calls of voted
+/// contracts (see [`balance_of`] and [`scaled_balance_of`]) in successful
+/// transactions. Only a clean read's storage context is scanned for
+/// preimages, so only a clean read can be keyed.
+fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::StateSync>) -> BTreeMap<Addr, Reads> {
+    let mut out = BTreeMap::<Addr, Reads>::new();
     let token = |c: &eth::Call| Addr::try_from(c.address.as_slice()).ok().filter(|t| tokens.contains_key(t));
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
-        if !tx.calls.iter().any(|c| balance_of(c).is_some() && token(c).is_some()) {
+        if !tx.calls.iter().any(|c| read_of(c).is_some() && token(c).is_some()) {
             continue;
         }
         // One pass assigns every call its storage context (itself, or its
@@ -1022,7 +1066,7 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::S
             context.insert(c.index, own);
         }
         for call in &tx.calls {
-            let (Some((holder, clean)), Some(token)) = (balance_of(call), token(call)) else {
+            let (Some((holder, clean, scaled)), Some(token)) = (read_of(call), token(call)) else {
                 continue;
             };
             let mut read = Read {
@@ -1049,7 +1093,8 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::S
                 let resolved = (c.return_data.len() == 32 && c.return_data[..12] == [0; 12]).then(|| &c.return_data[12..]);
                 resolved.is_none_or(|a| !delegates.contains(&(c.parent_index, a)))
             });
-            out.entry(token).or_default().push(read);
+            let reads = out.entry(token).or_default();
+            if scaled { &mut reads.scaled } else { &mut reads.balance }.push(read);
         }
     }
     out
@@ -1129,16 +1174,31 @@ fn after(key: &Word, i: u8) -> Word {
     out
 }
 
+/// The word of a persisted read's key that the read saw under the key's
+/// writes `ws` (in execution order), with the write that supplied it: the
+/// last write before the read, or else the old word of the first write after
+/// it. `None` when a write of the key falls inside the read.
+fn stored_at<'a>(ws: &[&'a Write], r: &Read) -> Option<(&'a Write, Word)> {
+    if ws.get(ws.partition_point(|w| w.seq <= r.begin)).is_some_and(|w| w.seq < r.end) {
+        return None;
+    }
+    ws[..ws.partition_point(|w| w.seq < r.begin)]
+        .last()
+        .map(|w| (*w, w.new))
+        .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| (*w, w.old)))
+}
+
 /// The end-of-block balances of one voted contract, or `None` on any doubt.
 fn decide(
     token: &Addr,
     tallies: &BTreeMap<Base, Tally>,
     writes: &[Write],
-    reads: &[Read],
+    reads: &Reads,
     holders: &BTreeSet<Addr>,
     names: &Names,
     framed: &Framed,
 ) -> Option<BTreeMap<Addr, Word>> {
+    let (scaled, reads) = (&reads.scaled, &reads.balance);
     let base = choose(tallies, reads)?;
     // A Tether admin event explains a holder's write in its frame when the
     // frame's net change of the holder's word equals the amount it states, and
@@ -1155,6 +1215,16 @@ fn decide(
     }
     // Persisted writes to one key must chain in execution order.
     if by_key.values().any(|ws| ws.windows(2).any(|p| p[1].seq <= p[0].seq || p[1].old != p[0].new)) {
+        return None;
+    }
+    // A `scaledBalanceOf` that reads the chosen mapping, keyed to it or
+    // returning the holder's stored word, shows that the word is a scaled
+    // balance that `balanceOf` converts. Scaled reads play no other part.
+    let reads_base = |r: &Read| {
+        let seen = || by_key.get(&base.key(&r.holder)).and_then(|ws| stored_at(ws, r));
+        r.pure(&base) || (r.persisted && seen().is_some_and(|(_, word)| word == r.value))
+    };
+    if scaled.iter().any(reads_base) {
         return None;
     }
     // An unkeyed read still vetoes when it calls out or contradicts the stored
@@ -1191,24 +1261,14 @@ fn decide(
     let mut masked = BTreeSet::new();
     for r in reads.iter().filter(|r| r.persisted) {
         match by_key.get(&base.key(&r.holder)) {
-            Some(ws) => {
-                // Writes to the key are in execution order.
-                if ws.get(ws.partition_point(|w| w.seq <= r.begin)).is_some_and(|w| w.seq < r.end) {
-                    continue;
+            Some(ws) => match stored_at(ws, r) {
+                Some((_, s)) if s == r.value => {}
+                Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {
+                    masked.insert(r.holder);
                 }
-                let stored = ws[..ws.partition_point(|w| w.seq < r.begin)]
-                    .last()
-                    .map(|w| (*w, w.new))
-                    .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| (*w, w.old)));
-                match stored {
-                    Some((_, s)) if s == r.value => {}
-                    Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {
-                        masked.insert(r.holder);
-                    }
-                    Some(_) => return None,
-                    None => {}
-                }
-            }
+                Some(_) => return None,
+                None => {}
+            },
             // The holder's mapping word has no persisted write in the block.
             // Under a Vyper base the contract's own row is never emitted
             // (below), so a read of it supplies no value.
@@ -1303,10 +1363,11 @@ pub(crate) fn rows(block: &eth::Block, resolved: &eth::Block, block_len: usize) 
         );
     }
     let nobody = Names::default();
+    let unread = Reads::default();
     // A contract has tallies only if a nonzero `Transfer` moved a holder or,
     // in a block without one, a backed frame voted.
     for (token, t) in tallies.iter().filter(|(token, _)| !doubt.contains(*token)) {
-        let token_reads = reads.get(token).map(Vec::as_slice).unwrap_or_default();
+        let token_reads = reads.get(token).unwrap_or(&unread);
         let names = named.get(token).unwrap_or(&nobody);
         if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], names, &framed) {
             // A balance word at or above 2^128 holds another field next to the

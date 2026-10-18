@@ -126,7 +126,9 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   the persistence rules refuse with a failed SetCode transaction's
   unapplicable self-authorization marked discarded, as native v0.7.9 does,
   so it accepts five Arbitrum One blocks that v0.7.3 refused; on 131 saved blocks it
-  keeps every v0.7.3 row and adds 16,363, and the 10,572 of its 48,108 rows
+  keeps every v0.7.3 row but the two wrong share words of Liquorice's
+  lending-pool tokens, which a traced `scaledBalanceOf` now drops, adds
+  16,363, and the 10,572 of its 48,106 rows
   there that have an RPC-era 1-minute bar at their block equal it (the rest
   were not compared). Not qualified. Offline, on five captured BSC intervals
   scored against every row the RPC reference package emitted for them, the

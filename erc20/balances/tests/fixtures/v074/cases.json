@@ -3203,6 +3203,119 @@
     },
     "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
    }
+  },
+  {
+   "file": "eth-25852210-liquorice-scaled.pb",
+   "chain": "eth",
+   "block": 25852210,
+   "block_hash": "0x635a7f3349feda064547b4f895751a4e3cb029d896163d055582e6dba31f1d12",
+   "ver": 5,
+   "source_block_sha256": "7981f307c14204e6a37d48939e6be8bf3f0cae7b6cb3194f5e9c5221a6c9321c",
+   "fixture_sha256": "aa458f2b87622a7a0b886e77a23e01cb29e8fc0f3d4e0608d626e8258ca11af8",
+   "token": "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722",
+   "kept_transactions": [
+    81
+   ],
+   "selection": "transaction 81, the block's only transaction of either Liquorice token (LLCUSDC 0x13fb3b0a... and LDWETH 0xf6f38c88...)",
+   "rule": "R1",
+   "demonstrates": "Liquorice's LendingPool 0x1cce0034... repays the RFQ maker 0x9af47260...'s WETH debt, burning 799694894989247543898 LDWETH shares (call 27), and withdraws its locked USDC collateral, burning 1997705565000 LLCUSDC shares (call 38). Both tokens (OpenZeppelin ERC20, _balances at slot 0) store and transfer shares, and their balanceOf converts them through the pool, shares * (pool total + 1) / (supply + 1000); no balanceOf of either token is traced. Each burn frame votes exactly for slot 0, so v0.7.3 emitted the maker's share words. The pool's keyed scaledBalanceOf(maker) calls, 25 and 52 of LDWETH and 77 of LLCUSDC (the isSolvent loop), return the stored share word under slot 0, so since R1 neither token gets a row; the block's USDC and WETH rows stay",
+   "calls": [
+    {
+     "tx": 81,
+     "call": 38,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 81,
+     "call": 77,
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 81,
+     "call": 27,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 81,
+     "call": 25,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 81,
+     "call": 52,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x1cce0034331638fec50b291a0bf42073346bb7c0": "73618825840",
+     "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+     "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "2103232393",
+     "0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d": "100132371111",
+     "0xdbb1164a57969dbcbea0b0b19afe4a636f5d9308": "29691495"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x1cce0034331638fec50b291a0bf42073346bb7c0": "9454545997001386325",
+     "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+     "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "0",
+     "0x43dcd6586e6209ee7235a21bdc4aa301e5bc44e8": "0"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722",
+     "0x9af47260d157e8e20aaa1d46c9f890422072a6a0"
+    ],
+    [
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "0x9af47260d157e8e20aaa1d46c9f890422072a6a0"
+    ]
+   ],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x1cce0034331638fec50b291a0bf42073346bb7c0": "73618825840",
+      "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+      "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "2103232393",
+      "0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d": "100132371111",
+      "0xdbb1164a57969dbcbea0b0b19afe4a636f5d9308": "29691495"
+     },
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x1cce0034331638fec50b291a0bf42073346bb7c0": "9454545997001386325",
+      "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+      "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "0",
+      "0x43dcd6586e6209ee7235a21bdc4aa301e5bc44e8": "0"
+     }
+    },
+    "dropped": {
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "7975146307"
+     },
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "563115926388786128"
+     }
+    },
+    "v073": {
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "7975146307000"
+     },
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "562901164525316466662"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above; every fixture row has a bar at the block (WETH 0x2a218d38...'s bar opens at 25852209 and closes at the block at 0). dropped gives the RPC-era values of the two pairs that v0.7.3 emitted as the share words in v073 and that v0.7.4 no longer emits: shares * (pool total + 1) / (supply + 1000), 7975146307000 * 7975146308 / 7975146308000 and 562901164525316466662 * 563115926388786130 / 562901164525316467662 with the block's own end-of-block storage."
+   }
   }
  ],
  "setcode_transactions": {

@@ -136,6 +136,16 @@ fn balance_of(index: u32, holder: [u8; 20], slot: u8, value: u64, ordinal: u64) 
     (c.begin_ordinal, c.end_ordinal) = (ordinal, ordinal + 1);
     c
 }
+/// A STATICCALL `scaledBalanceOf(holder)` of the token returning `value`,
+/// keyed to `holder`'s key under mapping `slot` when one is given.
+fn scaled_balance_of(index: u32, holder: [u8; 20], slot: Option<u8>, value: u64, ordinal: u64) -> eth::Call {
+    let mut c = balance_of(index, holder, slot.unwrap_or(BASE), value, ordinal);
+    c.input[..4].copy_from_slice(&[0x1d, 0xa2, 0x4f, 0x3e]);
+    if slot.is_none() {
+        c.keccak_preimages.clear();
+    }
+    c
+}
 /// A router transaction whose calls follow the root call at depth one.
 fn router(calls: Vec<eth::Call>) -> Vec<eth::Call> {
     [vec![call(1, 0, 0, eth::CallType::Call, [0x99; 20])], calls].concat()
@@ -521,6 +531,81 @@ fn long_balance_of_inputs_are_reads() {
         both(balance_of(2, Y, BASE, 42, 50)),
         vec![r(Y, 42), r(Z, 40 * U), r(A, 70), r(B, 35), r(E, 10 * U)]
     );
+}
+
+/// A traced `scaledBalanceOf(holder)` (`0x1da24f3e`) that reads the chosen
+/// mapping, keyed to exactly the holder's key under it with no call out, or
+/// returning the holder's stored word, shows that the word is a scaled
+/// balance that `balanceOf` converts (Liquorice's share tokens): it drops the
+/// token for the block. Scaled reads play no other part: they never
+/// contradict the word, veto on a call out or an impure key, choose the base,
+/// or supply a value.
+#[test]
+fn scaled_reads_of_the_chosen_mapping_drop_the_token() {
+    let with = |reads: Vec<eth::Call>| rows(&block(vec![vec![simple()], router(reads)]));
+    let kept = vec![r(A, 70), r(B, 35)];
+    // Unkeyed: B's stored word drops the token; another value does not
+    // contradict it. A read before the write sees the write's old word.
+    assert!(with(vec![scaled_balance_of(2, B, None, 35, 50)]).is_empty());
+    assert_eq!(with(vec![scaled_balance_of(2, B, None, 36, 50)]), kept);
+    assert!(rows(&block(vec![router(vec![scaled_balance_of(2, B, None, 5, 5)]), vec![simple()]])).is_empty());
+    assert_eq!(rows(&block(vec![router(vec![scaled_balance_of(2, B, None, 35, 5)]), vec![simple()]])), kept);
+    // Keyed to B's key under the base: dropped whatever it returns.
+    assert!(with(vec![scaled_balance_of(2, B, Some(BASE), 0, 50)]).is_empty());
+    // Keyed under another mapping, or calling out, it neither reads the base
+    // nor vetoes, unless it returns the stored word.
+    assert_eq!(with(vec![scaled_balance_of(2, B, Some(9), 0, 50)]), kept);
+    assert!(with(vec![scaled_balance_of(2, B, Some(9), 35, 50)]).is_empty());
+    let mut outside = call(3, 2, 2, eth::CallType::Static, [0x55; 20]);
+    outside.return_data = w(1);
+    assert_eq!(with(vec![scaled_balance_of(2, B, Some(BASE), 0, 50), outside.clone()]), kept);
+    assert!(with(vec![scaled_balance_of(2, B, Some(BASE), 35, 50), outside]).is_empty());
+    // A reverted read counts only by its key.
+    let reverted = |slot: Option<u8>, value: u64| {
+        let mut c = scaled_balance_of(2, B, slot, value, 50);
+        c.state_reverted = true;
+        c
+    };
+    assert_eq!(with(vec![reverted(None, 35)]), kept);
+    assert!(with(vec![reverted(Some(BASE), 0)]).is_empty());
+    // It never supplies a value: FROM, a candidate without a write, gets none
+    // from an unkeyed read, and a keyed one under the base drops the token.
+    assert_eq!(with(vec![scaled_balance_of(2, FROM, None, 42, 50)]), kept);
+    assert!(with(vec![scaled_balance_of(2, FROM, Some(BASE), 42, 50)]).is_empty());
+    // It never chooses the base: a pure balanceOf of B breaks the tie of two
+    // exact mappings, and a scaled read keyed to the other one changes
+    // nothing.
+    let mut mirror = simple();
+    store(&mut mirror, A, 4, 100, 70, 12);
+    store(&mut mirror, B, 4, 5, 35, 13);
+    let tie = |reads: Vec<eth::Call>| rows(&block(vec![vec![mirror.clone()], router(reads)]));
+    assert_eq!(tie(vec![balance_of(2, B, BASE, 35, 50), scaled_balance_of(3, B, Some(4), 0, 60)]), kept);
+    // A longer input with a padded address is a scaled read too.
+    let mut long = scaled_balance_of(2, B, None, 35, 50);
+    long.input.extend_from_slice(&[0; 32]);
+    assert!(with(vec![long]).is_empty());
+    // Only a completed CALL or STATICCALL with at least 36 bytes of input, a
+    // padded address argument and a 32-byte return, with a begin ordinal.
+    let shapes: [fn(&mut eth::Call); 7] = [
+        |c| c.status_failed = true,
+        |c| c.input.truncate(35),
+        |c| c.input[4] = 1,
+        |c| c.return_data.truncate(31),
+        |c| c.call_type = eth::CallType::Delegate.into(),
+        |c| c.begin_ordinal = 0,
+        |c| c.input[..4].copy_from_slice(&[0x6e, 0xbc, 0xf6, 0x07]),
+    ];
+    for shape in shapes {
+        let mut c = scaled_balance_of(2, B, None, 35, 50);
+        shape(&mut c);
+        assert_eq!(with(vec![c]), kept);
+    }
+    // A 4-byte one where a cut was possible is no doubt.
+    let mut cut = scaled_balance_of(2, B, None, 35, 50);
+    cut.input.truncate(4);
+    let mut big_input = call(3, 1, 1, eth::CallType::Call, [0x55; 20]);
+    big_input.input = vec![0; (25 << 20) + 1];
+    assert_eq!(with(vec![cut, big_input]), kept);
 }
 
 /// A reflection-style second mapping (`rOwned`) that moves with the flows
@@ -1694,6 +1779,68 @@ fn captured_yearn_v3_vault_never_gets_its_own_row() {
     assert_eq!(of(&read(word), &crvusd), stablecoin);
     assert!(of(&read(word - 1), &vault).is_empty());
     assert_eq!(of(&read(word - 1), &crvusd), stablecoin);
+}
+
+/// Captured Ethereum block 25,852,210, transaction 81
+/// (`fixtures/v074/eth-25852210-liquorice-scaled.pb`): Liquorice's lending
+/// pool burns the maker `0x9af47260…`'s LDWETH debt shares and LLCUSDC locked
+/// collateral shares. Both tokens store and transfer shares, and their
+/// `balanceOf` converts them through the pool, so v0.7.3 emitted the share
+/// words, 562901164525316466662 and 7975146307000, where the RPC era read
+/// 563115926388786128 and 7975146307. The pool's keyed `scaledBalanceOf(maker)`
+/// calls (25 and 52 of LDWETH, 77 of LLCUSDC) return the stored share word,
+/// so neither token gets a row; each read drops only its own token, by its
+/// key or, unkeyed, by its value; the block's USDC and WETH rows stay.
+#[test]
+fn captured_liquorice_share_tokens_get_no_rows() {
+    let block = eth::Block::decode_from_slice(include_bytes!("fixtures/v074/eth-25852210-liquorice-scaled.pb").as_slice()).unwrap();
+    let ldweth = hex::decode("f6f38c888e6a25aa2e6134f29e83660e85da833a").unwrap();
+    let llcusdc = hex::decode("13fb3b0a7ab1ab9591c10fe136a6a85599d8a722").unwrap();
+    let maker = "9af47260d157e8e20aaa1d46c9f890422072a6a0".to_string();
+    let all = |b: &eth::Block| {
+        let rows = run(b).unwrap().balances.into_iter();
+        rows.map(|r| (hex::encode(r.contract.unwrap()), hex::encode(r.address), r.amount))
+            .collect::<Vec<_>>()
+    };
+    let of = |b: &eth::Block, token: &[u8]| {
+        let rows = all(b).into_iter().filter(|r| r.0 == hex::encode(token));
+        rows.map(|r| (r.1, r.2)).collect::<Vec<_>>()
+    };
+    let others = all(&block);
+    assert_eq!(others.len(), 9);
+    assert!(of(&block, &ldweth).is_empty() && of(&block, &llcusdc).is_empty());
+    // Edits the pool's scaledBalanceOf calls of the token or tokens given.
+    let edit = |tokens: &[&[u8]], f: fn(&mut eth::Call)| {
+        let mut b = block.clone();
+        let calls = b.transaction_traces[0].calls.iter_mut();
+        let mut n = 0;
+        for c in calls.filter(|c| c.input.starts_with(&[0x1d, 0xa2, 0x4f, 0x3e]) && tokens.contains(&&c.address[..])) {
+            assert_eq!(hex::encode(&c.input[16..36]), maker);
+            f(c);
+            n += 1;
+        }
+        (b, n)
+    };
+    // Without them, inference emits v0.7.3's share words.
+    let (b, n) = edit(&[&ldweth[..], &llcusdc[..]], |c| c.input[..4].copy_from_slice(&[0xff; 4]));
+    let shares = (
+        vec![(maker.clone(), "562901164525316466662".to_string())],
+        vec![(maker.clone(), "7975146307000".to_string())],
+    );
+    assert_eq!((n, (of(&b, &ldweth), of(&b, &llcusdc))), (3, shares.clone()));
+    let (b, n) = edit(&[&ldweth[..]], |c| c.input[..4].copy_from_slice(&[0xff; 4]));
+    assert_eq!((n, of(&b, &ldweth), of(&b, &llcusdc)), (2, shares.0.clone(), vec![]));
+    // Unkeyed, they still return the stored words; with a value off by one,
+    // only their key drops the tokens.
+    let (b, _) = edit(&[&ldweth[..], &llcusdc[..]], |c| c.keccak_preimages.clear());
+    assert_eq!(all(&b), others);
+    let (b, _) = edit(&[&ldweth[..], &llcusdc[..]], |c| c.return_data[31] ^= 1);
+    assert_eq!(all(&b), others);
+    let (b, _) = edit(&[&ldweth[..], &llcusdc[..]], |c| {
+        c.keccak_preimages.clear();
+        c.return_data[31] ^= 1;
+    });
+    assert_eq!((of(&b, &ldweth), of(&b, &llcusdc)), shares);
 }
 
 #[test]
