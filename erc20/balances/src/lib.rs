@@ -55,11 +55,20 @@ impl persist::Sink for Discard {
 /// The `map_events` body. A block fails only when it is not a complete
 /// Extended block or the persistence rules cannot resolve it. Inference never
 /// fails a block: on any doubt it drops that contract's rows for the block.
-/// `block_len` is the length of the block's delivered encoding (the bytes of
-/// `Any.value`), one bound on where a producer could have cut call data. The
-/// block's own re-encoding also counts: with 0 or a re-encoded length, the
-/// bound uses that re-encoding, which drops unknown fields.
-pub fn run(block: &eth::Block, block_len: usize) -> Result<balances_pb::Events, Error> {
+///
+/// One bound on where a producer could have cut call data is the length of
+/// the block's encoding; `run` takes the block's re-encoding, which drops
+/// unknown fields. It is [`run_sized`] with a `block_len` of 0, and keeps its
+/// signature of v0.7.3 and earlier releases.
+pub fn run(block: &eth::Block) -> Result<balances_pb::Events, Error> {
+    run_sized(block, 0)
+}
+
+/// [`run`] for a caller that has the block's delivered encoding (the bytes of
+/// `Any.value`), as the `map_events` handler does: `block_len` is its length.
+/// The cut bound takes the larger of `block_len` and the block's re-encoding,
+/// so a `block_len` of 0 or a re-encoded length gives [`run`]'s rows.
+pub fn run_sized(block: &eth::Block, block_len: usize) -> Result<balances_pb::Events, Error> {
     validate_block(block)?;
     persist::collect_block(block, &mut Discard)?;
     let balances = infer::rows(block, block_len)
@@ -109,7 +118,7 @@ mod handler {
         let block =
             decode_block(bytes).unwrap_or_else(|error| panic!("Unable to decode Protobuf data ({block_len} bytes) to 'eth::Block' message's struct: {error}"));
         substreams::skip_empty_output();
-        match run(&block, block_len) {
+        match run_sized(&block, block_len) {
             Ok(events) => substreams::output(events),
             Err(error) => panic!("{error:?}"),
         }

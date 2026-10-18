@@ -148,7 +148,7 @@ fn captured_block_writes_one_row_per_map_balance() {
         number: block.number,
         timestamp: block.header.as_option().unwrap().timestamp.clone(),
     };
-    let erc20 = erc20_balances::run(&block, bytes.len()).unwrap();
+    let erc20 = erc20_balances::run_sized(&block, bytes.len()).unwrap();
     let changes = database_changes(&clock, &erc20).unwrap().table_changes;
 
     let block_columns = [

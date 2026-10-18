@@ -2,13 +2,9 @@
 //! captured block 122260950 against its saved same-block RPC values, also as a
 //! firehose-tracer 5.5.0 producer would record it.
 use buffa::Message;
+use erc20_balances::run;
 use substreams_ethereum::pb::eth::v2 as eth;
 use tiny_keccak::{Hasher, Keccak};
-
-/// `map_events` on a block delivered as its own encoding.
-fn run(b: &eth::Block) -> Result<proto::pb::evm::balances::v1::Events, substreams::errors::Error> {
-    erc20_balances::run(b, b.encoded_len() as usize)
-}
 
 fn hash(bytes: &[u8]) -> [u8; 32] {
     let mut out = [0; 32];
@@ -442,15 +438,15 @@ fn cut_balance_of_calls_drop_the_token_where_a_cut_was_possible() {
     gas.header.get_or_insert_default().gas_used = 150_000_000;
     assert!(rows(&gas).is_empty());
     let small = with(vec![input.clone()]);
-    let at = |len: usize| erc20_balances::run(&small, len).unwrap().balances.len();
+    let at = |len: usize| erc20_balances::run_sized(&small, len).unwrap().balances.len();
     assert_eq!((at(64 << 20), at((64 << 20) - 1)), (0, 2));
-    // A caller that passes 0, or the length of a re-encoding, keeps the
-    // bound: the block's own encoding counts too.
+    // `run`, which passes 0, and a caller that passes the length of a
+    // re-encoding keep the bound: the block's own encoding counts too.
     let mut padded = with(vec![input.clone()]);
     padded.transaction_traces[1].calls[0].input = vec![0; 64 << 20];
-    assert_eq!(erc20_balances::run(&padded, 0).unwrap().balances.len(), 0);
+    assert_eq!(run(&padded).unwrap().balances.len(), 0);
     padded.transaction_traces[1].calls.truncate(1);
-    assert_eq!(erc20_balances::run(&padded, 0).unwrap().balances.len(), 2);
+    assert_eq!(run(&padded).unwrap().balances.len(), 2);
     // Producers before 5.5.0 (Block.ver 3 and 4) cut nothing.
     let mut older = with(vec![input.clone(), big_input.clone()]);
     older.ver = 4;

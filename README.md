@@ -17,8 +17,9 @@ Each package is one spkg with two modules:
 - **`map_events`**: the balances as protobuf (`evm.balances.v1`). The same
   projection is a plain Rust function (`native_balances::project`,
   `erc20_balances::run`) for programs that read Extended blocks without the
-  Substreams runtime. Since ERC-20 v0.7.4, `erc20_balances::run` also takes
-  the byte length of the delivered block (`Any.value`).
+  Substreams runtime. ERC-20 v0.7.4 keeps `erc20_balances::run` unchanged
+  and adds `erc20_balances::run_sized`, which also takes the byte length of
+  the delivered block (`Any.value`), as `map_events` does.
 - **`db_out`**: the same balances as ClickHouse rows. The spkg embeds the
   schema, so the SQL sink needs nothing else.
 
