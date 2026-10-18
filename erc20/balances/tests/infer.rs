@@ -1271,6 +1271,56 @@ fn vyper_hash_maps_key_the_slot_first() {
     assert!(rows(&block(vec![vec![report(true)], read(24 * U, 50)])).is_empty());
 }
 
+/// A holder whose address is the number of the mapping's slot, such as
+/// address(3) under slot 3 or address(0) under slot 0, has the preimage
+/// `pad(x) || pad(x)`, which reads as its key in both orders. Both readings
+/// name one storage key: a read of it is pure, and a write of it is credited
+/// to one order only, the one the frame's other keys of that slot use
+/// (Solidity's otherwise). A symmetric read cannot break a tie between the two
+/// orders.
+#[test]
+fn symmetric_preimages_name_one_key() {
+    let mut x = [0; 20];
+    x[19] = BASE;
+    let kept = vec![r(A, 70), r(B, 35)];
+    // v0.7.3 read one base here and kept the token's rows.
+    assert_eq!(rows(&block(vec![vec![simple()], router(vec![balance_of(2, x, BASE, 0, 50)])])), kept);
+    let mut slot0 = root();
+    slot0.logs = vec![transfer(A, B, 30)];
+    store(&mut slot0, A, 0, 100, 70, 10);
+    store(&mut slot0, B, 0, 5, 35, 11);
+    assert_eq!(rows(&block(vec![vec![slot0], router(vec![balance_of(2, [0; 20], 0, 0, 50)])])), kept);
+    // A symmetric read still checks the word it reads.
+    let mut moved = root();
+    moved.logs = vec![transfer(A, x, 30)];
+    store(&mut moved, A, BASE, 100, 70, 10);
+    store(&mut moved, x, BASE, 5, 35, 11);
+    let read = |value: u64| router(vec![balance_of(2, x, BASE, value, 50)]);
+    assert_eq!(rows(&block(vec![vec![moved.clone()], read(35)])), vec![r(x, 35), r(A, 70)]);
+    assert!(rows(&block(vec![vec![moved], read(36)])).is_empty());
+    // A lone mint to address(3) under Solidity slot 3, as v0.7.3 emitted it.
+    let mut mint = root();
+    mint.logs = vec![transfer([0; 20], x, 5 * U)];
+    store(&mut mint, x, BASE, 0, 5 * U, 10);
+    assert_eq!(rows(&block(vec![vec![mint]])), vec![r(x, 5 * U)]);
+    // Under Vyper slot 3: A's key is in Vyper's order, so is address(3)'s.
+    let mut vyper = root();
+    vyper.logs = vec![transfer(A, x, 30 * U)];
+    store_vyper(&mut vyper, A, &w(3), 100 * U, 70 * U, 10);
+    store(&mut vyper, x, BASE, 5 * U, 35 * U, 11);
+    assert_eq!(rows(&block(vec![vec![vyper]])), vec![r(x, 35 * U), r(A, 70 * U)]);
+    // Two orders that tie on A and B stay tied after a read of address(3).
+    let mut tie = root();
+    tie.logs = vec![transfer(A, B, 30 * U)];
+    store(&mut tie, A, BASE, 100 * U, 70 * U, 10);
+    store(&mut tie, B, BASE, 5 * U, 35 * U, 11);
+    store_vyper(&mut tie, A, &w(3), 100 * U, 70 * U, 12);
+    store_vyper(&mut tie, B, &w(3), 5 * U, 35 * U, 13);
+    assert!(rows(&block(vec![vec![tie.clone()], router(vec![balance_of(2, x, BASE, 0, 50)])])).is_empty());
+    let solidity = router(vec![balance_of(2, B, BASE, 35 * U, 50)]);
+    assert_eq!(rows(&block(vec![vec![tie], solidity])), vec![r(A, 70 * U), r(B, 35 * U)]);
+}
+
 /// Recorded preimages longer than 64 bytes are never decoded, however often
 /// their key is written.
 #[test]

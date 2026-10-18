@@ -461,7 +461,9 @@ impl Base {
 /// 2^64. Every Vyper balance slot seen is below 40; larger ones hold the
 /// arrays of Curve gauges. Where both apply, one reading's holder is an
 /// address below 2^64 (a precompile or a system contract) and the other's is
-/// the number of a slot.
+/// the number of a slot. For `pad(x) || pad(x)` both readings are x's key
+/// under slot x: one storage key, so a read of it is pure under either order
+/// and [`votes`] credits its write to one order only.
 fn readings(b: &[u8; 64]) -> [Option<(Addr, Base)>; 2] {
     let at = |holder: &[u8], slot: &[u8], vyper| {
         let slot = slot.try_into().unwrap();
@@ -780,10 +782,32 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
     for (key, (call, net)) in flows {
         // Each distinct key, and each base, is resolved once per frame.
         let mut deltas = BTreeMap::<(Addr, Base), Net>::new();
+        // `pad(x) || pad(x)` reads as x's key under slot x in both orders: it
+        // is credited once, below.
+        let mut symmetric = Vec::new();
         for (k, (d, _)) in framed.get(key).into_iter().flatten() {
-            for resolved in preimage64(call, k).iter().flat_map(readings).flatten() {
-                deltas.entry(resolved).or_default().merge(d);
+            match preimage64(call, k).as_ref().map(readings) {
+                Some([Some(solidity), Some(vyper)]) if solidity.0 == vyper.0 && solidity.1.slot == vyper.1.slot => {
+                    symmetric.push((solidity, vyper, d));
+                }
+                Some(resolved) => {
+                    for r in resolved.into_iter().flatten() {
+                        deltas.entry(r).or_default().merge(d);
+                    }
+                }
+                None => {}
             }
+        }
+        // Under the order that the frame's other keys of slot x use, and
+        // Solidity's otherwise.
+        let used: BTreeSet<Base> = deltas.keys().map(|(_, base)| *base).collect();
+        for (solidity, vyper, d) in symmetric {
+            let resolved = if used.contains(&vyper.1) && !used.contains(&solidity.1) {
+                vyper
+            } else {
+                solidity
+            };
+            deltas.entry(resolved).or_default().merge(d);
         }
         let mut nested = BTreeMap::<Word, bool>::new();
         let t = tallies.entry(key.1).or_default();
@@ -816,9 +840,13 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
 fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
     let plain = |t: &Tally| t.exact > 0 && !t.nested;
     let base = 'base: {
-        let mut keyed = reads.iter().filter(|r| r.keyed());
-        if let Some(base) = keyed.clone().next().and_then(|r| r.bases.first()) {
-            if keyed.all(|r| r.pure(base)) && tallies.get(base).is_some_and(plain) {
+        // The reads choose a base only when exactly one fits them: a read of
+        // `pad(x) || pad(x)` fits both orders of slot x.
+        let keyed = reads.iter().filter(|r| r.keyed());
+        if let Some(first) = keyed.clone().next() {
+            let fits = |base: &&Base| keyed.clone().all(|r| r.pure(base)) && tallies.get(*base).is_some_and(plain);
+            let mut fitting = first.bases.iter().filter(fits);
+            if let (Some(base), None) = (fitting.next(), fitting.next()) {
                 break 'base *base;
             }
         }
@@ -848,11 +876,15 @@ struct Read {
     value: Word,
     /// In a non-reverted frame: the value reflects persisted state.
     persisted: bool,
-    /// Up to two bases of the verified holder-key preimages (`pad(holder) ||
-    /// slot`, or Vyper's `slot || pad(holder)`, see [`readings`]) computed in
-    /// the read's storage context (the frame and its DELEGATECALL
-    /// descendants).
+    /// The bases of the verified holder-key preimages (`pad(holder) || slot`,
+    /// or Vyper's `slot || pad(holder)`, see [`readings`]) computed in the
+    /// read's storage context (the frame and its DELEGATECALL descendants).
+    /// Two bases name one key only for `pad(x) || pad(x)`, the holder whose
+    /// address is the slot's number.
     bases: Vec<Base>,
+    /// The distinct storage keys of those preimages, up to two: a read whose
+    /// preimages name two keys read two holder words.
+    keys: Vec<Word>,
     /// A call out of that storage context.
     external: bool,
 }
@@ -864,7 +896,7 @@ impl Read {
             // Match the hex text of `pad(holder)` on either side before
             // decoding and hashing.
             let v = value.as_bytes();
-            if self.bases.len() == 2 || v.len() != 128 {
+            if self.keys.len() == 2 || v.len() != 128 {
                 continue;
             }
             let solidity = zeros(&v[..24]) && v[24..64].eq_ignore_ascii_case(holder.as_bytes());
@@ -875,23 +907,26 @@ impl Read {
             let (Ok(bytes), Ok(key)) = (hex::decode(v), hex::decode(key)) else {
                 continue;
             };
-            let Ok(bytes) = <[u8; 64]>::try_from(bytes) else {
+            let (Ok(bytes), Ok(key)) = (<[u8; 64]>::try_from(bytes), Word::try_from(key)) else {
                 continue;
             };
-            if hash(&bytes)[..] != key[..] {
+            if hash(&bytes) != key {
                 continue;
             }
+            if !self.keys.contains(&key) {
+                self.keys.push(key);
+            }
             for (_, base) in readings(&bytes).into_iter().flatten().filter(|(h, _)| *h == self.holder) {
-                if self.bases.len() < 2 && !self.bases.contains(&base) {
+                if !self.bases.contains(&base) {
                     self.bases.push(base);
                 }
             }
         }
     }
-    /// The read computed exactly the holder's key under `base` and called
-    /// nothing else.
+    /// The read computed exactly the holder's key under `base`, no other
+    /// holder key, and called nothing else.
     fn pure(&self, base: &Base) -> bool {
-        self.bases == [*base] && !self.external
+        self.keys.len() == 1 && self.bases.contains(base) && !self.external
     }
     /// The read recorded a holder-key preimage. An unkeyed read shows neither
     /// which mapping it read nor that it read only one.
@@ -968,6 +1003,7 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::S
                 value: call.return_data[..].try_into().unwrap(),
                 persisted: !call.state_reverted,
                 bases: Vec::new(),
+                keys: Vec::new(),
                 external: false,
             };
             let members = members.get(&call.index).map(Vec::as_slice).unwrap_or_default();
