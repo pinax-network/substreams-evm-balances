@@ -1247,9 +1247,9 @@ fn balance_of_vyper(index: u32, holder: [u8; 20], slot: &[u8], value: u64, ordin
 /// the reverse of Solidity's order, in every release (crvUSD, CRV, Curve pools
 /// and gauges, Yearn vaults). Each order is its own base, so they never share
 /// votes or reads, and a Vyper slot is below 2^64. Under a Vyper base the
-/// contract's own word needs a keyed `balanceOf` traced after its last write:
-/// a Yearn v3 vault's `balanceOf(self)` subtracts the shares still unlocking,
-/// which fall with time and no write.
+/// contract's own row is never emitted, from a write or a read: a Yearn v3
+/// vault's `balanceOf(self)` subtracts the shares still unlocking, which fall
+/// with time and no write.
 #[test]
 fn vyper_hash_maps_key_the_slot_first() {
     let one = w(1);
@@ -1283,6 +1283,8 @@ fn vyper_hash_maps_key_the_slot_first() {
         with(vec![balance_of_vyper(2, FROM, &one, 42, 50)]),
         vec![r(A, 70 * U), r(B, 35 * U), r(FROM, 42)]
     );
+    // The contract's own read supplies no row (Solidity's would).
+    assert_eq!(with(vec![balance_of_vyper(2, TOKEN, &one, 42, 50)]), kept);
     assert!(with(vec![balance_of(2, B, 1, 35 * U, 50)]).is_empty());
     // The contract's own word, which `Transfer(0, TOKEN)` names (a Yearn v3
     // report mints its fee shares to the vault).
@@ -1301,9 +1303,9 @@ fn vyper_hash_maps_key_the_slot_first() {
     let own = [vec![r(TOKEN, 25 * U)], kept.clone()].concat();
     assert_eq!(rows(&block(vec![vec![report(false)]])), own);
     assert_eq!(rows(&block(vec![vec![report(true)]])), kept);
+    // A read after the write that shows the word still gives no own row.
     let read = |value: u64, ordinal: u64| router(vec![balance_of_vyper(2, TOKEN, &one, value, ordinal)]);
-    assert_eq!(rows(&block(vec![vec![report(true)], read(25 * U, 50)])), own);
-    // A read before the write saw only the earlier word.
+    assert_eq!(rows(&block(vec![vec![report(true)], read(25 * U, 50)])), kept);
     assert_eq!(rows(&block(vec![read(20 * U, 5), vec![report(true)]])), kept);
     // `balanceOf(self)` less the unlocking shares contradicts the stored word.
     assert!(rows(&block(vec![vec![report(true)], read(24 * U, 50)])).is_empty());
@@ -1638,14 +1640,14 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
 /// Captured Ethereum block 26,174,479, transaction 178
 /// (`fixtures/v074/eth-26174479-scrvusd-report.pb`): a report of scrvUSD, a
 /// Yearn v3 vault (Vyper), writes the vault's own word, 5480155112664263237347
-/// shares under `HashMap` slot 18, and no `balanceOf(vault)` follows, so the
-/// vault gets no row. VaultV3 returns that word less the shares still
-/// unlocking: the RPC era's `balanceOf(vault)` fell to 325862159115270955558
-/// by block 26,214,028 with no further write. A keyed read appended after the
-/// report keeps the row when it returns the word and drops the vault's rows
-/// for the block when it returns less; crvUSD's rows stay.
+/// shares under `HashMap` slot 18. VaultV3 returns that word less the shares
+/// still unlocking: the RPC era's `balanceOf(vault)` fell to
+/// 325862159115270955558 by block 26,214,028 with no further write. So the
+/// vault never gets a row of its own: a keyed read appended after the report
+/// that returns the word adds none, and one that returns less contradicts the
+/// word and drops the vault's rows for the block; crvUSD's rows stay.
 #[test]
-fn captured_yearn_v3_vault_needs_a_read_of_its_own_balance() {
+fn captured_yearn_v3_vault_never_gets_its_own_row() {
     let block = eth::Block::decode_from_slice(include_bytes!("fixtures/v074/eth-26174479-scrvusd-report.pb").as_slice()).unwrap();
     let vault: [u8; 20] = hex::decode("0655977feb2f289a4ab78af67bab0d17aab84367").unwrap().try_into().unwrap();
     let crvusd = hex::decode("f939e0a03fb07f59a73314e73794be0e57ac1b4e").unwrap();
@@ -1669,7 +1671,8 @@ fn captured_yearn_v3_vault_needs_a_read_of_its_own_balance() {
         b
     };
     let word: u128 = 5480155112664263237347;
-    assert_eq!(of(&read(word), &vault), vec![(hex::encode(vault), word.to_string())]);
+    assert!(of(&read(word), &vault).is_empty());
+    assert_eq!(of(&read(word), &crvusd), stablecoin);
     assert!(of(&read(word - 1), &vault).is_empty());
     assert_eq!(of(&read(word - 1), &crvusd), stablecoin);
 }

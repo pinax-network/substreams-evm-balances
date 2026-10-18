@@ -129,9 +129,9 @@ longer recorded preimages are never decoded. Per block and per contract
    `DestroyedBlackFunds` in the frame also explains the write when its amount
    equals the frame's net change of the holder's word, a destruction also
    leaving it at zero. The contract's own word needs no explanation, except
-   under a Vyper base since v0.7.4 (owner, 2026-10-17): there it needs a keyed
-   `balanceOf` of the contract traced after its last write, because a Yearn
-   v3 vault's `balanceOf(self)` is its word less the shares still unlocking,
+   under a Vyper base since v0.7.4 (owner, 2026-10-17): there the contract's
+   own row is never emitted, from a write or a read, because a Yearn v3
+   vault's `balanceOf(self)` is its word less the shares still unlocking,
    which fall with time and no write. A candidate without a write gets the
    value of a keyed `balanceOf` that read only the base. Everyone else stays
    unknown; nothing becomes zero.
@@ -301,15 +301,15 @@ and holders.
   the point's ts (and slope) right after it, which excludes the contract
   (rule 4); a traced `balanceOf` calls the voting escrow, which vetoes. No
   saved block has a BoostV2 write. A Yearn v3 vault computes only its own
-  balance, which rule 6 guards. A traced keyed `balanceOf(vault)` after the
-  vault's last write that returns less than its word (shares still
-  unlocking) contradicts it and drops all of the vault's rows for the block,
-  not only its own. Yearn v3's Solidity TokenizedStrategy computes its own
-  balance the same way, and keeps its own row like any Solidity contract. On
-  Ethereum blocks 26,174,479, 26,194,925, 26,203,984 and 26,210,251, the 123
-  rows of Vyper tokens include 121 that equal the RPC era at the block; its
-  1-minute bars cannot pin the other 2, and only the vault's own row,
-  dropped by the guard, is missing against an offline model of the rules.
+  balance, a row that rule 6 never emits. A traced keyed `balanceOf(vault)`
+  after the vault's last write that returns less than its word (shares still
+  unlocking) contradicts it and drops all of the vault's rows for the block.
+  Yearn v3's Solidity TokenizedStrategy computes its own balance the same
+  way, and keeps its own row like any Solidity contract. On Ethereum blocks
+  26,174,479, 26,194,925, 26,203,984 and 26,210,251, the 123 rows of Vyper
+  tokens include 121 that equal the RPC era at the block; its 1-minute bars
+  cannot pin the other 2, and only the vault's own row, which rule 6 never
+  emits, is missing against an offline model of the rules.
 - **FiatToken blacklists.** FiatToken v2.2, USDC on Ethereum, Base,
   Optimism, Polygon, Arbitrum One and Unichain, sets bit 255 of a holder's
   balance word on `blacklist` and clears it on `unBlacklist`, and its
@@ -429,7 +429,7 @@ only USDT frame is a destruction, six blocks whose only WETH or WBNB
 frames are WETH9 deposits or withdrawals, three Polygon state-sync blocks
 whose tokens v0.7.3 dropped, and four blocks of Vyper tokens (scrvUSD, 3Crv,
 CRV and crvUSD) that v0.7.3 did not infer, one of them a Yearn v3 report
-whose vault gets no row of its own until a read after the report is
+whose vault gets no row of its own, even when a read after the report is
 added. The same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested

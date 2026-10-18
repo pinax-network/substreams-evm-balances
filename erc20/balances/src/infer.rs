@@ -57,8 +57,8 @@
 //!    Tether `Issue`/`Redeem` (for the frame's sender) or `DestroyedBlackFunds`
 //!    whose amount equals the frame's net change of the holder's word, a
 //!    destruction also leaving it at zero. The contract's own word needs no
-//!    explanation, except under a Vyper base, where it always needs a keyed
-//!    `balanceOf` of the contract traced after its last write: a Yearn v3
+//!    explanation, except under a Vyper base, where the contract's own row is
+//!    never emitted, from a write or a read (owner, 2026-10-17): a Yearn v3
 //!    vault computes its own balance. A holder whose last write is unexplained
 //!    needs its own keyed `balanceOf`, traced after that write. A flag that
 //!    `balanceOf` masks, such as FiatToken v2.2's blacklist bit 255, is never
@@ -1178,9 +1178,11 @@ fn decide(
                 }
             }
             // The holder's mapping word has no persisted write in the block.
+            // Under a Vyper base the contract's own row is never emitted
+            // (below), so a read of it supplies no value.
             // Keep the mutating `values.insert` out of the match guard.
             #[allow(clippy::collapsible_match)]
-            None if holders.contains(&r.holder) && r.keyed() => {
+            None if holders.contains(&r.holder) && r.keyed() && !(base.vyper && r.holder == *token) => {
                 if values.insert(r.holder, r.value).is_some_and(|v| v != r.value) {
                     return None;
                 }
@@ -1203,11 +1205,12 @@ fn decide(
                 return None;
             }
             // The contract's own word needs no explanation, except under a
-            // Vyper base: a Yearn v3 vault's `balanceOf(self)` is its word
-            // less the shares still unlocking, which fall with time and no
-            // write, so only a read after the last write shows the balance.
+            // Vyper base, where it is never emitted: a Yearn v3 vault's
+            // `balanceOf(self)` is its word less the shares still unlocking,
+            // which fall with time and no write or event: even a row that a
+            // read confirms goes stale in the next blocks.
             let keep = if holder == token {
-                !base.vyper || vouched
+                !base.vyper
             } else {
                 names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched
             };
