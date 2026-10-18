@@ -2,66 +2,170 @@
 //! block's persisted storage. Per block and per contract:
 //!
 //! 1. Candidates are the RPC reference's `(contract, holder)` pairs: see
-//!    [`candidates`].
+//!    [`candidates`]. For Tether `Issue`/`Redeem`, where the reference called
+//!    `owner()`, the holder is the sender of the emitting frame: both functions
+//!    are owner-only and move the sender's balance. TrueCurrency's
+//!    `DestroyedBlackFunds` also names its holder.
 //! 2. Every non-reverted call frame of a successful transaction votes. A holder's
 //!    signed net `Transfer` flow in the frame is compared with the net delta of
 //!    the frame's persisted writes whose key has a verified same-frame Keccak
-//!    preimage `pad(holder) || base`. Equal is an exact vote for `base`, unequal
-//!    a mismatch. Exact votes for flows below 10^6 do not count for a base that
-//!    also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` never vote.
+//!    preimage of the holder's key under a base: Solidity's
+//!    `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17), Vyper's
+//!    `slot || pad(holder)` with a slot below 2^64 (see [`Base`]). Equal is an
+//!    exact vote for the base, unequal a mismatch; the two key orders are
+//!    different bases. Exact votes for flows below 10^6 do not count for a
+//!    base that also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` and
+//!    Tether's admin events do not vote, except in a block where the contract
+//!    has no `Transfer` flow: there a CALL frame votes the amount of its only
+//!    log of the contract when the frame's own execution backs that amount
+//!    (see [`backed`]). The cases are a WETH9 `deposit()` by the holder that
+//!    receives exactly that native value and makes no call, a WETH9
+//!    `withdraw(wad)` by the holder whose only call pays exactly that value to
+//!    the holder with the 2,300 gas of a `transfer`, each writing one word of
+//!    the contract, and a TetherToken `destroyBlackFunds(holder)` that makes
+//!    no call, zeroes the holder's word and moves one unhashed word (the
+//!    supply) by the same amount.
 //! 3. The base is the mapping every keyed `balanceOf` reads, if it has exact
 //!    votes, or else the base with the most exact votes; a tie chooses none.
-//!    A traced `balanceOf` is keyed when its storage context recorded a
-//!    `pad(holder) || base` preimage. Producers on firehose-tracer 5.5.0 and
-//!    later keep only the preimages that explain a storage write of their
-//!    transaction, so a read of an unchanged holder is usually not keyed.
+//!    A traced `balanceOf` is keyed when its storage context recorded the
+//!    preimage of the holder's key under a base. Producers on firehose-tracer
+//!    5.5.0 and later keep only the preimages that explain a storage write of
+//!    their transaction, so a read of an unchanged holder is usually not
+//!    keyed.
 //!    Inner (nested) mappings are never chosen, nor a base whose own large
 //!    mismatches outnumber its exact votes.
 //! 4. The contract is excluded for the block when a persisted record or event
 //!    address is malformed, its code is removed or it self-destructs, writes to
 //!    one key are discontinuous, a traced `balanceOf` calls out or returns a
 //!    value that contradicts storage, a keyed one reads other holder state, or
-//!    a successful `balanceOf` call to it lacks a 36-byte input or return data,
-//!    as when a producer truncated it.
+//!    a successful `balanceOf` call to it keeps only its 4-byte selector or has
+//!    no return data, the shape a producer leaves when it cuts a call, where a
+//!    cut was possible (see [`cut_possible`]). A `balanceOf` input of more than
+//!    36 bytes is read as `balanceOf(input[16..36])`, as the ABI decoder reads
+//!    it; a shorter one, or a longer one with nonzero upper address bytes, only
+//!    vetoes. It is also excluded when a candidate holder's written word under
+//!    the base has a written word one or two keys after it, a struct field
+//!    such as Curve BoostV2's `Point` (bias, slope, ts), unless the holder's
+//!    own keyed `balanceOf` traced after its last write shows the word. Since
+//!    v0.7.4 it is also excluded when a traced `scaledBalanceOf(holder)` (see
+//!    [`scaled_balance_of`]) reads the chosen mapping: keyed to exactly the
+//!    holder's key under it with no call out, or in a non-reverted frame
+//!    returning the holder's stored word. The word is then a scaled balance
+//!    that `balanceOf` converts, such as the shares of Liquorice's
+//!    lending-pool tokens. Scaled reads play no other part. Since v0.7.4 it
+//!    is also excluded when a holder's net delta under the chosen base is
+//!    nonzero and differs from its flow by a factor of at least 1000 (see
+//!    [`rescaled`]): the word is kept in another unit for that holder, as
+//!    OUSD and OETH keep a rebasing holder's credits, while the exact votes
+//!    come from holders whose word is the balance.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
 //!    matching, only mismatches of at least a thousandth of the flow count.
 //! 6. Candidate holders written under the base get their last persisted word,
-//!    unless that write is unexplained: a holder other than the contract whose
-//!    last write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
-//!    naming it needs its own keyed `balanceOf`. Candidate holders without a
-//!    write get the value of a keyed `balanceOf` that read exactly the base.
+//!    unless that write is unexplained. A write is explained when its frame has
+//!    a `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn` naming the holder, or a
+//!    Tether `Issue`/`Redeem` (for the frame's sender) or `DestroyedBlackFunds`
+//!    whose amount equals the frame's net change of the holder's word, a
+//!    destruction also leaving it at zero. The contract's own word needs no
+//!    explanation, except under a Vyper base, where the contract's own row is
+//!    never emitted, from a write or a read (owner, 2026-10-17): a Yearn v3
+//!    vault computes its own balance. A holder whose last write is unexplained
+//!    needs its own keyed `balanceOf`, traced after that write. FiatToken
+//!    v2.2's `balanceOf` masks its blacklist flag, bit 255 of the word: a read
+//!    that returns the stored word without that bit does not contradict it
+//!    when the write that supplies the word only toggles bit 255 in a frame
+//!    whose `Blacklisted` or `UnBlacklisted` names the holder, and that holder
+//!    then gets no row. Any other masked read contradicts the stored word and
+//!    drops the contract for the block. Candidate holders without a write get
+//!    the value of a keyed `balanceOf` that read exactly the base.
+//!
+//! Writes and reads are in execution order: by ordinal, except in a
+//! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
+//! the ordinals; there they are ordered by depth-1 call, then ordinal (see
+//! [`bor`]). A transaction with the state-sync signature in any other layout
+//! drops every contract it writes or calls `balanceOf` of.
 //!
 //! Inference never fails a block: any detected doubt drops that contract's
 //! inferred rows for the block. Holders without a write or such a read stay
 //! unknown. Per-block work is bounded by the block's calls, logs, writes and
 //! 64-byte preimages; longer recorded preimages are never decoded.
-use crate::{eth, hash, mapping, persist};
+mod bor;
+
+use crate::{eth, hash, persist};
+use bor::Seq;
+use buffa::Message;
 use std::collections::{BTreeMap, BTreeSet};
 
 type Addr = [u8; 20];
 type Word = [u8; 32];
 /// (system call, transaction index, call index)
 type Frame = (bool, u32, u32);
-/// Net `Transfer` flow per holder of one contract in one frame.
+/// Net voting flow per holder of one contract in one frame.
 type Flows<'a> = BTreeMap<(Frame, Addr), (&'a eth::Call, BTreeMap<Addr, Net>)>;
-/// Per contract, the `(frame, holder)` pairs that a balance event names.
-type Named = BTreeMap<Addr, BTreeSet<(Frame, Addr)>>;
+/// Per contract, the holders that its events name or explain.
+type Named = BTreeMap<Addr, Names>;
+/// Per frame and contract, the net persisted delta and the last new word of
+/// each written key.
+type Framed = BTreeMap<(Frame, Addr), BTreeMap<Word, (Net, Word)>>;
+
+/// The holders whose writes in a frame a contract's events account for.
+#[derive(Default)]
+struct Names {
+    /// `(frame, holder)` pairs that a balance event names.
+    named: BTreeSet<(Frame, Addr)>,
+    /// Tether admin events: the signed amount they state for a holder in a
+    /// frame, and whether its word must end at zero (a destruction). They
+    /// explain the holder's write only when the frame's net change of the
+    /// holder's word under the chosen base equals that amount.
+    admin: BTreeMap<(Frame, Addr), (Net, bool)>,
+    /// FiatToken v2.2 `Blacklisted`/`UnBlacklisted`: the `(frame, holder)`
+    /// pairs whose flag bit 255 the frame may set or clear.
+    flags: BTreeSet<(Frame, Addr)>,
+}
 
 const SUCCEEDED: eth::TransactionTraceStatus = eth::TransactionTraceStatus::Succeeded;
 const CALL: eth::CallType = eth::CallType::Call;
 const STATIC: eth::CallType = eth::CallType::Static;
 const DELEGATE: eth::CallType = eth::CallType::Delegate;
 const BALANCE_OF: [u8; 4] = [0x70, 0xa0, 0x82, 0x31];
+/// `scaledBalanceOf(address)`: the stored share or scaled word of a token
+/// whose `balanceOf` converts it (Liquorice's lending-pool tokens, Aave's
+/// aTokens).
+const SCALED_BALANCE_OF: [u8; 4] = [0x1d, 0xa2, 0x4f, 0x3e];
+/// TetherToken `destroyBlackFunds(address)`.
+const DESTROY_BLACK_FUNDS: [u8; 4] = [0xf3, 0xbd, 0xc2, 0x28];
 const ZERO: Addr = [0; 20];
 const TRANSFER: Word = topic("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+/// TetherToken `Issue(uint256)` and `Redeem(uint256)`: the owner-only issue
+/// and redemption of the sender's own balance.
+const ISSUE: Word = topic("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a");
+const REDEEM: Word = topic("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44");
+/// `DestroyedBlackFunds(address,uint256)`: TetherToken's, with nothing
+/// indexed, and TrueCurrency's, with the holder indexed. Both zero a
+/// blacklisted holder's balance and state the amount destroyed.
+const DESTROYED_BLACK_FUNDS: Word = topic("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6");
+/// FiatToken v2.2 `Blacklisted(address indexed)` and
+/// `UnBlacklisted(address indexed)`: they set and clear bit 255 of the
+/// holder's balance word, which its `balanceOf` masks.
+const BLACKLISTED: Word = topic("ffa4e6181777692565cf28528fc88fd1516ea86b56da075235fa575af6a4b855");
+const UNBLACKLISTED: Word = topic("117e3210bb9aa7d9baff172026820255c6f6c30ba8999d1c2fd88e2848137c4e");
+/// WETH9 `Deposit(address indexed, uint256)` and
+/// `Withdrawal(address indexed, uint256)`.
+const DEPOSIT: Word = topic("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c");
+const WITHDRAWAL: Word = topic("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65");
+/// WETH9 `deposit()` and `withdraw(uint256)`.
+const DEPOSIT_CALL: [u8; 4] = [0xd0, 0xe3, 0x0d, 0xb0];
+const WITHDRAW_CALL: [u8; 4] = [0x2e, 0x1a, 0x7d, 0x4d];
+/// The gas a Solidity `transfer` forwards with a value: WETH9's payout.
+const STIPEND: u64 = 2300;
 /// WETH `Deposit`/`Withdrawal` and the `Mint`/`Burn(address indexed, uint256)`
 /// of DSToken, WBTC, FiatToken and Tether: they name a holder whose balance
-/// changes, but may also mean staking or locking, so they never vote.
+/// changes, but may also mean staking or locking, so they vote only when the
+/// frame's own execution backs them (see [`backed`]).
 const CREDITS_DEBITS: [Word; 4] = [
-    topic("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c"),
-    topic("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65"),
+    DEPOSIT,
+    WITHDRAWAL,
     topic("0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885"),
     topic("cc16f5dbb4873280815c1ee09dbd06736cffcc184412cf7a71a0fdb75d397ca5"),
 ];
@@ -95,10 +199,11 @@ enum Part {
     Topics12,
     Word0,
     Words01,
-    /// The caller of the frame that emitted the log.
+    /// The recorded caller of the frame that emitted the log, as the
+    /// reference takes it: under a DELEGATECALL, the proxy itself.
     Caller,
-    /// The reference's holder is an `owner()` RPC result: not reproducible.
-    RpcOwner,
+    /// The msg.sender of the frame that emitted the log (see [`senders`]).
+    Sender,
 }
 struct Shape {
     topic0: Word,
@@ -116,8 +221,13 @@ const fn shape(topic0: &str, topics: usize, data: usize, part: Part) -> Shape {
 }
 /// The event shapes of the RPC reference (substreams-evm erc20-balances v0.3.4
 /// with its erc20-transfers and erc20-tokens inputs): topic0, exact topic count
-/// and exact data length, with no address filter.
-const SHAPES: [Shape; 64] = [
+/// and exact data length, with no address filter. Since v0.7.4 (owner,
+/// 2026-10-17) Tether `Issue`/`Redeem` name the emitting frame's sender, where
+/// the reference called `owner()`: both are owner-only and move the sender's
+/// balance. TrueCurrency's `DestroyedBlackFunds(address indexed,uint256)`, the
+/// last shape, is not one of the reference's. stETH `ExternalSharesBurnt`
+/// names the emitting frame's recorded caller, as the reference does.
+const SHAPES: [Shape; 65] = [
     shape("e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c", 2, 32, Part::Topic1), // weth.Deposit
     shape("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65", 2, 32, Part::Topic1), // weth.Withdrawal
     shape("ab8530f87dc9b59234c4623bf917212bb2536d647574c8e7e5da92c2ede0c9f8", 3, 32, Part::Topics12), // fiattokenv2_2.Mint
@@ -135,8 +245,8 @@ const SHAPES: [Shape; 64] = [
     shape("7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33", 1, 0, Part::Context), // fiattokenv2_2.Unpause
     shape("1cdd46ff242716cdaa72d159d339a485b3438398348d68f09d7c8c0a59353d81", 3, 0, Part::Context), // fiattokenv2_2.AuthorizationCanceled
     shape("98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5", 3, 0, Part::Context), // fiattokenv2_2.AuthorizationUsed
-    shape("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a", 1, 32, Part::RpcOwner), // tethertoken.Issue
-    shape("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44", 1, 32, Part::RpcOwner), // tethertoken.Redeem
+    shape("cb8241adb0c3fdb35b70c24ce35c5eb0c17af7431c99f827d44a445ca624176a", 1, 32, Part::Sender), // tethertoken.Issue
+    shape("702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44", 1, 32, Part::Sender), // tethertoken.Redeem
     shape("cc358699805e9a8b7f77b522628c7cb9abd07d9efb86b6fb616af1609036a99e", 1, 32, Part::Context), // tethertoken.Deprecate
     shape("b044a1e409eac5c48e5af22d4af52670dd1a99059537a78b31b48c6500a6354e", 1, 64, Part::Context), // tethertoken.Params
     shape("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6", 1, 64, Part::Word0),  // tethertoken.DestroyedBlackFunds
@@ -182,6 +292,7 @@ const SHAPES: [Shape; 64] = [
     shape("61f9416d3c29deb4e424342445a2b132738430becd9fa275e11297c90668b22e", 1, 32, Part::Context), // steth.LidoLocatorSet
     shape("ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", 3, 32, Part::Topics12), // erc20.Transfer
     shape("8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925", 3, 32, Part::Topics12), // erc20.Approval
+    shape("61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6", 2, 32, Part::Topic1), // truecurrency.DestroyedBlackFunds
 ];
 
 fn insert(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, contract: &[u8], holder: &[u8]) {
@@ -191,7 +302,9 @@ fn insert(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, contract: &[u8], holder: &[u
         }
     }
 }
-fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, caller: Option<&[u8]>) {
+/// One log's candidates: `frame` is the emitting call's recorded caller and
+/// msg.sender, absent for a receipt log.
+fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, frame: Option<(&[u8], &[u8])>) {
     let Some(topic0) = log.topics.first() else {
         return;
     };
@@ -202,18 +315,16 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
         }
         let topic = |i: usize| Some(&log.topics[i][12..32]);
         let word = |i: usize| Some(&log.data[i * 32 + 12..i * 32 + 32]);
-        let parts = match s.part {
-            Part::RpcOwner => continue,
-            Part::Caller => match caller {
-                Some(caller) => [Some(caller), None],
-                None => continue,
-            },
-            Part::Context => [None, None],
-            Part::Topic1 => [topic(1), None],
-            Part::Topic2 => [topic(2), None],
-            Part::Topics12 => [topic(1), topic(2)],
-            Part::Word0 => [word(0), None],
-            Part::Words01 => [word(0), word(1)],
+        let parts = match (s.part, frame) {
+            (Part::Caller, Some((caller, _))) => [Some(caller), None],
+            (Part::Sender, Some((_, sender))) => [Some(sender), None],
+            (Part::Caller | Part::Sender, None) => continue,
+            (Part::Context, _) => [None, None],
+            (Part::Topic1, _) => [topic(1), None],
+            (Part::Topic2, _) => [topic(2), None],
+            (Part::Topics12, _) => [topic(1), topic(2)],
+            (Part::Word0, _) => [word(0), None],
+            (Part::Words01, _) => [word(0), word(1)],
         };
         matched = true;
         for holder in parts.into_iter().flatten() {
@@ -227,9 +338,10 @@ fn visit(out: &mut BTreeMap<Addr, BTreeSet<Addr>>, from: &[u8], log: &eth::Log, 
 }
 /// The RPC reference's `(contract, holder)` candidates for a block, by
 /// contract. Successful transactions' logs from non-reverted calls (receipt
-/// logs when a trace has no calls) that match a reference event shape add
+/// logs when a trace has no calls) that match an event shape of [`SHAPES`] add
 /// its holders, `tx.from` and the contract; zero or non-20-byte addresses are
-/// dropped. USDT `Issue`/`Redeem` are omitted: their holder needs `owner()` RPC.
+/// dropped. Tether `Issue`/`Redeem` take the emitting frame's msg.sender, and
+/// stETH `ExternalSharesBurnt` its recorded caller.
 pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
     let mut out = BTreeMap::new();
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
@@ -238,11 +350,27 @@ pub(crate) fn candidates(block: &eth::Block) -> BTreeMap<Addr, BTreeSet<Addr>> {
                 visit(&mut out, &tx.from, log, None);
             }
         }
+        let senders = senders(tx);
         for call in tx.calls.iter().filter(|c| !c.state_reverted) {
+            let frame = senders.get(&call.index).map(|sender| (&call.caller[..], *sender));
             for log in &call.logs {
-                visit(&mut out, &tx.from, log, Some(&call.caller));
+                visit(&mut out, &tx.from, log, frame);
             }
         }
+    }
+    out
+}
+/// The msg.sender of each call of a transaction, by call index: a
+/// DELEGATECALL runs with its parent's sender, every other call with its own
+/// caller (Firehose records a DELEGATECALL's caller as the proxy itself).
+fn senders(tx: &eth::TransactionTrace) -> BTreeMap<u32, &[u8]> {
+    let mut out = BTreeMap::new();
+    for c in &tx.calls {
+        let own = match out.get(&c.parent_index) {
+            Some(parent) if c.call_type == DELEGATE => *parent,
+            _ => &c.caller[..],
+        };
+        out.insert(c.index, own);
     }
     out
 }
@@ -298,6 +426,25 @@ impl Net {
         out
     }
 }
+/// `1000 * a <= b` for magnitudes (little-endian limbs).
+fn thousandfold(a: [u64; 5], b: [u64; 5]) -> bool {
+    let mut scaled = [0u64; 5];
+    let mut carry = 0u128;
+    for (s, l) in scaled.iter_mut().zip(a) {
+        let p = u128::from(l) * 1000 + carry;
+        *s = p as u64;
+        carry = p >> 64;
+    }
+    carry == 0 && scaled.iter().rev().cmp(b.iter().rev()).is_le()
+}
+/// A nonzero delta that differs from the flow by a factor of at least 1000
+/// (`|delta| >= 1000 |flow|` or `1000 |delta| <= |flow|`): a word kept in
+/// another unit than the events, such as OUSD's and OETH's credits of a
+/// rebasing holder.
+fn rescaled(flow: &Net, delta: &Net) -> bool {
+    let (f, d) = (flow.abs(), delta.abs());
+    !delta.is_zero() && (thousandfold(f, d) || thousandfold(d, f))
+}
 /// `|delta| * 1000 >= |flow|`: a mismatch too large for a counter.
 fn large(flow: &Net, delta: &Net) -> bool {
     let (flow, delta) = (flow.abs(), delta.abs());
@@ -316,6 +463,12 @@ fn word(bytes: &[u8]) -> Option<Word> {
     out.get_mut(32usize.checked_sub(bytes.len())?..)?.copy_from_slice(bytes);
     Some(out)
 }
+/// The native value a call moves, as a number: an absent value is zero, and
+/// leading zero bytes do not count. `None` above 2^256.
+fn value(call: &eth::Call) -> Option<Word> {
+    let bytes = call.value.as_option().map_or(&[][..], |v| &v.bytes[..]);
+    word(&bytes[bytes.iter().take_while(|b| **b == 0).count()..])
+}
 fn topic_address(t: &[u8]) -> Option<Addr> {
     (t.len() == 32 && t[..12] == [0; 12]).then(|| t[12..].try_into().unwrap())
 }
@@ -327,10 +480,56 @@ fn preimage64(call: &eth::Call, key: &Word) -> Option<[u8; 64]> {
     let bytes: [u8; 64] = hex::decode(value).ok()?.try_into().ok()?;
     (hash(&bytes) == *key).then_some(bytes)
 }
-/// The verified same-frame preimage `pad(holder) || base` of a storage key.
+/// The verified same-frame Solidity preimage `pad(holder) || base` of a
+/// storage key: WETH9's and TetherToken's (see [`backed`]).
 fn preimage(call: &eth::Call, key: &Word) -> Option<(Addr, Word)> {
-    let bytes = preimage64(call, key)?;
-    (bytes[..12] == [0; 12]).then(|| (bytes[12..32].try_into().unwrap(), bytes[32..].try_into().unwrap()))
+    let (holder, base) = readings(&preimage64(call, key)?)[0]?;
+    Some((holder, base.slot))
+}
+
+/// A holder mapping (`mapping(address => uint256)`): its slot and key order.
+/// Solidity keys a holder's word at `keccak(pad(holder) || slot)`. Vyper's
+/// `HashMap` keys it at `keccak(slot || pad(holder))` in every release from
+/// 0.1 to 0.5, legacy and venom code generation alike, and the tracer records
+/// that 64-byte preimage; since v0.7.4 (owner, 2026-10-17) both orders are
+/// read. The two orders are different bases: they never share votes or
+/// reads.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct Base {
+    slot: Word,
+    vyper: bool,
+}
+impl Base {
+    /// The storage key of `holder`'s word.
+    fn key(&self, holder: &Addr) -> Word {
+        let mut preimage = [0; 64];
+        if self.vyper {
+            preimage[..32].copy_from_slice(&self.slot);
+            preimage[44..].copy_from_slice(holder);
+        } else {
+            preimage[12..32].copy_from_slice(holder);
+            preimage[32..].copy_from_slice(&self.slot);
+        }
+        hash(&preimage)
+    }
+}
+/// The readings of a 64-byte preimage as a holder's key: Solidity's
+/// `pad(holder) || slot`, and Vyper's `slot || pad(holder)` with a slot below
+/// 2^64. Every Vyper balance slot seen is below 40; larger ones hold the
+/// arrays of Curve gauges. Where both apply, one reading's holder is an
+/// address below 2^64 (a precompile or a system contract) and the other's is
+/// the number of a slot. For `pad(x) || pad(x)` both readings are x's key
+/// under slot x: one storage key, so a read of it is pure under either order
+/// and [`votes`] credits its write to one order only.
+fn readings(b: &[u8; 64]) -> [Option<(Addr, Base)>; 2] {
+    let at = |holder: &[u8], slot: &[u8], vyper| {
+        let slot = slot.try_into().unwrap();
+        (holder.try_into().unwrap(), Base { slot, vyper })
+    };
+    [
+        (b[..12] == [0; 12]).then(|| at(&b[12..32], &b[32..], false)),
+        (b[..24] == [0; 24] && b[32..44] == [0; 12]).then(|| at(&b[44..], &b[..32], true)),
+    ]
 }
 
 struct Write {
@@ -338,12 +537,17 @@ struct Write {
     key: Word,
     old: Word,
     new: Word,
-    ordinal: u64,
+    /// The write's place in execution order.
+    seq: Seq,
 }
 /// Persisted storage writes of candidate contracts with their frame, from the
 /// shared persistence rules.
 struct Persisted<'a> {
     tokens: &'a BTreeMap<Addr, BTreeSet<Addr>>,
+    /// The block's recognized Bor state-sync transaction, and the indices of
+    /// transactions with its signature in another layout.
+    sync: Option<&'a bor::StateSync>,
+    unordered: &'a BTreeSet<u32>,
     writes: BTreeMap<Addr, Vec<Write>>,
     doubt: BTreeSet<Addr>,
 }
@@ -357,13 +561,18 @@ impl persist::Sink for Persisted<'_> {
         let Some(address) = self.token(&c.address) else {
             return;
         };
+        let tx = !matches!(ctx.scope, persist::Scope::SystemCall | persist::Scope::Block);
+        let tx = tx.then_some(ctx.tx_index);
+        if tx.is_some_and(|tx| self.unordered.contains(&tx)) {
+            self.doubt.insert(address);
+        }
         match (word(&c.key), word(&c.old_value), word(&c.new_value)) {
             (Some(key), Some(old), Some(new)) if c.ordinal > 0 => self.writes.entry(address).or_default().push(Write {
                 frame: (ctx.scope == persist::Scope::SystemCall, ctx.tx_index, ctx.call_index),
                 key,
                 old,
                 new,
-                ordinal: c.ordinal,
+                seq: bor::seq(self.sync, tx, ctx.call_index, c.ordinal),
             }),
             _ => {
                 self.doubt.insert(address);
@@ -380,13 +589,40 @@ impl persist::Sink for Persisted<'_> {
     }
 }
 
+/// A Tether admin event: the holder whose word it moves, its signed amount,
+/// and whether the word must end at zero. `Issue`/`Redeem` move the emitting
+/// frame's sender; `DestroyedBlackFunds` zeroes the holder it names (data word
+/// 0 for TetherToken, topic 1 for TrueCurrency). An amount of zero, a
+/// malformed holder or the zero address gives none.
+fn admin(log: &eth::Log, t0: &[u8], sender: impl FnOnce() -> Option<Addr>) -> Option<(Addr, Net, bool)> {
+    let (topics, data) = (log.topics.len(), &log.data[..]);
+    let (holder, amount, debit, zero) = match (topics, data.len()) {
+        (1, 32) if t0 == ISSUE => (sender()?, data, false, false),
+        (1, 32) if t0 == REDEEM => (sender()?, data, true, false),
+        (1, 64) if t0 == DESTROYED_BLACK_FUNDS => (topic_address(&data[..32])?, &data[32..], true, true),
+        (2, 32) if t0 == DESTROYED_BLACK_FUNDS => (topic_address(&log.topics[1])?, data, true, true),
+        _ => return None,
+    };
+    let amount = Word::try_from(amount).ok().filter(|a| *a != [0; 32])?;
+    let mut net = Net::default();
+    if debit {
+        net.sub(&amount);
+    } else {
+        net.add(&amount);
+    }
+    (holder != ZERO).then_some((holder, net, zero))
+}
+
 /// Net `Transfer` flows per frame of contracts with persisted writes, and the
-/// holders that their balance events name. Self-destructing contracts and
-/// malformed event addresses are doubted.
+/// holders that their balance events name or that a Tether admin event may
+/// explain. Self-destructing contracts and malformed event addresses are
+/// doubted.
 fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: &mut BTreeSet<Addr>) -> (Flows<'a>, Named) {
     let mut flows = Flows::new();
     let mut named = Named::new();
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        // Resolved only for a transaction with an `Issue` or `Redeem`.
+        let mut senders_of_tx = None;
         for call in tx.calls.iter().filter(|c| !c.state_reverted) {
             if call.suicide {
                 // SELFDESTRUCT acts on the storage context: a DELEGATECALL's caller.
@@ -401,7 +637,23 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
                 let Some(token) = Addr::try_from(log.address.as_slice()).ok().filter(|t| writes.contains_key(t)) else {
                     continue;
                 };
-                let (Some(t0), Ok(value)) = (log.topics.first(), Word::try_from(log.data.as_slice())) else {
+                let Some(t0) = log.topics.first() else {
+                    continue;
+                };
+                let sender = || Addr::try_from(*senders_of_tx.get_or_insert_with(|| senders(tx)).get(&call.index)?).ok();
+                if log.topics.len() == 2 && log.data.is_empty() && (t0[..] == BLACKLISTED || t0[..] == UNBLACKLISTED) {
+                    if let Some(holder) = topic_address(&log.topics[1]) {
+                        named.entry(token).or_default().flags.insert((frame, holder));
+                    }
+                    continue;
+                }
+                if let Some((holder, amount, zero)) = admin(log, t0, sender) {
+                    let entry = named.entry(token).or_default().admin.entry((frame, holder)).or_default();
+                    entry.0.merge(&amount);
+                    entry.1 |= zero;
+                    continue;
+                }
+                let Ok(value) = Word::try_from(log.data.as_slice()) else {
                     continue;
                 };
                 let transfer = log.topics.len() == 3 && t0[..] == TRANSFER;
@@ -413,7 +665,7 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
                     doubt.insert(token);
                     continue;
                 };
-                named.entry(token).or_default().extend(holders.iter().map(|h| (frame, *h)));
+                named.entry(token).or_default().named.extend(holders.iter().map(|h| (frame, *h)));
                 if transfer && holders[0] != holders[1] {
                     let net = nets.entry(token).or_default();
                     if holders[0] != ZERO {
@@ -445,29 +697,183 @@ struct Tally {
     mismatch: u32,
     /// Mismatches whose delta is at least a thousandth of the flow.
     large: u32,
+    /// Mismatches whose nonzero delta differs from the flow by a factor of at
+    /// least 1000 (see [`rescaled`]).
+    rescaled: u32,
     /// Exact votes for flows below 10^6.
     dust: u32,
-    /// The base has its own verified 64-byte preimage: an inner mapping.
+    /// The base's slot has its own verified 64-byte preimage: an inner
+    /// mapping. Never true of a Vyper slot, which is below 2^64.
     nested: bool,
 }
-fn votes(flows: &Flows, writes: &BTreeMap<Addr, Vec<Write>>) -> BTreeMap<Addr, BTreeMap<Word, Tally>> {
-    // Net persisted delta per key, per frame and contract.
-    let mut framed = BTreeMap::<(Frame, Addr), BTreeMap<Word, Net>>::new();
+/// The net persisted delta and last new word of each key, per frame and
+/// contract. Writes are in execution order.
+fn framed(writes: &BTreeMap<Addr, Vec<Write>>) -> Framed {
+    let mut framed = Framed::new();
     for (token, ws) in writes {
-        for w in ws.iter().filter(|w| flows.contains_key(&(w.frame, *token))) {
-            let d = framed.entry((w.frame, *token)).or_default().entry(w.key).or_default();
+        for w in ws {
+            let (d, last) = framed.entry((w.frame, *token)).or_default().entry(w.key).or_default();
             d.add(&w.new);
             d.sub(&w.old);
+            *last = w.new;
         }
     }
-    let mut tallies = BTreeMap::<Addr, BTreeMap<Word, Tally>>::new();
+    framed
+}
+
+/// Frames that vote in a block where their contract has no `Transfer` flow:
+/// a CALL to the contract, neither failed nor reverted, whose only log of the
+/// contract states an amount that the frame's own execution backs. These are
+/// a WETH9 deposit or withdrawal ([`wrapped`]) and a TetherToken destruction
+/// ([`destruction`]). Such a frame votes like a `Transfer` frame: the amount
+/// is compared with the net change of the holder's word. A block where the
+/// contract has a `Transfer` flow keeps only its `Transfer` votes, so a
+/// backed frame never outvotes or joins them.
+fn backed<'a>(block: &'a eth::Block, framed: &Framed, flows: &mut Flows<'a>) {
+    let voted: BTreeSet<Addr> = flows.keys().map(|(_, token)| *token).collect();
+    for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        let mut children = None;
+        for call in tx.calls.iter().filter(|c| !c.state_reverted && !c.status_failed && c.call_type == CALL) {
+            let frame = (false, tx.index, call.index);
+            let Some(token) = Addr::try_from(call.address.as_slice()).ok().filter(|t| !voted.contains(t)) else {
+                continue;
+            };
+            let Some(keys) = framed.get(&(frame, token)) else {
+                continue;
+            };
+            let mut logs = call.logs.iter().filter(|l| l.address[..] == token[..]);
+            let (Some(log), None) = (logs.next(), logs.next()) else {
+                continue;
+            };
+            // Every direct child, reverted or not, counts.
+            let children = children.get_or_insert_with(|| {
+                let mut n = BTreeMap::<u32, Vec<&eth::Call>>::new();
+                for c in tx.calls.iter().filter(|c| c.depth > 0) {
+                    n.entry(c.parent_index).or_default().push(c);
+                }
+                n
+            });
+            let children = children.get(&call.index).map(Vec::as_slice).unwrap_or_default();
+            if let Some((holder, amount)) = destruction(call, log, keys, children).or_else(|| wrapped(call, log, keys, children)) {
+                flows.insert((frame, token), (call, BTreeMap::from([(holder, amount)])));
+            }
+        }
+    }
+}
+/// A TetherToken `destroyBlackFunds(holder)` frame: it makes no call, its log
+/// is the 1-topic `DestroyedBlackFunds(holder, amount)`, its input names the
+/// holder, and its persisted writes of the contract are two keys: the
+/// holder's word, whose same-frame preimage is `pad(holder) || base` and which
+/// ends at zero, and one word without a 64-byte preimage (the total supply)
+/// that falls by the amount. It votes the debit of the amount from the
+/// holder. `Issue`/`Redeem` never vote: a deprecated TetherToken still issues
+/// to its owner after `balanceOf` moved to the upgraded contract.
+fn destruction(call: &eth::Call, log: &eth::Log, keys: &BTreeMap<Word, (Net, Word)>, children: &[&eth::Call]) -> Option<(Addr, Net)> {
+    if keys.len() != 2 || log.topics.len() != 1 || log.topics[0][..] != DESTROYED_BLACK_FUNDS || !children.is_empty() {
+        return None;
+    }
+    let (holder, amount, _) = admin(log, &log.topics[0], || None)?;
+    let input = &call.input;
+    if input.len() < 36 || input[..4] != DESTROY_BLACK_FUNDS || input[4..16] != [0; 12] || input[16..36] != holder {
+        return None;
+    }
+    let backs = |(key, (delta, last)): (&Word, &(Net, Word))| match preimage(call, key) {
+        Some((h, _)) => h == holder && *last == [0; 32],
+        None => preimage64(call, key).is_none() && *delta == amount,
+    };
+    let mut owners = keys.keys().filter_map(|key| preimage(call, key)).map(|(h, _)| h);
+    (keys.iter().all(backs) && owners.next() == Some(holder) && owners.next().is_none()).then_some((holder, amount))
+}
+/// A WETH9 deposit or withdrawal frame, called by its holder, whose log is
+/// `Deposit(holder, wad)` or `Withdrawal(holder, wad)` with a nonzero wad, and
+/// whose persisted writes of the contract are one key with the same-frame
+/// preimage `pad(holder) || base`.
+///
+/// - **Deposit:** its input is empty (the fallback) or starts with
+///   `deposit()`, it receives exactly wad in native value, and it makes no
+///   call. It votes a credit of wad.
+/// - **Withdrawal:** its input starts with `withdraw(wad)`, it receives no
+///   value, and its only call pays exactly wad to the holder: a CALL with no
+///   input and the 2,300 gas of a Solidity `transfer`, neither failed nor
+///   reverted. It votes a debit of wad.
+///
+/// Wallets and multisigs append bytes to the call data (a tag, a padded
+/// word), which WETH9's dispatcher ignores. On 2,238 live WETH and WBNB
+/// frames of 124 Ethereum and BSC blocks the fingerprint rejects one genuine
+/// deposit: a fallback deposit with 68 bytes of call data.
+fn wrapped(call: &eth::Call, log: &eth::Log, keys: &BTreeMap<Word, (Net, Word)>, children: &[&eth::Call]) -> Option<(Addr, Net)> {
+    let [t0, t1] = log.topics.as_slice() else {
+        return None;
+    };
+    let (deposit, withdrawal) = (t0[..] == DEPOSIT, t0[..] == WITHDRAWAL);
+    if !(deposit || withdrawal) || keys.len() != 1 {
+        return None;
+    }
+    let holder = topic_address(t1).filter(|h| *h != ZERO && call.caller[..] == h[..])?;
+    let wad = Word::try_from(log.data.as_slice()).ok().filter(|w| *w != [0; 32])?;
+    let key = keys.keys().next()?;
+    if preimage(call, key).is_none_or(|(h, _)| h != holder) {
+        return None;
+    }
+    let input = &call.input;
+    let mut net = Net::default();
+    if deposit {
+        if !(input.is_empty() || input.starts_with(&DEPOSIT_CALL)) || value(call) != Some(wad) || !children.is_empty() {
+            return None;
+        }
+        net.add(&wad);
+    } else {
+        let pays = |c: &eth::Call| {
+            c.call_type == CALL
+                && c.address[..] == holder[..]
+                && value(c) == Some(wad)
+                && c.input.is_empty()
+                && c.gas_limit == STIPEND
+                && !c.status_failed
+                && !c.state_reverted
+        };
+        let [payout] = children else {
+            return None;
+        };
+        if input.len() < 36 || input[..4] != WITHDRAW_CALL || input[4..36] != wad || value(call) != Some([0; 32]) || !pays(payout) {
+            return None;
+        }
+        net.sub(&wad);
+    }
+    Some((holder, net))
+}
+
+fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>> {
+    let mut tallies = BTreeMap::<Addr, BTreeMap<Base, Tally>>::new();
     for (key, (call, net)) in flows {
         // Each distinct key, and each base, is resolved once per frame.
-        let mut deltas = BTreeMap::<(Addr, Word), Net>::new();
-        for (k, d) in framed.get(key).into_iter().flatten() {
-            if let Some(resolved) = preimage(call, k) {
-                deltas.entry(resolved).or_default().merge(d);
+        let mut deltas = BTreeMap::<(Addr, Base), Net>::new();
+        // `pad(x) || pad(x)` reads as x's key under slot x in both orders: it
+        // is credited once, below.
+        let mut symmetric = Vec::new();
+        for (k, (d, _)) in framed.get(key).into_iter().flatten() {
+            match preimage64(call, k).as_ref().map(readings) {
+                Some([Some(solidity), Some(vyper)]) if solidity.0 == vyper.0 && solidity.1.slot == vyper.1.slot => {
+                    symmetric.push((solidity, vyper, d));
+                }
+                Some(resolved) => {
+                    for r in resolved.into_iter().flatten() {
+                        deltas.entry(r).or_default().merge(d);
+                    }
+                }
+                None => {}
             }
+        }
+        // Under the order that the frame's other keys of slot x use, and
+        // Solidity's otherwise.
+        let used: BTreeSet<Base> = deltas.keys().map(|(_, base)| *base).collect();
+        for (solidity, vyper, d) in symmetric {
+            let resolved = if used.contains(&vyper.1) && !used.contains(&solidity.1) {
+                vyper
+            } else {
+                solidity
+            };
+            deltas.entry(resolved).or_default().merge(d);
         }
         let mut nested = BTreeMap::<Word, bool>::new();
         let t = tallies.entry(key.1).or_default();
@@ -476,7 +882,7 @@ fn votes(flows: &Flows, writes: &BTreeMap<Addr, Vec<Write>>) -> BTreeMap<Addr, B
                 continue;
             };
             let tally = t.entry(base).or_default();
-            tally.nested |= *nested.entry(base).or_insert_with(|| preimage64(call, &base).is_some());
+            tally.nested |= *nested.entry(base.slot).or_insert_with(|| preimage64(call, &base.slot).is_some());
             if *flow == delta {
                 tally.exact += 1;
                 let f = flow.abs();
@@ -484,6 +890,7 @@ fn votes(flows: &Flows, writes: &BTreeMap<Addr, Vec<Write>>) -> BTreeMap<Addr, B
             } else {
                 tally.mismatch += 1;
                 tally.large += u32::from(large(flow, &delta));
+                tally.rescaled += u32::from(rescaled(flow, &delta));
             }
         }
     }
@@ -497,16 +904,20 @@ fn votes(flows: &Flows, writes: &BTreeMap<Addr, Vec<Write>>) -> BTreeMap<Addr, B
 /// the base with the most exact votes; a tie chooses none. Inner mappings
 /// (allowances) and bases with more large mismatches than exact votes (a
 /// packed word whose other field moves) are never chosen.
-fn choose(tallies: &BTreeMap<Word, Tally>, reads: &[Read]) -> Option<Word> {
+fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
     let plain = |t: &Tally| t.exact > 0 && !t.nested;
     let base = 'base: {
-        let mut keyed = reads.iter().filter(|r| r.keyed());
-        if let Some(base) = keyed.clone().next().and_then(|r| r.bases.first()) {
-            if keyed.all(|r| r.pure(base)) && tallies.get(base).is_some_and(plain) {
+        // The reads choose a base only when exactly one fits them: a read of
+        // `pad(x) || pad(x)` fits both orders of slot x.
+        let keyed = reads.iter().filter(|r| r.keyed());
+        if let Some(first) = keyed.clone().next() {
+            let fits = |base: &&Base| keyed.clone().all(|r| r.pure(base)) && tallies.get(*base).is_some_and(plain);
+            let mut fitting = first.bases.iter().filter(fits);
+            if let (Some(base), None) = (fitting.next(), fitting.next()) {
                 break 'base *base;
             }
         }
-        let mut best: Option<(Word, u32)> = None;
+        let mut best: Option<(Base, u32)> = None;
         let mut tied = false;
         for (base, t) in tallies.iter().filter(|(_, t)| plain(t)) {
             match best {
@@ -523,66 +934,142 @@ fn choose(tallies: &BTreeMap<Word, Tally>, reads: &[Read]) -> Option<Word> {
     (tallies[&base].large <= tallies[&base].exact).then_some(base)
 }
 
-/// A traced `balanceOf(holder)` call to a contract.
+/// A traced `balanceOf(holder)` or `scaledBalanceOf(holder)` call to a
+/// contract.
 struct Read {
     holder: Addr,
-    begin: u64,
-    end: u64,
+    /// The places of the call's begin and end in execution order.
+    begin: Seq,
+    end: Seq,
     value: Word,
     /// In a non-reverted frame: the value reflects persisted state.
     persisted: bool,
-    /// Up to two bases of the verified `pad(holder) || base` preimages
-    /// computed in the read's storage context (the frame and its DELEGATECALL
-    /// descendants).
-    bases: Vec<Word>,
+    /// The bases of the verified holder-key preimages (`pad(holder) || slot`,
+    /// or Vyper's `slot || pad(holder)`, see [`readings`]) computed in the
+    /// read's storage context (the frame and its DELEGATECALL descendants).
+    /// Two bases name one key only for `pad(x) || pad(x)`, the holder whose
+    /// address is the slot's number.
+    bases: Vec<Base>,
+    /// The distinct storage keys of those preimages, up to two: a read whose
+    /// preimages name two keys read two holder words.
+    keys: Vec<Word>,
     /// A call out of that storage context.
     external: bool,
 }
 impl Read {
     fn scan(&mut self, call: &eth::Call) {
         let holder = hex::encode(self.holder);
+        let zeros = |s: &[u8]| s.iter().all(|c| *c == b'0');
         for (key, value) in &call.keccak_preimages {
-            // Match the hex text of `pad(holder)` before decoding and hashing.
+            // Match the hex text of `pad(holder)` on either side before
+            // decoding and hashing.
             let v = value.as_bytes();
-            if self.bases.len() == 2 || v.len() != 128 || v[..24].iter().any(|c| *c != b'0') || !v[24..64].eq_ignore_ascii_case(holder.as_bytes()) {
+            if self.keys.len() == 2 || v.len() != 128 {
+                continue;
+            }
+            let solidity = zeros(&v[..24]) && v[24..64].eq_ignore_ascii_case(holder.as_bytes());
+            let vyper = zeros(&v[..48]) && zeros(&v[64..88]) && v[88..].eq_ignore_ascii_case(holder.as_bytes());
+            if !(solidity || vyper) {
                 continue;
             }
             let (Ok(bytes), Ok(key)) = (hex::decode(v), hex::decode(key)) else {
                 continue;
             };
-            let base: Word = bytes[32..].try_into().unwrap();
-            if hash(&bytes)[..] == key[..] && !self.bases.contains(&base) {
-                self.bases.push(base);
+            let (Ok(bytes), Ok(key)) = (<[u8; 64]>::try_from(bytes), Word::try_from(key)) else {
+                continue;
+            };
+            if hash(&bytes) != key {
+                continue;
+            }
+            if !self.keys.contains(&key) {
+                self.keys.push(key);
+            }
+            for (_, base) in readings(&bytes).into_iter().flatten().filter(|(h, _)| *h == self.holder) {
+                if !self.bases.contains(&base) {
+                    self.bases.push(base);
+                }
             }
         }
     }
-    /// The read computed exactly `pad(holder) || base` and called nothing else.
-    fn pure(&self, base: &Word) -> bool {
-        self.bases == [*base] && !self.external
+    /// The read computed exactly the holder's key under `base`, no other
+    /// holder key, and called nothing else.
+    fn pure(&self, base: &Base) -> bool {
+        self.keys.len() == 1 && self.bases.contains(base) && !self.external
     }
-    /// The read recorded a `pad(holder) || base` preimage. An unkeyed read
-    /// shows neither which mapping it read nor that it read only one.
+    /// The read recorded a holder-key preimage. An unkeyed read shows neither
+    /// which mapping it read nor that it read only one.
     fn keyed(&self) -> bool {
         !self.bases.is_empty()
     }
 }
-fn is_read(call: &eth::Call) -> bool {
-    !call.status_failed
-        && (call.call_type == CALL || call.call_type == STATIC)
-        && call.input.len() == 36
-        && call.input[..4] == BALANCE_OF
-        && call.input[4..16] == [0; 12]
-        && call.return_data.len() == 32
-        && call.begin_ordinal != 0
+/// The traced reads of one contract in a block.
+#[derive(Default)]
+struct Reads {
+    /// `balanceOf` calls (see [`balance_of`]).
+    balance: Vec<Read>,
+    /// `scaledBalanceOf` calls (see [`scaled_balance_of`]): they only drop
+    /// the contract when they read the chosen mapping (see [`decide`]).
+    scaled: Vec<Read>,
 }
-/// Traced `balanceOf(address)` calls of voted contracts: a completed CALL or
-/// STATICCALL to the contract in a successful transaction, selector
-/// `0x70a08231`, a 36-byte input and a 32-byte return.
-fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Vec<Read>> {
-    let mut out = BTreeMap::<Addr, Vec<Read>>::new();
+/// A traced `balanceOf(address)`: a completed CALL or STATICCALL with
+/// selector `0x70a08231`, more input than the selector and a 32-byte return,
+/// with the holder of its zero-extended first argument word, as the ABI
+/// decoder reads it. The read is clean when its input holds the whole word and
+/// the word is a padded address (`input[4..16]` zero); bytes after the word
+/// are ignored, as the decoder ignores them. A shorter input, or a longer one
+/// with nonzero upper bytes, can succeed only on a token compiled before
+/// Solidity 0.5 (no calldata size check, address arguments masked): it is
+/// read only to veto. A 36-byte input with nonzero upper bytes stays ignored,
+/// as before v0.7.4.
+fn balance_of(call: &eth::Call) -> Option<(Addr, bool)> {
+    let input = &call.input;
+    if call.status_failed
+        || !(call.call_type == CALL || call.call_type == STATIC)
+        || input.len() <= 4
+        || input[..4] != BALANCE_OF
+        || call.return_data.len() != 32
+        || call.begin_ordinal == 0
+    {
+        return None;
+    }
+    let mut argument = [0; 32];
+    let n = (input.len() - 4).min(32);
+    argument[..n].copy_from_slice(&input[4..4 + n]);
+    let clean = input.len() >= 36 && argument[..12] == [0; 12];
+    (clean || input.len() != 36).then(|| (argument[12..].try_into().unwrap(), clean))
+}
+/// A traced `scaledBalanceOf(address)`: a completed CALL or STATICCALL with
+/// selector `0x1da24f3e`, at least 36 bytes of input whose first argument
+/// word is a padded address (`input[4..16]` zero) and a 32-byte return, with
+/// the holder of that word. Like a clean `balanceOf`, its storage context is
+/// scanned for preimages.
+fn scaled_balance_of(call: &eth::Call) -> Option<Addr> {
+    let input = &call.input;
+    let read = !call.status_failed
+        && (call.call_type == CALL || call.call_type == STATIC)
+        && input.len() >= 36
+        && input[..4] == SCALED_BALANCE_OF
+        && input[4..16] == [0; 12]
+        && call.return_data.len() == 32
+        && call.begin_ordinal != 0;
+    read.then(|| input[16..36].try_into().unwrap())
+}
+/// A traced read of a holder: its holder, whether it is clean (see
+/// [`balance_of`]) and whether it is a `scaledBalanceOf`.
+fn read_of(call: &eth::Call) -> Option<(Addr, bool, bool)> {
+    balance_of(call)
+        .map(|(holder, clean)| (holder, clean, false))
+        .or_else(|| scaled_balance_of(call).map(|holder| (holder, true, true)))
+}
+/// Traced `balanceOf(address)` and `scaledBalanceOf(address)` calls of voted
+/// contracts (see [`balance_of`] and [`scaled_balance_of`]) in successful
+/// transactions. Only a clean read's storage context is scanned for
+/// preimages, so only a clean read can be keyed.
+fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>, sync: Option<&bor::StateSync>) -> BTreeMap<Addr, Reads> {
+    let mut out = BTreeMap::<Addr, Reads>::new();
     let token = |c: &eth::Call| Addr::try_from(c.address.as_slice()).ok().filter(|t| tokens.contains_key(t));
     for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
-        if !tx.calls.iter().any(|c| is_read(c) && token(c).is_some()) {
+        if !tx.calls.iter().any(|c| read_of(c).is_some() && token(c).is_some()) {
             continue;
         }
         // One pass assigns every call its storage context (itself, or its
@@ -606,23 +1093,26 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
             };
             context.insert(c.index, own);
         }
-        for call in tx.calls.iter().filter(|c| is_read(c)) {
-            let Some(token) = token(call) else {
+        for call in &tx.calls {
+            let (Some((holder, clean, scaled)), Some(token)) = (read_of(call), token(call)) else {
                 continue;
             };
             let mut read = Read {
-                holder: call.input[16..].try_into().unwrap(),
-                begin: call.begin_ordinal,
-                end: call.end_ordinal,
+                holder,
+                begin: bor::seq(sync, Some(tx.index), call.index, call.begin_ordinal),
+                end: bor::seq(sync, Some(tx.index), call.index, call.end_ordinal),
                 value: call.return_data[..].try_into().unwrap(),
                 persisted: !call.state_reverted,
                 bases: Vec::new(),
+                keys: Vec::new(),
                 external: false,
             };
-            read.scan(call);
             let members = members.get(&call.index).map(Vec::as_slice).unwrap_or_default();
-            for c in members {
-                read.scan(c);
+            if clean {
+                read.scan(call);
+                for c in members {
+                    read.scan(c);
+                }
             }
             // A call out of the storage context counts unless it only returns
             // the address that its parent then DELEGATECALLs: a beacon lookup.
@@ -631,53 +1121,144 @@ fn reads<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeMap<Addr, Ve
                 let resolved = (c.return_data.len() == 32 && c.return_data[..12] == [0; 12]).then(|| &c.return_data[12..]);
                 resolved.is_none_or(|a| !delegates.contains(&(c.parent_index, a)))
             });
-            out.entry(token).or_default().push(read);
+            let reads = out.entry(token).or_default();
+            if scaled { &mut reads.scaled } else { &mut reads.balance }.push(read);
         }
     }
     out
 }
-/// Voted contracts with a successful CALL or STATICCALL of `balanceOf`, in a
-/// successful transaction, that lacks a 36-byte input or return data.
-/// Producers on firehose-tracer 5.5.0 and later keep only the selector of a
-/// transaction's later internal calls once 50 MiB of call input precede them,
-/// and drop their return data past 25 MiB, so such a call may be a read whose
-/// veto was lost.
-fn truncated<T>(block: &eth::Block, tokens: &BTreeMap<Addr, T>) -> BTreeSet<Addr> {
-    block
-        .transaction_traces
-        .iter()
-        .filter(|tx| tx.status == SUCCEEDED)
-        .flat_map(|tx| &tx.calls)
-        .filter(|c| {
-            !c.status_failed
-                && (c.call_type == CALL || c.call_type == STATIC)
-                && c.input.starts_with(&BALANCE_OF)
-                && (c.input.len() != 36 || c.return_data.is_empty())
-        })
-        .filter_map(|c| Addr::try_from(c.address.as_slice()).ok())
-        .filter(|a| tokens.contains_key(a))
-        .collect()
+/// Producers on firehose-tracer 5.5.0 (`call_data_limit.rs` at `70497b7`),
+/// which always record `Block.ver` 5, keep only the 4-byte selector of a
+/// transaction's later internal calls once those calls' input passes 50 MiB,
+/// and leave their return data empty past 25 MiB. A block whose encoding
+/// passes 1 GiB is then cut again with both limits halved, until it fits. A
+/// cut is therefore possible only in a `Block.ver` 5 transaction whose
+/// internal calls (failed, reverted and cut ones included) record more than
+/// 25 MiB of input or 12.5 MiB of return data, the limits of the first
+/// halving, or in a block of at least 64 MiB or 150M gas, which a later
+/// halving needs. Re-review these bounds on every tracer release.
+const CUT_TX_INPUT: usize = 25 << 20;
+const CUT_TX_RETURN: usize = 25 << 19;
+const CUT_BLOCK_LEN: usize = 64 << 20;
+const CUT_BLOCK_GAS: u64 = 150_000_000;
+/// Whether a producer could have cut call data in `tx`; `len` gives the
+/// length of the block's encoding, and runs only when the other bounds do not
+/// decide.
+fn cut_possible(block: &eth::Block, len: &mut impl FnMut() -> usize, tx: &eth::TransactionTrace) -> bool {
+    if block.ver < 5 {
+        return false;
+    }
+    let gas = block.header.as_option().map_or(0, |h| h.gas_used);
+    let internal = tx.calls.iter().filter(|c| c.depth > 0);
+    let (input, output) = internal.fold((0, 0), |(i, r), c| (i + c.input.len(), r + c.return_data.len()));
+    gas >= CUT_BLOCK_GAS || input > CUT_TX_INPUT || output > CUT_TX_RETURN || len() >= CUT_BLOCK_LEN
+}
+/// Voted contracts with a successful CALL or STATICCALL of `balanceOf` that
+/// keeps only its 4-byte selector or has no return data, the shape a cut
+/// leaves, in a successful transaction where a producer could have cut it
+/// ([`cut_possible`]): it may be a read whose veto was lost. Elsewhere such a
+/// call is neither a read nor a doubt: a 4-byte call that a token compiled
+/// before Solidity 0.5 answers with `balanceOf(0)`, or a call that returned
+/// nothing.
+fn truncated<T>(block: &eth::Block, block_len: usize, tokens: &BTreeMap<Addr, T>) -> BTreeSet<Addr> {
+    let mut out = BTreeSet::new();
+    // The larger of the delivered length that the caller passes and the
+    // block's re-encoding (which drops unknown fields), so that a caller that
+    // passes 0 or a re-encoded length keeps the bound. Computed at most once
+    // per block, and only where the other bounds do not decide.
+    let mut encoded = None;
+    let mut len = || *encoded.get_or_insert_with(|| block_len.max(block.try_encoded_len().map_or(usize::MAX, |n| n as usize)));
+    for tx in block.transaction_traces.iter().filter(|tx| tx.status == SUCCEEDED) {
+        let mut possible = None;
+        for call in &tx.calls {
+            let shape = !call.status_failed
+                && (call.call_type == CALL || call.call_type == STATIC)
+                && call.input.starts_with(&BALANCE_OF)
+                && (call.input.len() == 4 || call.return_data.is_empty());
+            let Some(token) = Addr::try_from(call.address.as_slice()).ok().filter(|a| shape && tokens.contains_key(a)) else {
+                continue;
+            };
+            if *possible.get_or_insert_with(|| cut_possible(block, &mut len, tx)) {
+                out.insert(token);
+            }
+        }
+    }
+    out
+}
+
+/// The words after a holder's word that a struct value occupies: Curve's
+/// BoostV2 keeps a `Point` (bias, slope, ts) at a holder's key and the two
+/// keys after it, and its `balanceOf` is not the bias.
+const STRUCT_WORDS: u8 = 2;
+/// `key + i`, wrapping: the storage key of field `i` of a struct at `key`.
+fn after(key: &Word, i: u8) -> Word {
+    let mut out = *key;
+    let mut carry = u16::from(i);
+    for byte in out.iter_mut().rev() {
+        let sum = u16::from(*byte) + carry;
+        *byte = sum as u8;
+        carry = sum >> 8;
+    }
+    out
+}
+
+/// The word of a persisted read's key that the read saw under the key's
+/// writes `ws` (in execution order), with the write that supplied it: the
+/// last write before the read, or else the old word of the first write after
+/// it. `None` when a write of the key falls inside the read.
+fn stored_at<'a>(ws: &[&'a Write], r: &Read) -> Option<(&'a Write, Word)> {
+    if ws.get(ws.partition_point(|w| w.seq <= r.begin)).is_some_and(|w| w.seq < r.end) {
+        return None;
+    }
+    ws[..ws.partition_point(|w| w.seq < r.begin)]
+        .last()
+        .map(|w| (*w, w.new))
+        .or_else(|| ws.get(ws.partition_point(|w| w.seq <= r.end)).map(|w| (*w, w.old)))
 }
 
 /// The end-of-block balances of one voted contract, or `None` on any doubt.
 fn decide(
     token: &Addr,
-    tallies: &BTreeMap<Word, Tally>,
+    tallies: &BTreeMap<Base, Tally>,
     writes: &[Write],
-    reads: &[Read],
+    reads: &Reads,
     holders: &BTreeSet<Addr>,
-    named: &BTreeSet<(Frame, Addr)>,
+    names: &Names,
+    framed: &Framed,
 ) -> Option<BTreeMap<Addr, Word>> {
+    let (scaled, reads) = (&reads.scaled, &reads.balance);
     let base = choose(tallies, reads)?;
+    // A holder whose word under the base moved a thousand times more or less
+    // than its flow keeps it in another unit: the base is not the balance of
+    // every holder, and the exact votes may come from those it is for.
+    if tallies[&base].rescaled > 0 {
+        return None;
+    }
+    // A Tether admin event explains a holder's write in its frame when the
+    // frame's net change of the holder's word equals the amount it states, and
+    // a destruction also leaves the word at zero.
+    let explained = |frame: Frame, holder: &Addr| {
+        names.admin.get(&(frame, *holder)).is_some_and(|(amount, zero)| {
+            let written = framed.get(&(frame, *token)).and_then(|keys| keys.get(&base.key(holder)));
+            written.is_some_and(|(delta, last)| delta == amount && (!zero || *last == [0; 32]))
+        })
+    };
     let mut by_key = BTreeMap::<Word, Vec<&Write>>::new();
     for w in writes {
         by_key.entry(w.key).or_default().push(w);
     }
     // Persisted writes to one key must chain in execution order.
-    if by_key
-        .values()
-        .any(|ws| ws.windows(2).any(|p| p[1].ordinal <= p[0].ordinal || p[1].old != p[0].new))
-    {
+    if by_key.values().any(|ws| ws.windows(2).any(|p| p[1].seq <= p[0].seq || p[1].old != p[0].new)) {
+        return None;
+    }
+    // A `scaledBalanceOf` that reads the chosen mapping, keyed to it or
+    // returning the holder's stored word, shows that the word is a scaled
+    // balance that `balanceOf` converts. Scaled reads play no other part.
+    let reads_base = |r: &Read| {
+        let seen = || by_key.get(&base.key(&r.holder)).and_then(|ws| stored_at(ws, r));
+        r.pure(&base) || (r.persisted && seen().is_some_and(|(_, word)| word == r.value))
+    };
+    if scaled.iter().any(reads_base) {
         return None;
     }
     // An unkeyed read still vetoes when it calls out or contradicts the stored
@@ -685,7 +1266,12 @@ fn decide(
     if reads.iter().any(|r| if r.keyed() { !r.pure(&base) } else { r.external }) {
         return None;
     }
-    let read: BTreeSet<Addr> = reads.iter().filter(|r| r.persisted && r.keyed()).map(|r| r.holder).collect();
+    // Holders with a persisted keyed read, and the latest such read's begin.
+    let mut read = BTreeMap::<Addr, Seq>::new();
+    for r in reads.iter().filter(|r| r.persisted && r.keyed()) {
+        let begin = read.entry(r.holder).or_default();
+        *begin = r.begin.max(*begin);
+    }
     // Other holder mappings that move with the event flows suggest a computed
     // balance. With two or more exact votes and no other exact mapping,
     // counter-sized mismatches are ignored.
@@ -696,25 +1282,33 @@ fn decide(
     // Then a pure `balanceOf` vouches only for its own holder's code path.
     let shadowed = shadow >= exact;
     let mut values = BTreeMap::new();
+    // A FiatToken read of a word whose flag a `Blacklisted`/`UnBlacklisted`
+    // frame set or cleared: it returns the word without bit 255. The read
+    // still checks the other 255 bits; its holder gets no row.
+    let masks = |w: &Write, stored: &Word, value: &Word, holder: &Addr| {
+        let mut flag = [0; 32];
+        flag[0] = 0x80;
+        let toggled = std::array::from_fn::<u8, 32, _>(|i| w.old[i] ^ w.new[i]) == flag;
+        let unmasked = std::array::from_fn::<u8, 32, _>(|i| value[i] | flag[i]);
+        toggled && value[0] & 0x80 == 0 && *stored == unmasked && names.flags.contains(&(w.frame, *holder))
+    };
+    let mut masked = BTreeSet::new();
     for r in reads.iter().filter(|r| r.persisted) {
-        match by_key.get(&mapping(&r.holder, &base)) {
-            Some(ws) => {
-                // Writes to the key are in increasing ordinal order.
-                if ws.get(ws.partition_point(|w| w.ordinal <= r.begin)).is_some_and(|w| w.ordinal < r.end) {
-                    continue;
+        match by_key.get(&base.key(&r.holder)) {
+            Some(ws) => match stored_at(ws, r) {
+                Some((_, s)) if s == r.value => {}
+                Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {
+                    masked.insert(r.holder);
                 }
-                let stored = ws[..ws.partition_point(|w| w.ordinal < r.begin)]
-                    .last()
-                    .map(|w| w.new)
-                    .or_else(|| ws.get(ws.partition_point(|w| w.ordinal <= r.end)).map(|w| w.old));
-                if stored.is_some_and(|s| s != r.value) {
-                    return None;
-                }
-            }
+                Some(_) => return None,
+                None => {}
+            },
             // The holder's mapping word has no persisted write in the block.
+            // Under a Vyper base the contract's own row is never emitted
+            // (below), so a read of it supplies no value.
             // Keep the mutating `values.insert` out of the match guard.
             #[allow(clippy::collapsible_match)]
-            None if holders.contains(&r.holder) && r.keyed() => {
+            None if holders.contains(&r.holder) && r.keyed() && !(base.vyper && r.holder == *token) => {
                 if values.insert(r.holder, r.value).is_some_and(|v| v != r.value) {
                     return None;
                 }
@@ -723,49 +1317,93 @@ fn decide(
         }
     }
     for holder in holders {
-        if let Some(last) = by_key.get(&mapping(holder, &base)).and_then(|ws| ws.last()) {
-            // A third party's word changed with no balance event naming it in
-            // that frame (a flag, an admin or a sync write) needs its own read.
-            if holder == token || named.contains(&(last.frame, *holder)) || read.contains(holder) {
+        let key = base.key(holder);
+        if let Some(last) = by_key.get(&key).and_then(|ws| ws.last()) {
+            // A third party's word changed with no balance event naming or
+            // explaining it in that frame (a flag, an admin or a sync write)
+            // needs its own read, traced after that write: a read before it
+            // validated only the word it saw.
+            let vouched = read.get(holder).is_some_and(|begin| *begin > last.seq);
+            // A word with a written word right after it is a struct field,
+            // which may not be the balance (Curve's BoostV2 `Point`: bias,
+            // slope, ts). Without such a read the contract is dropped.
+            if !vouched && (1..=STRUCT_WORDS).any(|i| by_key.contains_key(&after(&key, i))) {
+                return None;
+            }
+            // The contract's own word needs no explanation, except under a
+            // Vyper base, where it is never emitted: a Yearn v3 vault's
+            // `balanceOf(self)` is its word less the shares still unlocking,
+            // which fall with time and no write or event: even a row that a
+            // read confirms goes stale in the next blocks.
+            let keep = if holder == token {
+                !base.vyper
+            } else {
+                names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched
+            };
+            if keep {
                 values.insert(*holder, last.new);
             }
         }
     }
+    // A read at any point shows its holder's code path; after an unexplained
+    // write, only a later read kept the holder above.
     if shadowed {
-        values.retain(|holder, _| read.contains(holder));
+        values.retain(|holder, _| read.contains_key(holder));
     }
+    values.retain(|holder, _| !masked.contains(holder));
     Some(values)
 }
 
-/// Inferred end-of-block balances, by `(contract, holder)`.
-pub(crate) fn rows(block: &eth::Block) -> BTreeMap<(Addr, Addr), Word> {
+/// Inferred end-of-block balances, by `(contract, holder)`. `block_len` is
+/// the length of the block's delivered encoding. `resolved` is the block
+/// whose persisted records the shared rules collect: `block` itself, or its
+/// copy with each unapplicable SetCode self-authorization marked discarded
+/// (see `crate::setcode`), which differs from it in nothing else.
+pub(crate) fn rows(block: &eth::Block, resolved: &eth::Block, block_len: usize) -> BTreeMap<(Addr, Addr), Word> {
     let mut out = BTreeMap::new();
     let candidates = candidates(block);
     if candidates.is_empty() {
         return out;
     }
+    let sync = bor::state_sync(block);
+    let unordered = bor::unordered(block, sync.as_ref());
     let mut persisted = Persisted {
         tokens: &candidates,
+        sync: sync.as_ref(),
+        unordered: &unordered,
         writes: BTreeMap::new(),
         doubt: BTreeSet::new(),
     };
-    if persist::collect_block(block, &mut persisted).is_err() {
+    if persist::collect_block(resolved, &mut persisted).is_err() {
         return out;
     }
     let Persisted { mut writes, mut doubt, .. } = persisted;
     for ws in writes.values_mut() {
-        ws.sort_by_key(|w| w.ordinal);
+        ws.sort_by_key(|w| w.seq);
     }
-    let (flows, named) = flows(block, &writes, &mut doubt);
-    let tallies = votes(&flows, &writes);
-    let reads = reads(block, &tallies);
-    doubt.extend(truncated(block, &tallies));
-    let nobody = BTreeSet::new();
-    // A contract has tallies only if a nonzero `Transfer` moved a holder.
+    let framed = framed(&writes);
+    let (mut flows, named) = flows(block, &writes, &mut doubt);
+    backed(block, &framed, &mut flows);
+    let tallies = votes(&flows, &framed);
+    let reads = reads(block, &tallies, sync.as_ref());
+    doubt.extend(truncated(block, block_len, &tallies));
+    // A `balanceOf` call in a transaction whose order is unknown.
+    for tx in block.transaction_traces.iter().filter(|tx| unordered.contains(&tx.index)) {
+        let called = tx.calls.iter().filter(|c| c.input.starts_with(&BALANCE_OF));
+        doubt.extend(
+            called
+                .filter_map(|c| Addr::try_from(c.address.as_slice()).ok())
+                .filter(|a| tallies.contains_key(a)),
+        );
+    }
+    let nobody = Names::default();
+    let unread = Reads::default();
+    // A contract has tallies only if a nonzero `Transfer` moved a holder or,
+    // in a block without one, a backed frame voted.
     for (token, t) in tallies.iter().filter(|(token, _)| !doubt.contains(*token)) {
-        let token_reads = reads.get(token).map(Vec::as_slice).unwrap_or_default();
-        let named = named.get(token).unwrap_or(&nobody);
-        if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], named) {
+        let token_reads = reads.get(token).unwrap_or(&unread);
+        let names = named.get(token).unwrap_or(&nobody);
+        if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], names, &framed) {
             // A balance word at or above 2^128 holds another field next to the
             // balance (a packed timestamp, FiatToken v2.2's blacklist flag in
             // bit 255) that did not move in the block, so the slot is not a

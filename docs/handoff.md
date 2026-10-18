@@ -25,7 +25,8 @@ since 2026-10-14 (owner) backfills wrote ranges whose noops passed:
 `bsc:evm-balances-erc20@v0.7.1` [0, 23.5M) and [76.5M, 113.8M), and
 `mainnet:evm-balances-erc20@v0.7.0` [0, 26.2M). The last of them ended on
 2026-10-15, and all are superseded: the owner decided on 2026-10-14 to resync BSC and Ethereum into
-new databases with native v0.7.8 and ERC-20 v0.7.3, whose historical views
+new databases with native v0.7.8 and ERC-20 v0.7.3 (since 2026-10-17 ERC-20
+v0.7.4, below), whose historical views
 keep only the intervals the Token API serves (1h, 4h, 1d, 1w), after their
 noops pass, and wants one release for every supported chain, each
 spot-checked and nooped before the tag. Ethereum native passed its full-history noop
@@ -50,20 +51,27 @@ source, committed in `3e69653`; their pre-release noops and live checks ran
 these module hashes. ERC-20 v0.7.2 (#165) was never released; its committed
 spkg keeps the earlier history schema.
 
-**Unreleased: native v0.7.9** (2026-10-17). The full-history noops of the
-released native v0.7.8 refused thirteen Arbitrum One and Base blocks up to
-2026-10-18. v0.7.9
+**Released on 2026-10-18: native v0.7.9**
+([PR #168](https://github.com/pinax-network/substreams-evm-balances/pull/168);
+tag `evm-balances-native-v0.7.9` at `84047a4`; `map_events` `424ce160…`,
+`db_out` `9cf8c500…`). The full-history noops of the released native v0.7.8
+refused thirteen Arbitrum One and Base blocks up to 2026-10-18. v0.7.9
 accepts them, each in a captured producer shape, and gives v0.7.8's output for
 every block v0.7.8 accepts
 ([continuity exceptions](../native/balances/README.md#continuity-exceptions),
 [SetCode self-authorization](../native/balances/README.md#failed-transactions)).
-Arbitrum One and Base resync with it into new databases,
-`arbitrum-one:evm-balances-native@v0.7.9` and
-`base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8. Its spkg
-comes from CI's `packages` artifact before the tag. ERC-20 is unchanged and
-still refuses Arbitrum One blocks 358,023,229, 360,021,045, 382,234,350,
-420,239,048 and 472,773,590, failed SetCode transactions whose sender authorizes itself with
-the transaction's own nonce.
+Its pre-release noop passed 125 windows on Arbitrum One and Base, among them
+the 1,000-block segment of every refused block. Arbitrum One and Base resync
+with it into new databases, `arbitrum-one:evm-balances-native@v0.7.9` and
+`base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8.
+
+**ERC-20 v0.7.4 (2026-10-17, unreleased)** replaces v0.7.3 for
+the resync: the owner wants the causes of stale and missing ERC-20 rows that
+the v0.7.4 investigation found in v0.7.3 fixed before the full Ethereum and
+BSC resyncs. It writes `<chain>:evm-balances-erc20@v0.7.4`, and it accepts the
+five Arbitrum One blocks with a failed SetCode self-authorization that v0.7.3
+refused, as native v0.7.9 does
+([ERC-20 history](../erc20/balances/README.md#build-and-rust-tests)).
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -97,8 +105,8 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   records after the execution only, on which v0.7.6 refused Ethereum block
   25,747,303 and an earlier v0.7.7 build (`0ac0c20`) refused blocks
   25,750,184, 25,869,452 and 25,920,498 in its pre-release noop. v0.7.8
-  (released, above) handles the producer shapes the 2026-10-14 checks found
-  on each chain
+  (released on 2026-10-15, above) handles the producer shapes the
+  2026-10-14 checks found on each chain
   ([rules](../native/balances/README.md#persistence-and-fail-closed-rules)):
   on Ethereum and Polygon a self-destruct debit that the `Block.ver` 3
   producers omit in a call with other records (a wrong balance, not a refusal,
@@ -124,13 +132,27 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   decodes the block with the same 1 GiB element budget as native v0.7.4; the
   ERC-20 v0.7.0 noop failed to decode BSC block 43,772,003. v0.7.2 drops a
   contract's rows for the block when a word it chose as a balance reaches
-  2^128 (packed or computed slots); it was not released. v0.7.3 (released,
-  above) takes the shared rules' SetCode boundary, on which v0.7.2 refused
-  Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows on every block
-  v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. Not
-  qualified. Offline, on five captured BSC intervals scored against every row
-  the RPC reference package emitted for them, it reproduces 58.5–62.8% of
-  those rows with 99.92–100% value precision
+  2^128 (packed or computed slots); it was not released. v0.7.3 (released
+  on 2026-10-15, above) takes the shared rules' SetCode boundary, on which
+  v0.7.2 refused Arbitrum One blocks such as 350,048,039, gives v0.7.2's rows
+  on every block v0.7.2 accepts, and keeps only the 1h, 4h, 1d and 1w history bars. v0.7.4
+  (above) reads long `balanceOf` inputs, lets WETH9 frames and Tether
+  destructions vote without a `Transfer`, explains Tether's admin writes,
+  vouches for an unexplained write only with a later read, orders Polygon
+  state syncs by call and reads Vyper's key order, and retries a block that
+  the persistence rules refuse with a failed SetCode transaction's
+  unapplicable self-authorization marked discarded, as native v0.7.9 does,
+  so it accepts five Arbitrum One blocks that v0.7.3 refused; on 131 saved blocks it
+  keeps every v0.7.3 row but the two wrong share words of Liquorice's
+  lending-pool tokens, which a traced `scaledBalanceOf` now drops, adds
+  16,363, and the 10,572 of its 48,106 rows
+  there that have an RPC-era 1-minute bar at their block equal it (the rest
+  were not compared); it also drops Origin's OUSD and OETH for a block in
+  which a rebasing holder's credits move a thousand times more than its
+  flow. Not qualified. Offline, on five captured BSC intervals
+  scored against every row the RPC reference package emitted for them, the
+  inference source of 2026-10-05 (v0.2.0) reproduced 58.5–62.8% of those rows
+  with 99.92–100% value precision, a measurement not re-run since
   ([measured](../erc20/balances/README.md#measured) gives each interval and
   its scored holders). v0.4.0 runs in the BSC shadow below. The earlier layout
   package v0.1.0, another source, was checked on live BSC on 2026-09-23
@@ -170,7 +192,7 @@ over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
 balances among 10,223,501 same-block pairs (precision 0.999844)
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
 That is shadow evidence for v0.6.1, not live qualification. The sinks of
-native v0.7.8 and ERC-20 v0.7.3 replace this shadow after their noops pass.
+native v0.7.8 and ERC-20 v0.7.4 replace this shadow after their noops pass.
 
 A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
 below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had
@@ -248,27 +270,28 @@ noop of the CI-built spkgs gives the release's numbers.
 Each step needs the owner's OK. Nothing is written to ClickHouse before the
 package's noop over that range passes (owner, 2026-10-13).
 
-1. Pre-release of native v0.7.9: commit the CI-built
-   `spkg/evm-balances-native-v0.7.9.spkg` from its PR's `packages` artifact,
-   and run its pre-release noop ([AGENTS.md](../AGENTS.md#validation)) on
-   Arbitrum One and Base: the 1,000-block segment of each block v0.7.8
-   refused, the hard-fork windows and the latest blocks. A refusal is fixed
-   and the noop rerun before the merge. Then release it by its tag,
-   `evm-balances-native-v0.7.9`.
-2. Resync BSC and Ethereum into new databases,
+1. Pre-release: commit the CI-built ERC-20 v0.7.4 spkg from its pull
+   request's `packages` artifact, and run its pre-release noop
+   ([AGENTS.md](../AGENTS.md#validation)) and same-block spot check on every
+   supported network: the hard-fork windows, the windows where the 2026-10-14
+   and 2026-10-18 refusals appeared and the latest blocks. A refusal is fixed
+   and the noop rerun before the merge.
+2. Release ERC-20 v0.7.4 by its tag, `evm-balances-erc20-v0.7.4` (native
+   v0.7.8 was released on 2026-10-15, native v0.7.9 on 2026-10-18).
+3. Resync BSC and Ethereum into new databases,
    `<chain>:evm-balances-native@v0.7.8` and
-   `<chain>:evm-balances-erc20@v0.7.3`, and Arbitrum One and Base into
+   `<chain>:evm-balances-erc20@v0.7.4`, and Arbitrum One and Base into
    `<chain>:evm-balances-native@v0.7.9`: first the full-history noop of each
    released package, then the backfill from genesis of the ranges it passed
    and the live sink
    ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)). On BSC
    they replace the v0.6.1 shadow.
-3. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
+4. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
    so that its native routes read the native database and its other routes
    the ERC-20 database; a side without its key keeps reading `balances`.
-4. Cut over each database on its own
+5. Cut over each database on its own
    ([cutover and backfill](clickhouse.md#cutover-and-backfill),
    [contract](initialization-and-completeness.md)).
 

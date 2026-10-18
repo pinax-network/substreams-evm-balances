@@ -141,13 +141,14 @@ fn captured_block_writes_one_row_per_map_balance() {
     use buffa::Message;
     use substreams_ethereum::pb::eth::v2 as eth;
 
-    let block = eth::Block::decode_from_slice(include_bytes!("../../../erc20/balances/tests/fixtures/bsc-122260950.pb")).unwrap();
+    let bytes = include_bytes!("../../../erc20/balances/tests/fixtures/bsc-122260950.pb");
+    let block = eth::Block::decode_from_slice(bytes).unwrap();
     let clock = Clock {
         id: Hex::encode(&block.hash),
         number: block.number,
         timestamp: block.header.as_option().unwrap().timestamp.clone(),
     };
-    let erc20 = erc20_balances::run(&block).unwrap();
+    let erc20 = erc20_balances::run_sized(&block, bytes.len()).unwrap();
     let changes = database_changes(&clock, &erc20).unwrap().table_changes;
 
     let block_columns = [

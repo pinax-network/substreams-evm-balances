@@ -45,10 +45,22 @@ never prints them.
   `map_events(block)` takes no params or layouts and infers transfer-guided
   balances for every contract from the block's persisted storage. It stays
   RPC-free with bounded per-block work. A block fails only when it is not a
-  complete Extended block or the persistence rules cannot resolve it; inference
-  never fails a block and drops a contract's rows for the block on any doubt.
+  complete Extended block or the persistence rules cannot resolve it, also
+  after the one retry that v0.7.4 takes outside them, as native v0.7.9 does,
+  with a failed SetCode transaction's unapplicable self-authorization marked
+  discarded; inference never fails a block and drops a contract's rows for
+  the block on any doubt.
   Undetected computed balances remain possible: its rows are measured, not
-  qualified. The former layout path, with its tests, fixtures and qualification
+  qualified. Its candidates are the RPC reference's `(contract, holder)`
+  pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender
+  and TrueCurrency's 2-topic `DestroyedBlackFunds` names its holder (owner,
+  2026-10-17). `Deposit`/`Withdrawal`/`Mint`/`Burn` do not vote, except a
+  native-backed WETH9 deposit or withdrawal and a TetherToken
+  `destroyBlackFunds` frame in a block where the contract has no `Transfer`
+  flow (owner, 2026-10-17). It also reads Vyper's `HashMap` key order,
+  `keccak(slot || pad(holder))`, as a base of its own, under which a
+  contract's own row is never emitted, because Yearn v3 vaults compute
+  `balanceOf(self)` (owner, 2026-10-17). The former layout path, with its tests, fixtures and qualification
   evidence, is in git history at `9b41c7f`. Its last packed build is the
   committed `spkg/erc20-balances-v0.1.0.spkg` (2026-09-23), which predates the
   typed-path and enumerable-set source at `9b41c7f`. The inference package was
@@ -59,11 +71,16 @@ never prints them.
   firehose-tracer 5.5.0 and later keep `Block.ver` 5 but record only the Keccak
   preimages that explain a storage write, and cut call data past
   per-transaction limits (#116). At the owner's direction (2026-10-06),
-  `erc20/balances` lets a `balanceOf` without a `pad(holder) || base` preimage
-  only veto (on a call out or a contradicted stored word), and drops a
-  contract's rows for the block on a successful `balanceOf` call without a
-  36-byte input or return data. Each qualification records the reader release
-  (client and tracer version), not just `Block.ver`.
+  `erc20/balances` lets a `balanceOf` without a preimage of the holder's key
+  under a base (Solidity's `pad(holder) || slot` or, since v0.7.4, Vyper's
+  `slot || pad(holder)`; owner, 2026-10-17) only veto (on a call out or a
+  contradicted stored word). It drops a
+  contract's rows for the block on a successful `balanceOf` call that keeps
+  only its 4-byte selector or has no return data, the shape a producer leaves
+  when it cuts a call, only where a cut was possible: a `Block.ver` 5
+  transaction or block past the tracer's cut bounds. A longer input is read as
+  `balanceOf(input[16..36])` (owner, 2026-10-17). Each qualification records
+  the reader release (client and tracer version), not just `Block.ver`.
 - The two balance packages each ship their `map_events` and a `db_out` in one
   spkg (owner, 2026-10-13): `native/balances` is `evm_balances_native`, written
   to `<chain>:evm-balances-native@<version>`, and `erc20/balances` is
@@ -124,9 +141,10 @@ never prints them.
   transaction's authorization boundary when its root call records
   `begin_ordinal` 0 (Arbitrum One's `Block.ver` 3) only from the exact shape
   of its authorization records. Since v0.7.9, when the shared rules refuse a
-  block, native alone takes the sender's own authorization with the
-  transaction's nonce, which cannot apply and which the producer leaves
-  unmarked, as discarded; the shared rules and ERC-20 are unchanged. The
+  block, native takes the sender's own authorization with the transaction's
+  nonce, which cannot apply and which the producer leaves unmarked, as
+  discarded, outside the shared rules, which are unchanged; ERC-20 v0.7.4
+  takes the same correction in its own crate. The
   versions, blocks and fixtures of each rule are in the
   [native README](native/balances/README.md#persistence-and-fail-closed-rules).
   Since v0.7.0 block 0 emits the genesis allocations when every balance

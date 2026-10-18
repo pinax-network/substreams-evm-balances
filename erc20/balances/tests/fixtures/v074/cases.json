@@ -1,0 +1,3721 @@
+{
+ "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-10-17 for the v0.7.4 investigation. A case with a provenance field is an earlier capture described there.",
+ "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block (except for the earlier captures, whose full blocks are not kept); added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
+ "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:, bsc: or polygon:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed. A case's rpc_era.method, where present, replaces this method.",
+ "keyed": "A calls entry's keyed, where present, states whether the call or its DELEGATECALL members record a verified 64-byte preimage of pad(input[16..36]) in either key order (pad(holder) || slot or slot || pad(holder)), so whether v0.7.4 reads it as keyed.",
+ "cases": [
+  {
+   "file": "bsc-39960369-wbnb-long-reads.pb",
+   "chain": "bsc",
+   "block": 39960369,
+   "block_hash": "0x4a759538d607f0f6abb16d09e755c066f4d83606367fbb59ccc64bbdc3dbe10d",
+   "ver": 3,
+   "source_block_sha256": "be723c7fc9f85080c4d5e2c0be890b252fbfdc2e235bf7743bfb1b9870d73ff9",
+   "fixture_sha256": "a3c6d3f3b9ad5814a0d5e4e974cfbc7ee6539051440453aeb1007a47c15fdb60",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    1
+   ],
+   "selection": "the bot transaction 1; the block's other WBNB transactions, 12 (reverted), 16, 20 and 47, are omitted, and none of their WBNB logs names a holder of the fixture's rows",
+   "rule": "C1",
+   "demonstrates": "on a Block.ver 3 producer, which never cuts call data, a bot transaction CALLs WBNB balanceOf four times with 68-byte keyed inputs (calls 2, 3, 28 and 29); v0.7.3 dropped WBNB for the block, v0.7.4 reads them",
+   "calls": [
+    {
+     "tx": 1,
+     "call": 2,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 1,
+     "call": 3,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 1,
+     "call": 28,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 1,
+     "call": 29,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0x55d398326f99059ff775485246999027b3197955": {
+     "0x172fcd41e0913e95784454622d1c3724f546f849": "1348659054949185655763896",
+     "0x5880a8c51c8cda80474a77d22d4d84125f055ddd": "2467362284964764114",
+     "0xcecbe7c3871bed88fdd2fa11cd5c3ffc5ff9fe38": "4296863999644515405643"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x172fcd41e0913e95784454622d1c3724f546f849": "5524434967879554977110",
+     "0x5880a8c51c8cda80474a77d22d4d84125f055ddd": "33216575111215712",
+     "0xba8cb9df4e4acdf5eae0cac39568c95b2bf739cc": "1",
+     "0xcecbe7c3871bed88fdd2fa11cd5c3ffc5ff9fe38": "621476564",
+     "0xd534fae679f7f02364d177e9d44f1d15963c0dd7": "82801830100684129630"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x172fcd41e0913e95784454622d1c3724f546f849"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x5880a8c51c8cda80474a77d22d4d84125f055ddd"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0xba8cb9df4e4acdf5eae0cac39568c95b2bf739cc"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0xcecbe7c3871bed88fdd2fa11cd5c3ffc5ff9fe38"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0xd534fae679f7f02364d177e9d44f1d15963c0dd7"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0xcecbe7c3871bed88fdd2fa11cd5c3ffc5ff9fe38": "621476564"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-15771625-weth-64-byte-reads.pb",
+   "chain": "eth",
+   "block": 15771625,
+   "block_hash": "0xee2e59e5e08e232e09ab77a0c1fc944b755de8f537f9bd133bc4a49cf6f4800b",
+   "ver": 3,
+   "source_block_sha256": "e25dc658e1440359786cebc2fc6a0a60ecc0fcb7098a0b4beeece034ea86bca0",
+   "fixture_sha256": "e9e66b722fad61bd48e2a6724f219dbac11a30926a7f52e916ec21d74354aa87",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    27,
+    66
+   ],
+   "selection": "every WETH transaction with one call, and transaction 27",
+   "rule": "C1",
+   "demonstrates": "tx 27 (Block.ver 3) STATICCALLs WETH balanceOf(0xed777775...) twice with 64-byte inputs (calls 2 and 15); v0.7.3 dropped WETH for the block, v0.7.4 reads them",
+   "calls": [
+    {
+     "tx": 27,
+     "call": 2,
+     "input_len": 64,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 27,
+     "call": 15,
+     "input_len": 64,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0x8f8221afbb33998d8584a2b05749ba73c37a938a": {
+     "0x69d460e01070a7ba1bc363885bc8f4f0daa19bf5": "2261011018954816777090449",
+     "0xa97642500517c728ce1339a466de0f10c19034cd": "2089591441715479314483498",
+     "0xed77777586d73c58eb4d6bebdf9c85c2d5f56c2d": "0"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x69d460e01070a7ba1bc363885bc8f4f0daa19bf5": "66050419227325977240",
+     "0xa97642500517c728ce1339a466de0f10c19034cd": "182579676149218710197",
+     "0xddd294eeac84233efdc344daf4daef242b43acd0": "50000000000000000",
+     "0xed77777586d73c58eb4d6bebdf9c85c2d5f56c2d": "13941130235820865572"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x69d460e01070a7ba1bc363885bc8f4f0daa19bf5"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xa97642500517c728ce1339a466de0f10c19034cd"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xddd294eeac84233efdc344daf4daef242b43acd0"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xed77777586d73c58eb4d6bebdf9c85c2d5f56c2d"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0xddd294eeac84233efdc344daf4daef242b43acd0": "50000000000000000"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-24675092-usdt-28-byte-read.pb",
+   "chain": "eth",
+   "block": 24675092,
+   "block_hash": "0xc304740450bfd446cf4bf474cc84e8d7fe2844ac8ddf91fb5c74a1fedb6398a6",
+   "ver": 4,
+   "source_block_sha256": "37341ef6d4983827c314d7c56d7ad93cfb332506e51aaa60e67a8ad271c7c2af",
+   "fixture_sha256": "beac7444982634bfd02acebf3dfc9b9cabfe5f1e552daf6357586cfc3ffe9e45",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    50,
+    76,
+    83,
+    93,
+    95,
+    101,
+    108,
+    121,
+    132,
+    138,
+    139
+   ],
+   "selection": "transaction 50 and the first ten USDT transactions with one call whose holders appear in no other USDT transaction of the block",
+   "rule": "C1",
+   "demonstrates": "tx 50 (Block.ver 4) STATICCALLs USDT balanceOf with a 28-byte input (call 2), which TetherToken (solc 0.4.18) answers with balanceOf(0) of the zero-extended argument; v0.7.3 dropped USDT for the block, v0.7.4 reads it only to veto",
+   "calls": [
+    {
+     "tx": 50,
+     "call": 2,
+     "input_len": 28,
+     "return_len": 32
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x04d0826ca24c733e6607dc67f016ed51ff8cf981": "0",
+     "0x0d0707963952f2fba59dd06f2b425ace40b492fe": "29515999966611",
+     "0x10b423b32af106e6be1ddb08693218f6c68f11b1": "155097065302",
+     "0x25613d3699977b89f6f4763cbe6e6577e07392b8": "94803760",
+     "0x4680ca304e9c67f06f8683b2cc431523c046670e": "94205850524",
+     "0x559432e18b281731c054cd703d4b49872be4ed53": "458059516547400",
+     "0x61e9683040de53b1ee35bbb445c59a2c7bef2d11": "411444167",
+     "0x6b908ccbc143248ec368b029576bde23c5941141": "13975291847",
+     "0x725f8977cb3ed33f65d46d6655e30f73f8ceb51b": "6848241020",
+     "0x8f72cc1f1d056fbf6c95d9c5df03ba541569ca29": "4877956033",
+     "0x904d839c3555a59c3545feae32dcdc2c8027ece5": "5764275506",
+     "0x9df0eb57cfc88b451b22da7fa6618cc194a8ac7e": "129870000",
+     "0x9e72d03f5769a3635250239f0adab29b4ba7665b": "0",
+     "0xa03400e098f4421b34a3a44a1b4e571419517687": "1983264758286",
+     "0xa5e02f45c3d7758c05448b0ccd4f0be7f830da7a": "3027",
+     "0xb40eed68d7d6b3b6d6f4e93de6239b7c53efc786": "21892306761984",
+     "0xc2f4c9e3c94cbd3693f48454bbe5ca99ffd564aa": "5701890000",
+     "0xc3dc8505f19f30a0fae226ff35421aa361247270": "0",
+     "0xe1bca2adfe143740b5b2ad5ee5703a7ef87a5eb3": "2750000000",
+     "0xeec4f9234fc51e93bcdc90be2540a43d10632695": "1400002120777"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x04d0826ca24c733e6607dc67f016ed51ff8cf981"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x0d0707963952f2fba59dd06f2b425ace40b492fe"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x10b423b32af106e6be1ddb08693218f6c68f11b1"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x25613d3699977b89f6f4763cbe6e6577e07392b8"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x4680ca304e9c67f06f8683b2cc431523c046670e"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x559432e18b281731c054cd703d4b49872be4ed53"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x61e9683040de53b1ee35bbb445c59a2c7bef2d11"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x6b908ccbc143248ec368b029576bde23c5941141"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x725f8977cb3ed33f65d46d6655e30f73f8ceb51b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x8f72cc1f1d056fbf6c95d9c5df03ba541569ca29"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x904d839c3555a59c3545feae32dcdc2c8027ece5"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x9df0eb57cfc88b451b22da7fa6618cc194a8ac7e"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x9e72d03f5769a3635250239f0adab29b4ba7665b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xa03400e098f4421b34a3a44a1b4e571419517687"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xa5e02f45c3d7758c05448b0ccd4f0be7f830da7a"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xb40eed68d7d6b3b6d6f4e93de6239b7c53efc786"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc2f4c9e3c94cbd3693f48454bbe5ca99ffd564aa"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc3dc8505f19f30a0fae226ff35421aa361247270"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xe1bca2adfe143740b5b2ad5ee5703a7ef87a5eb3"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xeec4f9234fc51e93bcdc90be2540a43d10632695"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x04d0826ca24c733e6607dc67f016ed51ff8cf981": "0",
+      "0x0d0707963952f2fba59dd06f2b425ace40b492fe": "29515999966611",
+      "0x10b423b32af106e6be1ddb08693218f6c68f11b1": "155097065302",
+      "0x25613d3699977b89f6f4763cbe6e6577e07392b8": "94803760",
+      "0x4680ca304e9c67f06f8683b2cc431523c046670e": "94205850524",
+      "0x6b908ccbc143248ec368b029576bde23c5941141": "13975291847",
+      "0x725f8977cb3ed33f65d46d6655e30f73f8ceb51b": "6848241020",
+      "0x904d839c3555a59c3545feae32dcdc2c8027ece5": "5764275506",
+      "0x9df0eb57cfc88b451b22da7fa6618cc194a8ac7e": "129870000",
+      "0x9e72d03f5769a3635250239f0adab29b4ba7665b": "0",
+      "0xa03400e098f4421b34a3a44a1b4e571419517687": "1983264758286",
+      "0xa5e02f45c3d7758c05448b0ccd4f0be7f830da7a": "3027",
+      "0xb40eed68d7d6b3b6d6f4e93de6239b7c53efc786": "21892306761984",
+      "0xc2f4c9e3c94cbd3693f48454bbe5ca99ffd564aa": "5701890000",
+      "0xc3dc8505f19f30a0fae226ff35421aa361247270": "0",
+      "0xe1bca2adfe143740b5b2ad5ee5703a7ef87a5eb3": "2750000000",
+      "0xeec4f9234fc51e93bcdc90be2540a43d10632695": "1400002120777"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-25830278-usdt-long-read.pb",
+   "chain": "eth",
+   "block": 25830278,
+   "block_hash": "0x77a0a14d80cafa4b22f5399f8cba6936effc512674f4b93a7c4b75c700243203",
+   "ver": 5,
+   "source_block_sha256": "b429a84570e358aa451c72e78ab28e268406ac18420d43547b0a23b3447b56ed",
+   "fixture_sha256": "2afe1b387a2d4a34503fcf026af40ca86034cab23cae45d4a2775c4cf78f6e2d",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    3,
+    8,
+    11,
+    13,
+    17,
+    18,
+    24,
+    74,
+    79,
+    80,
+    81,
+    95,
+    97,
+    100,
+    116,
+    121,
+    122,
+    123,
+    126,
+    132,
+    135,
+    137
+   ],
+   "selection": "every USDT transaction with one call, and the bot transaction 97",
+   "rule": "C1",
+   "demonstrates": "a bot transaction (tx 97, Block.ver 5) CALLs balanceOf(0x1dd00b11...) of USDT, USDC and WETH with 68-byte inputs (pad(holder) and a leftover word of its transfer buffer) that return the stored word; v0.7.3 dropped all three tokens for the block on the input length, v0.7.4 reads each as balanceOf(input[16..36]). The USDT read (call 38) is keyed in its own frame, and the USDC read (call 9) through its DELEGATECALL to the FiatToken implementation (call 10, which records pad(holder) || 9)",
+   "calls": [
+    {
+     "tx": 97,
+     "call": 38,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 97,
+     "call": 9,
+     "address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 97,
+     "call": 45,
+     "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0x6b175474e89094c44da98b954eedeac495271d0f": {
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "41000000000000",
+     "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406": "916367452769565581255669",
+     "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb": "555250325508470703270875",
+     "0xf6e72db5454dd049d0788e411b06cfaf16853042": "814890874277282270548465826"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+     "0x37305b1cd40574e4c5ce33f8e8306be057fd7341": "3978701186898036",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "21130548615251"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+     "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b": "1012663066770688550312"
+    },
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x05e1a40434127b92227a8113560d8403c0deeff2": "0",
+     "0x0d73ee5e5c0af19bf0b98f6576079de56fe9cd4b": "3686175772",
+     "0x1404cb046c3b4a90490d80b52eb367245e316b21": "1098015197943",
+     "0x1d39815a7dc976c8580904cc10def0e80a41736f": "50000000",
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+     "0x1f3d808e23ba330c8daba0d19627908e9e6a59fc": "19999200000",
+     "0x23ceecbfa5d46b60c2fbf2c5b55d9fd53d3665b9": "3500000000",
+     "0x26f066c8d76961cc5c2b0026e9ad857838b183a1": "7235783203",
+     "0x281e0138f8512e43e624690e626cce26c316126d": "0",
+     "0x2df9b935c44057ac240634c7536511d8aa03028d": "217962351137",
+     "0x32d3e209caf2f6fdedd8b28d7fd6af0ed2d73a1e": "194297033",
+     "0x3cabfd0c49d967c98af8f4753589b7b2311e20f2": "25000000500",
+     "0x3cc936b795a188f0e246cbb2d74c5bd190aecf18": "159582062087807",
+     "0x412f67f000761cbea3c2e671e32c68d63770a0b3": "471999402598",
+     "0x47549a51db01984c2e281c19ffbab8f7d8ccc18c": "0",
+     "0x477b8d5ef7c2c42db84deb555419cd817c336b6f": "1587978618158",
+     "0x4895e244ba7fe93beea5c3c4155c69943bb01d10": "0",
+     "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406": "566061123901",
+     "0x4c1def47565d45764f7195bb5ab3f1c61b53acbd": "3308881913",
+     "0x4cb7c69a5518c8864ee02feb67e88b073ae89ab9": "23875770544",
+     "0x4e22fb0fec553885093a648e5e997e623121b434": "165556334113",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "12216890596868",
+     "0x5deae84a7a548b36c427e76475914f9f518677ec": "4846676",
+     "0x6b35d08789cf8ed21a9ba5ff7b8438ec4f071206": "402390201",
+     "0x7330b3b3c09a768a4582ba5b1970f0a506c9f1f4": "75000000",
+     "0x73e2378306f6719fdf94a731f57d1f93fcf39ef6": "1005185009",
+     "0x7c6e3bc417b98967a4381f0a19cf3afe3ca2e1dd": "11470428226",
+     "0x80eb7e062bda7987a4ff55c680027f7f95549afa": "1499700000",
+     "0x8f3416ceaac81569472cf5335d1b1beb0e3cca6a": "50000017",
+     "0x9926b7bdb6913684084c2320a5454ef6d67acb51": "4520834610616",
+     "0x9b44d07e8cebc9696e45c8df841f41a90319c5d7": "68284424",
+     "0xa863ce99ebe309f31a491bf7e796485453aa01e0": "58000000",
+     "0xaa8ba7d4611437141192e7ceced531bc0a133efb": "186092454156263",
+     "0xb01007916cf90c1610e7429eaee53b2c0a4588a8": "31669170",
+     "0xc55b68e4e97a945b150c0c6865a3cb4c22ccefd4": "616609133729",
+     "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b": "1522210061459",
+     "0xd45dc6bcd96c8b7f5ed0f717350c91a7824aa640": "1002808946",
+     "0xd57185fc9c44fbc68071c12b54d212cb185b5b06": "334582100",
+     "0xdfaa75323fb721e5f29d43859390f62cc4b600b8": "3279752295956",
+     "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": "74383824270418",
+     "0xea4ca552a2c2102ac04b65e3acb28443a1d4bb5b": "0",
+     "0xeee3a21394c86243f6c37c852faf4f997ddee874": "48501070",
+     "0xf89d7b9c864f589bbf53a82105107622b35eaa40": "311389474191221"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x37305b1cd40574e4c5ce33f8e8306be057fd7341"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x05e1a40434127b92227a8113560d8403c0deeff2"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x0d73ee5e5c0af19bf0b98f6576079de56fe9cd4b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x1404cb046c3b4a90490d80b52eb367245e316b21"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x1d39815a7dc976c8580904cc10def0e80a41736f"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x1f3d808e23ba330c8daba0d19627908e9e6a59fc"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x23ceecbfa5d46b60c2fbf2c5b55d9fd53d3665b9"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x26f066c8d76961cc5c2b0026e9ad857838b183a1"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x281e0138f8512e43e624690e626cce26c316126d"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x2df9b935c44057ac240634c7536511d8aa03028d"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x32d3e209caf2f6fdedd8b28d7fd6af0ed2d73a1e"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x3cabfd0c49d967c98af8f4753589b7b2311e20f2"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x3cc936b795a188f0e246cbb2d74c5bd190aecf18"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x412f67f000761cbea3c2e671e32c68d63770a0b3"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x47549a51db01984c2e281c19ffbab8f7d8ccc18c"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x477b8d5ef7c2c42db84deb555419cd817c336b6f"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x4895e244ba7fe93beea5c3c4155c69943bb01d10"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x4c1def47565d45764f7195bb5ab3f1c61b53acbd"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x4cb7c69a5518c8864ee02feb67e88b073ae89ab9"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x4e22fb0fec553885093a648e5e997e623121b434"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x5deae84a7a548b36c427e76475914f9f518677ec"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x6b35d08789cf8ed21a9ba5ff7b8438ec4f071206"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x7330b3b3c09a768a4582ba5b1970f0a506c9f1f4"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x73e2378306f6719fdf94a731f57d1f93fcf39ef6"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x7c6e3bc417b98967a4381f0a19cf3afe3ca2e1dd"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x80eb7e062bda7987a4ff55c680027f7f95549afa"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x8f3416ceaac81569472cf5335d1b1beb0e3cca6a"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x9926b7bdb6913684084c2320a5454ef6d67acb51"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x9b44d07e8cebc9696e45c8df841f41a90319c5d7"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xa863ce99ebe309f31a491bf7e796485453aa01e0"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xaa8ba7d4611437141192e7ceced531bc0a133efb"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xb01007916cf90c1610e7429eaee53b2c0a4588a8"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc55b68e4e97a945b150c0c6865a3cb4c22ccefd4"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xd45dc6bcd96c8b7f5ed0f717350c91a7824aa640"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xd57185fc9c44fbc68071c12b54d212cb185b5b06"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xdfaa75323fb721e5f29d43859390f62cc4b600b8"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xdfd5293d8e347dfe59e90efd55b2956a1343963d"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xea4ca552a2c2102ac04b65e3acb28443a1d4bb5b"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xeee3a21394c86243f6c37c852faf4f997ddee874"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xf89d7b9c864f589bbf53a82105107622b35eaa40"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x6b175474e89094c44da98b954eedeac495271d0f": {
+      "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "41000000000000",
+      "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406": "916367452769565581255669",
+      "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb": "555250325508470703270875",
+      "0xf6e72db5454dd049d0788e411b06cfaf16853042": "814890874277282270548465826"
+     },
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+      "0x37305b1cd40574e4c5ce33f8e8306be057fd7341": "3978701186898036",
+      "0x52aa899454998be5b000ad077a46bbe360f4e497": "21130548615251"
+     },
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+      "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b": "1012663066770688550312"
+     },
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x05e1a40434127b92227a8113560d8403c0deeff2": "0",
+      "0x0d73ee5e5c0af19bf0b98f6576079de56fe9cd4b": "3686175772",
+      "0x1404cb046c3b4a90490d80b52eb367245e316b21": "1098015197943",
+      "0x1d39815a7dc976c8580904cc10def0e80a41736f": "50000000",
+      "0x1dd00b1144c8f7b84ff337cc906ea8497d7c5362": "0",
+      "0x1f3d808e23ba330c8daba0d19627908e9e6a59fc": "19999200000",
+      "0x23ceecbfa5d46b60c2fbf2c5b55d9fd53d3665b9": "3500000000",
+      "0x26f066c8d76961cc5c2b0026e9ad857838b183a1": "7235783203",
+      "0x281e0138f8512e43e624690e626cce26c316126d": "0",
+      "0x2df9b935c44057ac240634c7536511d8aa03028d": "217962351137",
+      "0x32d3e209caf2f6fdedd8b28d7fd6af0ed2d73a1e": "194297033",
+      "0x3cabfd0c49d967c98af8f4753589b7b2311e20f2": "25000000500",
+      "0x3cc936b795a188f0e246cbb2d74c5bd190aecf18": "159582062087807",
+      "0x412f67f000761cbea3c2e671e32c68d63770a0b3": "471999402598",
+      "0x47549a51db01984c2e281c19ffbab8f7d8ccc18c": "0",
+      "0x477b8d5ef7c2c42db84deb555419cd817c336b6f": "1587978618158",
+      "0x4895e244ba7fe93beea5c3c4155c69943bb01d10": "0",
+      "0x48da0965ab2d2cbf1c17c09cfb5cbe67ad5b1406": "566061123901",
+      "0x4c1def47565d45764f7195bb5ab3f1c61b53acbd": "3308881913",
+      "0x4cb7c69a5518c8864ee02feb67e88b073ae89ab9": "23875770544",
+      "0x4e22fb0fec553885093a648e5e997e623121b434": "165556334113",
+      "0x52aa899454998be5b000ad077a46bbe360f4e497": "12216890596868",
+      "0x5deae84a7a548b36c427e76475914f9f518677ec": "4846676",
+      "0x6b35d08789cf8ed21a9ba5ff7b8438ec4f071206": "402390201",
+      "0x7330b3b3c09a768a4582ba5b1970f0a506c9f1f4": "75000000",
+      "0x73e2378306f6719fdf94a731f57d1f93fcf39ef6": "1005185009",
+      "0x7c6e3bc417b98967a4381f0a19cf3afe3ca2e1dd": "11470428226",
+      "0x80eb7e062bda7987a4ff55c680027f7f95549afa": "1499700000",
+      "0x8f3416ceaac81569472cf5335d1b1beb0e3cca6a": "50000017",
+      "0x9926b7bdb6913684084c2320a5454ef6d67acb51": "4520834610616",
+      "0x9b44d07e8cebc9696e45c8df841f41a90319c5d7": "68284424",
+      "0xa863ce99ebe309f31a491bf7e796485453aa01e0": "58000000",
+      "0xaa8ba7d4611437141192e7ceced531bc0a133efb": "186092454156263",
+      "0xb01007916cf90c1610e7429eaee53b2c0a4588a8": "31669170",
+      "0xc55b68e4e97a945b150c0c6865a3cb4c22ccefd4": "616609133729",
+      "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b": "1522210061459",
+      "0xd45dc6bcd96c8b7f5ed0f717350c91a7824aa640": "1002808946",
+      "0xd57185fc9c44fbc68071c12b54d212cb185b5b06": "334582100",
+      "0xdfaa75323fb721e5f29d43859390f62cc4b600b8": "3279752295956",
+      "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": "74383824270418",
+      "0xea4ca552a2c2102ac04b65e3acb28443a1d4bb5b": "0",
+      "0xeee3a21394c86243f6c37c852faf4f997ddee874": "48501070",
+      "0xf89d7b9c864f589bbf53a82105107622b35eaa40": "311389474191221"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-26158474-usdc-proxied-long-read.pb",
+   "chain": "eth",
+   "block": 26158474,
+   "block_hash": "0xb8834dd73644ced0267447d542c0df09590ac3f9a4bf966b7536ed1e14d5a651",
+   "ver": 5,
+   "source_block_sha256": "7a34a1f811bcc7ae3aee5aa7e9ffee1e2a5154a4edf265a1287423ca25643393",
+   "fixture_sha256": "f2377806e8a66f49d276cdc5757d2d98f0897da0a3549ec918e148d70e6c0d1a",
+   "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+   "kept_transactions": [
+    23,
+    40,
+    50,
+    51,
+    52,
+    82,
+    88,
+    102,
+    106,
+    119,
+    125,
+    128,
+    129,
+    145,
+    163,
+    166,
+    169,
+    206
+   ],
+   "selection": "every USDC transaction with at most two calls (a proxied transfer), and the bot transaction 166",
+   "rule": "C1",
+   "demonstrates": "tx 166 (Block.ver 5) CALLs USDC balanceOf(0x52852bd8...) with a 68-byte input (call 96), keyed through its DELEGATECALL to the FiatToken implementation (call 97, which records pad(holder) || 9), returning the stored 5,769,348, and WETH balanceOf with a 68-byte input keyed in its own frame (call 91); v0.7.3 dropped both tokens for the block, v0.7.4 reads both and keeps their rows; since C6 the block's FXN (a CurveDAOToken fork, Vyper 0.3.1) rows are inferred too",
+   "calls": [
+    {
+     "tx": 166,
+     "call": 96,
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 166,
+     "call": 91,
+     "address": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "input_len": 68,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "1399",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+     "0xe31a5442b29f04e84441395c78f200919c6a7f31": "0"
+    },
+    "0x365accfca291e7d3914637abf1f7635db165bb09": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "30241894882467882",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
+    },
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "82391483762104",
+     "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+    },
+    "0x6b175474e89094c44da98b954eedeac495271d0f": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "9292365177413212527",
+     "0x52659ec73edc293ac1a16cfc8f27f8e7267ecf53": "0",
+     "0x885e415d0836727f8757bffc093e9728b1aaf60f": "500",
+     "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11": "4563984144154453020137720",
+     "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "1",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+     "0xd7182faf9222cfc74526963af3be3d4914ba2501": "0",
+     "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "1",
+     "0xfcb34b514dc2f89cc1daa72d78fa56a942de395e": "0",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
+    },
+    "0x9cb2f26a23b8d89973f08c957c4d7cdf75cd341c": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "43922238",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+     "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "0"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x00a0331e75de7bb5995df5f0c8cddef2eea0d8d6": "7077014938",
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "6016851",
+     "0x0498f229f18a38dbfaa614d916b6b7dc6ebb87d1": "0",
+     "0x07fbc29161cde84d378658ac81869347f3dc9c1a": "133950672275",
+     "0x0c36e7a3e9a55389ed44c85f10a6d7f31e0fa736": "195000000",
+     "0x0edf664f090cf9c789d3cbbe7cf1ecdc48db7d2e": "1148312",
+     "0x1602dd19c4822eb72406148e7f4281606aeb3896": "274151706",
+     "0x176de4082d4f0c6fa41abd8b899c316cace93fc0": "0",
+     "0x2574f8ea54c389ec61397c68f3b95c65691bb1b9": "0",
+     "0x2cff890f0378a11913b6129b2e97417a2c302680": "20882808782066",
+     "0x307576dd4f73f91bb8c4a2edb762938e8e067d31": "5369565447664",
+     "0x3af90fc87a9a0731c518fdff4ed18c5fa1a7d997": "20020000000",
+     "0x434270f7a94f5676fb63d1bfa0866cdacc12956a": "0",
+     "0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97": "29360447220675",
+     "0x466ba3edd0783b0e0e675b50e7e59396b0433064": "887405998579",
+     "0x508d23aaa8c2825f470933644f5f1eb523557c14": "5147847554",
+     "0x52852bd8436e57fed3b66f062e80d6206e364e6c": "0",
+     "0x5a6b3944b6e9c4694924db2bb434c6817a4cde41": "82511287704",
+     "0x6085cf98cfefdd5f027e18ee2814c2efc8fa13b5": "2025000000",
+     "0x6872b6630a3afcd3117191a8403c2002e13df7de": "4419308199643",
+     "0x8ed10fd8331dfec9f50e5fae72dfe3076071a6e0": "0",
+     "0x935d2e470284fb536227a76a723f96a94efae6a9": "12386319169",
+     "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": "53918993103979",
+     "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "4311425",
+     "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc": "10080906506759",
+     "0xc84f66dfd985c0b860b308fc75dcfa3c674f2c21": "2290000",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+     "0xd47a1bdc6872ad2fd16e50149baa9924c653e624": "2807821942550",
+     "0xd9041222ef11eb69954312ab24eb11c7cc9fa1bb": "18610",
+     "0xddd640bdb0c0fe8851b71654c33d445f15a1842c": "5000000",
+     "0xe7dbf594f71ea4c0404b72cd1bfc787814be9c4c": "0",
+     "0xec6b9d268cf4252fbd0fee9044af9424d7e1e24c": "2241491578",
+     "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "2801911"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2059143575718006",
+     "0x7a250d5630b4cf539739df2c5dacb4c659f2488d": "0",
+     "0x885e415d0836727f8757bffc093e9728b1aaf60f": "0",
+     "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11": "1838821505238274523353",
+     "0xb07433d68fb7b15cda6fe6b3b34cb21ec3c043a0": "0",
+     "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc": "4060789000370606664393",
+     "0xfcb34b514dc2f89cc1daa72d78fa56a942de395e": "0",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
+    },
+    "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2193141231464",
+     "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+    },
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "7115461",
+     "0x52659ec73edc293ac1a16cfc8f27f8e7267ecf53": "0",
+     "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "0",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+     "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "1"
+    },
+    "0xe6829d9a7ee3040e1276fa75293bde931859e8fa": {
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2820607344244",
+     "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x365accfca291e7d3914637abf1f7635db165bb09",
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800"
+    ],
+    [
+     "0x365accfca291e7d3914637abf1f7635db165bb09",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x00a0331e75de7bb5995df5f0c8cddef2eea0d8d6"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x0498f229f18a38dbfaa614d916b6b7dc6ebb87d1"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x07fbc29161cde84d378658ac81869347f3dc9c1a"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x0c36e7a3e9a55389ed44c85f10a6d7f31e0fa736"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x0edf664f090cf9c789d3cbbe7cf1ecdc48db7d2e"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x1602dd19c4822eb72406148e7f4281606aeb3896"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x176de4082d4f0c6fa41abd8b899c316cace93fc0"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x2574f8ea54c389ec61397c68f3b95c65691bb1b9"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x2cff890f0378a11913b6129b2e97417a2c302680"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x307576dd4f73f91bb8c4a2edb762938e8e067d31"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x3af90fc87a9a0731c518fdff4ed18c5fa1a7d997"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x434270f7a94f5676fb63d1bfa0866cdacc12956a"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x466ba3edd0783b0e0e675b50e7e59396b0433064"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x508d23aaa8c2825f470933644f5f1eb523557c14"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x52852bd8436e57fed3b66f062e80d6206e364e6c"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x5a6b3944b6e9c4694924db2bb434c6817a4cde41"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x6085cf98cfefdd5f027e18ee2814c2efc8fa13b5"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x6872b6630a3afcd3117191a8403c2002e13df7de"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x8ed10fd8331dfec9f50e5fae72dfe3076071a6e0"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0x935d2e470284fb536227a76a723f96a94efae6a9"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xc84f66dfd985c0b860b308fc75dcfa3c674f2c21"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xd47a1bdc6872ad2fd16e50149baa9924c653e624"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xd9041222ef11eb69954312ab24eb11c7cc9fa1bb"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xddd640bdb0c0fe8851b71654c33d445f15a1842c"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xe7dbf594f71ea4c0404b72cd1bfc787814be9c4c"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xec6b9d268cf4252fbd0fee9044af9424d7e1e24c"
+    ],
+    [
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+     "0xec9ee41b316b7f335274c37ef17f8e34b1171df8"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x022a0f664ca9893cae71192ff6e0206aebefd800"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x7a250d5630b4cf539739df2c5dacb4c659f2488d"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x885e415d0836727f8757bffc093e9728b1aaf60f"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xb07433d68fb7b15cda6fe6b3b34cb21ec3c043a0"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xfcb34b514dc2f89cc1daa72d78fa56a942de395e"
+    ],
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "1399",
+      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+      "0xe31a5442b29f04e84441395c78f200919c6a7f31": "0"
+     },
+     "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "82391483762104",
+      "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+     },
+     "0x6b175474e89094c44da98b954eedeac495271d0f": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "9292365177413212527",
+      "0x52659ec73edc293ac1a16cfc8f27f8e7267ecf53": "0",
+      "0x885e415d0836727f8757bffc093e9728b1aaf60f": "500",
+      "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11": "4563984144154453020137720",
+      "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "1",
+      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+      "0xd7182faf9222cfc74526963af3be3d4914ba2501": "0",
+      "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "1",
+      "0xfcb34b514dc2f89cc1daa72d78fa56a942de395e": "0",
+      "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
+     },
+     "0x9cb2f26a23b8d89973f08c957c4d7cdf75cd341c": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "43922238",
+      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+      "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "0"
+     },
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x00a0331e75de7bb5995df5f0c8cddef2eea0d8d6": "7077014938",
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "6016851",
+      "0x0498f229f18a38dbfaa614d916b6b7dc6ebb87d1": "0",
+      "0x07fbc29161cde84d378658ac81869347f3dc9c1a": "133950672275",
+      "0x0c36e7a3e9a55389ed44c85f10a6d7f31e0fa736": "195000000",
+      "0x0edf664f090cf9c789d3cbbe7cf1ecdc48db7d2e": "1148312",
+      "0x1602dd19c4822eb72406148e7f4281606aeb3896": "274151706",
+      "0x176de4082d4f0c6fa41abd8b899c316cace93fc0": "0",
+      "0x2574f8ea54c389ec61397c68f3b95c65691bb1b9": "0",
+      "0x2cff890f0378a11913b6129b2e97417a2c302680": "20882808782066",
+      "0x307576dd4f73f91bb8c4a2edb762938e8e067d31": "5369565447664",
+      "0x3af90fc87a9a0731c518fdff4ed18c5fa1a7d997": "20020000000",
+      "0x434270f7a94f5676fb63d1bfa0866cdacc12956a": "0",
+      "0x445f16314284b43dfa1fd3cd77b9dea4a1bebd97": "29360447220675",
+      "0x466ba3edd0783b0e0e675b50e7e59396b0433064": "887405998579",
+      "0x508d23aaa8c2825f470933644f5f1eb523557c14": "5147847554",
+      "0x52852bd8436e57fed3b66f062e80d6206e364e6c": "0",
+      "0x5a6b3944b6e9c4694924db2bb434c6817a4cde41": "82511287704",
+      "0x6085cf98cfefdd5f027e18ee2814c2efc8fa13b5": "2025000000",
+      "0x8ed10fd8331dfec9f50e5fae72dfe3076071a6e0": "0",
+      "0x935d2e470284fb536227a76a723f96a94efae6a9": "12386319169",
+      "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": "53918993103979",
+      "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "4311425",
+      "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc": "10080906506759",
+      "0xc84f66dfd985c0b860b308fc75dcfa3c674f2c21": "2290000",
+      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+      "0xd47a1bdc6872ad2fd16e50149baa9924c653e624": "2807821942550",
+      "0xd9041222ef11eb69954312ab24eb11c7cc9fa1bb": "18610",
+      "0xddd640bdb0c0fe8851b71654c33d445f15a1842c": "5000000",
+      "0xe7dbf594f71ea4c0404b72cd1bfc787814be9c4c": "0",
+      "0xec6b9d268cf4252fbd0fee9044af9424d7e1e24c": "2241491578",
+      "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "2801911"
+     },
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2059143575718006",
+      "0x7a250d5630b4cf539739df2c5dacb4c659f2488d": "0",
+      "0x885e415d0836727f8757bffc093e9728b1aaf60f": "0",
+      "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11": "1838821505238274523353",
+      "0xb07433d68fb7b15cda6fe6b3b34cb21ec3c043a0": "0",
+      "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc": "4060789000370606664393",
+      "0xfcb34b514dc2f89cc1daa72d78fa56a942de395e": "0",
+      "0xff16bbe0b76b0a0ce1a7c6d1855f4e969cee1ae7": "0"
+     },
+     "0xcd5fe23c85820f7b72d0926fc9b05b43e359b7ee": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2193141231464",
+      "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+     },
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "7115461",
+      "0x52659ec73edc293ac1a16cfc8f27f8e7267ecf53": "0",
+      "0xa9ec3ba8d235b5c3e2a624b34126a89c1406bbc7": "0",
+      "0xcc73f1dc2be0ff1a8b896f40300d28b923b516c8": "0",
+      "0xec9ee41b316b7f335274c37ef17f8e34b1171df8": "1"
+     },
+     "0xe6829d9a7ee3040e1276fa75293bde931859e8fa": {
+      "0x022a0f664ca9893cae71192ff6e0206aebefd800": "2820607344244",
+      "0x50cfe7c1938db66a1a6d2e86d36f39fbef3d5c4a": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "../wbnb-mutations/122288015-tx18-deposit-nested-no-transfer.pb",
+   "chain": "bsc",
+   "block": 122288015,
+   "block_hash": "0x03813d090496922b3836f884a41127e2d09de9918bf8a87766da36e10f327f39",
+   "ver": 5,
+   "source_block_sha256": "6cac58fdc427aa53846973dcce1dbd8b2a5bf7fccd22259eb923f68b57307aff",
+   "fixture_sha256": "1f4848702bd35d7c998a0b6345ed85de4acf18370844dc41bbe2e7509bef171a",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    18
+   ],
+   "selection": "transaction 18 only, as captured in 2026-09",
+   "rule": "C2",
+   "demonstrates": "deposit() five frames deep, called by the storage address 0x278d858f... (tx 18 call 13, Block.ver 5) with exactly the wad and no call; in the one-transaction capture WBNB has no Transfer, so the frame votes the credit and the holder gets its word",
+   "calls": [
+    {
+     "tx": 18,
+     "call": 13,
+     "log_topic0": "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c",
+     "input_len": 4
+    }
+   ],
+   "rows": {
+    "0x3e5d4f8aee0d9b3082d5f6da5d6e225d17ba9ea0": {
+     "0x238a358808379702088667322f80ac48bad5e6c4": "458489736230038733408125",
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "1459857474448359341386"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "985428582545545169407"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x278d858f05b94576c1e6f73285886876ff6ef8d2"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {},
+    "note": "Not confirmed at the block, read-only, 2026-10-17: the RPC era has no 1-minute bar there; its observations before (block 122,287,736: 986695725389579487777) and after (block 122,288,121: 981759524013973611004) bracket it. In the capture, the token's own balanceOf of the holder traced after the deposit in the same transaction (call 19) returns the row. The full block is not kept, so later transactions of the block are not reflected."
+   },
+   "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
+  },
+  {
+   "file": "../wbnb-mutations/122288035-tx9-withdrawal-no-transfer.pb",
+   "chain": "bsc",
+   "block": 122288035,
+   "block_hash": "0x35678ad4f89c7f35e53df4e3f7fa8a05fbef3792309b0ce457f59d1dcd850e21",
+   "ver": 5,
+   "source_block_sha256": "a0d7f3aa28b0929a3ea6c15effb6b56a9c503abd42e4c17b926522d927317057",
+   "fixture_sha256": "3133e240fe86f8287530baa8d5f2563650ec996fc24dc63c0c8e558fe944ba97",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    9
+   ],
+   "selection": "transaction 9 only, as captured in 2026-09",
+   "rule": "C2",
+   "demonstrates": "withdraw() by the contract 0x4e7ed91e... three frames deep (tx 9 call 7, Block.ver 5), paid by its only call with 2,300 gas; in the one-transaction capture WBNB has no Transfer, so the frame votes the debit and the holder gets its word",
+   "calls": [
+    {
+     "tx": 9,
+     "call": 7,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 8,
+     "address": "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x4b3d30992f003c8167699735f5ab2831b2a087d3": {
+     "0x238a358808379702088667322f80ac48bad5e6c4": "32784653201062672889496388",
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "171551221875647208584530"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "47036052789971507993"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x4e7ed91e702ef2ff0c58e251c6e20d1dc1e31a5f": "47036052789971507993"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's previous RPC-era observation (historical_erc20_balances_state, close at block 122,287,634: 47161234038734946494) plus its WBNB transfers, deposits and withdrawals in bsc:evm-transfers@v0.3.3 up to the block (-125181248763438501) gives the value; adding those up to the next observation (block 122,288,120) gives its open, 47053978436890657813."
+   },
+   "provenance": "the existing capture in ../wbnb-mutations (see its cases.json: one transaction re-encoded, no field edits); read here unchanged"
+  },
+  {
+   "file": "bsc-127677069-wbnb-withdrawals.pb",
+   "chain": "bsc",
+   "block": 127677069,
+   "block_hash": "0x5e17ffb67828e8461d0dbec2df6830a7cec2bca44da6912241ba129df370dbfb",
+   "ver": 5,
+   "source_block_sha256": "3bb361cd31c4e07222f806c871a25964a0e790fb843c7a4adf9df065693ad1c1",
+   "fixture_sha256": "dc00e263f04aef0ca6ebfb0ea8e13da2e2632b1f06891037f59c68d1314d67b7",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    9
+   ],
+   "selection": "every WBNB transaction (only transaction 9)",
+   "rule": "C2",
+   "demonstrates": "on a Block.ver 5 producer, WBNB's only frames in the block are eight withdraw calls by eight holders, each five frames deep in transaction 9; each votes its debit, so the eight holders get rows where v0.7.3 inferred nothing for WBNB",
+   "calls": [
+    {
+     "tx": 9,
+     "call": 51,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 52,
+     "address": "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba",
+     "input_len": 0,
+     "gas_limit": 2300
+    },
+    {
+     "tx": 9,
+     "call": 238,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 9,
+     "call": 239,
+     "address": "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x02fca66c1d1afb4e2a7884261eb00f63598a7436": {
+     "0x0b8a37088caad26e69b4414ef45d0f8252f91522": "4744961276159237402",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "16393457239325925"
+    },
+    "0x205812cdbed920aff76c6580abd681a46d11efc7": {
+     "0x6f6f9769d5028e2b072ea86243b98227c9ea7213": "718935287772747693",
+     "0x713cbf8c20e2aac4b1f3dadc0b17fdc81f4fcee4": "1195379629161678224",
+     "0x889e05adfbd5c2e2796e9ac10cc0f8e6a5570012": "1260509078449681699",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "7503885907097150"
+    },
+    "0x2859e4544c4bb03966803b044a93563bd2d0dd4d": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "68724030774154080657345",
+     "0xc83f239d50dbe562fe2c5639f72815fce50c480f": "36235348673943552247190588"
+    },
+    "0x2f8a339b5889ffac4c5a956787cda593b3c36867": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "12616032121061357",
+     "0xb0fb54bd94d755b8fc45127386600af37d4bab64": "1578976959905150801"
+    },
+    "0x55d398326f99059ff775485246999027b3197955": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4248550243314207583",
+     "0xce3a7e93c95f53d5997e4a95e84a0202a8d34a14": "228969496867350412252",
+     "0xe4683369d63a15fa6720c748c8723230a2db9d53": "5918851348677571328616",
+     "0xf42ae0f9fdd5a1b010d4b2714a736c7d772205db": "175565365402591664566"
+    },
+    "0x80ea4afa054f35a4d262730bb9441017d5527777": {
+     "0x4228d98f659e1674727db589e18716683a673fa5": "1114524057966455551529131",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3888671115958297303444"
+    },
+    "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+     "0x4b9f4150c11d3fac12d8183aac0649a80185df07": "36726102649635859791",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3876320311860397"
+    },
+    "0x9b8e987e6fec8cf1380c4dca7071e2c7853aeea1": {
+     "0x1467dd6316c3ac92b01dbdb7ae3b43a0e4f89ed8": "42885500674382008670",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "78355254491751689",
+     "0xb125146e40d4f125a363301db446c70b74354f9c": "1995571053164150285",
+     "0xeb9c94fd3fba49928ad9bd376e37fbb4098cc49e": "12773620458045860119"
+    },
+    "0xba2ae424d960c26247dd6c32edc70b295c744c43": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "612479425",
+     "0xc42edac5ad3a498688af53e2fccd0963d95ccee0": "1827250874890"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f": "12465660532809730",
+     "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2": "27346554434265679",
+     "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28": "809403185415448738",
+     "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba": "3163593218380737732",
+     "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1": "471641938940520783",
+     "0x65b6200dade7312368685f511b03bce9196e1c25": "905136703498030111",
+     "0x890f405568e3520566753c04724f5289aa492c67": "525646499565701830",
+     "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824": "3740572053935469286"
+    },
+    "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1": {
+     "0x3c15f4982981316ec41be690451c1552d264b0b1": "7032911934272937550",
+     "0x65efcfb2d4500d39481ba78baf27483112c58b0c": "12439685490524744953",
+     "0x91c78ca5428cd0de11de1eb25f5c83bcfdfaa145": "2368587049338581931",
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4378544628993033"
+    },
+    "0xfa4f58fd46fae74490a9d4cd69ed3eaf1b7d7777": {
+     "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "2246878218219314339853",
+     "0xe96cc85eebb3db0673b76e5088940aec99f8ed8e": "292383673599371890934925"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x65b6200dade7312368685f511b03bce9196e1c25"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x890f405568e3520566753c04724f5289aa492c67"
+    ],
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0x02fca66c1d1afb4e2a7884261eb00f63598a7436": {
+      "0x0b8a37088caad26e69b4414ef45d0f8252f91522": "4744961276159237402",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "16393457239325925"
+     },
+     "0x205812cdbed920aff76c6580abd681a46d11efc7": {
+      "0x6f6f9769d5028e2b072ea86243b98227c9ea7213": "718935287772747693",
+      "0x713cbf8c20e2aac4b1f3dadc0b17fdc81f4fcee4": "1195379629161678224",
+      "0x889e05adfbd5c2e2796e9ac10cc0f8e6a5570012": "1260509078449681699",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "7503885907097150"
+     },
+     "0x2859e4544c4bb03966803b044a93563bd2d0dd4d": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "68724030774154080657345",
+      "0xc83f239d50dbe562fe2c5639f72815fce50c480f": "36235348673943552247190588"
+     },
+     "0x2f8a339b5889ffac4c5a956787cda593b3c36867": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "12616032121061357",
+      "0xb0fb54bd94d755b8fc45127386600af37d4bab64": "1578976959905150801"
+     },
+     "0x55d398326f99059ff775485246999027b3197955": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4248550243314207583",
+      "0xce3a7e93c95f53d5997e4a95e84a0202a8d34a14": "228969496867350412252",
+      "0xe4683369d63a15fa6720c748c8723230a2db9d53": "5918851348677571328616",
+      "0xf42ae0f9fdd5a1b010d4b2714a736c7d772205db": "175565365402591664566"
+     },
+     "0x80ea4afa054f35a4d262730bb9441017d5527777": {
+      "0x4228d98f659e1674727db589e18716683a673fa5": "1114524057966455551529131",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3888671115958297303444"
+     },
+     "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+      "0x4b9f4150c11d3fac12d8183aac0649a80185df07": "36726102649635859791",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "3876320311860397"
+     },
+     "0x9b8e987e6fec8cf1380c4dca7071e2c7853aeea1": {
+      "0x1467dd6316c3ac92b01dbdb7ae3b43a0e4f89ed8": "42885500674382008670",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "78355254491751689",
+      "0xb125146e40d4f125a363301db446c70b74354f9c": "1995571053164150285",
+      "0xeb9c94fd3fba49928ad9bd376e37fbb4098cc49e": "12773620458045860119"
+     },
+     "0xba2ae424d960c26247dd6c32edc70b295c744c43": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "612479425",
+      "0xc42edac5ad3a498688af53e2fccd0963d95ccee0": "1827250874890"
+     },
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x1a85d6899aef88be7fd3402f355d66d8dc53a67f": "12465660532809730",
+      "0x2c6aef4c28423b2eac35620ef2e8eceb7eb8dfd2": "27346554434265679",
+      "0x32803445ba286a92bdbdcb5dc63ec32a8f8dfe28": "809403185415448738",
+      "0x3abe785dd3da1bf6a53d6a5fcf074f4fedb00bba": "3163593218380737732",
+      "0x5f68c68eeb15772cbc1434ba365b38d60b81b8e1": "471641938940520783",
+      "0x65b6200dade7312368685f511b03bce9196e1c25": "905136703498030111",
+      "0x890f405568e3520566753c04724f5289aa492c67": "525646499565701830",
+      "0xc98def84c57dc1aaec3ee9da5daa9727b2b61824": "3740572053935469286"
+     },
+     "0xbe9d156892e55e7154bcd3cb0fea677f9d3103e1": {
+      "0x3c15f4982981316ec41be690451c1552d264b0b1": "7032911934272937550",
+      "0x65efcfb2d4500d39481ba78baf27483112c58b0c": "12439685490524744953",
+      "0x91c78ca5428cd0de11de1eb25f5c83bcfdfaa145": "2368587049338581931",
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "4378544628993033"
+     },
+     "0xfa4f58fd46fae74490a9d4cd69ed3eaf1b7d7777": {
+      "0xae5b4dfb6b2d5b0ce591c81df6c3cc7de41c4fca": "2246878218219314339853",
+      "0xe96cc85eebb3db0673b76e5088940aec99f8ed8e": "292383673599371890934925"
+     }
+    }
+   }
+  },
+  {
+   "file": "bsc-2444829-wbnb-withdrawal.pb",
+   "chain": "bsc",
+   "block": 2444829,
+   "block_hash": "0x1fc050270072d0fb7803652586826f24e33c438f81e4093d34edc09a9fcd8e80",
+   "ver": 3,
+   "source_block_sha256": "9c3593344a9288c73268be9d99e3977cb557cc0e217e52655fdea2b8eede9938",
+   "fixture_sha256": "9c3593344a9288c73268be9d99e3977cb557cc0e217e52655fdea2b8eede9938",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "selection": "the whole block (its only WBNB transaction is 2)",
+   "rule": "C2",
+   "demonstrates": "WBNB's only frame in the block is the withdraw by 0x46175f13... (tx 2 call 1, Block.ver 3) of its whole balance; it votes the debit and the holder gets 0, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 2,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 2,
+     "call": 2,
+     "address": "0x46175f13593d91ba9546d6ea6f946de986c95f33",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x46175f13593d91ba9546d6ea6f946de986c95f33": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x46175f13593d91ba9546d6ea6f946de986c95f33"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x46175f13593d91ba9546d6ea6f946de986c95f33": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "bsc-841989-wbnb-withdrawal.pb",
+   "chain": "bsc",
+   "block": 841989,
+   "block_hash": "0xc19ad08699380a6f9b3170374affdb29a56dba01b1652b7a82d4b4f8017c5878",
+   "ver": 3,
+   "source_block_sha256": "35f20bd46be3542c3b5de85244133da60fdd48e5c73be5eaa043f6447185641a",
+   "fixture_sha256": "35f20bd46be3542c3b5de85244133da60fdd48e5c73be5eaa043f6447185641a",
+   "token": "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+   "kept_transactions": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "selection": "the whole block (its only WBNB transaction is 1)",
+   "rule": "C2",
+   "demonstrates": "WBNB's only frame in the block is withdraw(8.36 WBNB) by 0x8eccf824... (tx 1 call 1, Block.ver 3): no Transfer flow, so the frame, whose only call pays the wad to the holder with 2,300 gas, votes the debit and the holder gets 0, where v0.7.3 inferred nothing and left 8.36 WBNB",
+   "calls": [
+    {
+     "tx": 1,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 1,
+     "call": 2,
+     "address": "0x8eccf824e72521e2a28515a934ef8ca7fc525a07",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0x009cf7bc57584b7998236eff51b98a168dcea9b0": {
+     "0xab0eca3b1b10ee40d5aeffb7e815b2dbbfc76aab": "0"
+    },
+    "0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82": {
+     "0x009cf7bc57584b7998236eff51b98a168dcea9b0": "140300337076560899718876",
+     "0x73feaa1ee314f8c655e354234017be2193c9e24e": "3536045885866575890270458",
+     "0x9b5435e3d9b7e3adb2a606f21faa8ae2978b73f5": "38605267432475954163",
+     "0xab0eca3b1b10ee40d5aeffb7e815b2dbbfc76aab": "53317620280544201725",
+     "0xb9fa21a62fc96cb2ac635a051061e2e50d964051": "98028791129133573681479"
+    },
+    "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+     "0x8eccf824e72521e2a28515a934ef8ca7fc525a07": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c",
+     "0x8eccf824e72521e2a28515a934ef8ca7fc525a07"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "bsc:evm-balances@v0.3.3",
+    "values": {
+     "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c": {
+      "0x8eccf824e72521e2a28515a934ef8ca7fc525a07": "0"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's next RPC-era observation (historical_erc20_balances_state, block 877,370) is 0, and bsc:evm-transfers@v0.3.3 has no transfer, deposit or withdrawal of the holder in the token between the block and it."
+   }
+  },
+  {
+   "file": "eth-10053838-weth-withdrawal.pb",
+   "chain": "eth",
+   "block": 10053838,
+   "block_hash": "0x6ee88a5863a79062723db2d0fd0b02d9600af3a008498ef041d349ec90e891a2",
+   "ver": 3,
+   "source_block_sha256": "a1fdfac248d85910b0a640bb641f24fc5de7d21b7f6a55e1d1eb057684f28763",
+   "fixture_sha256": "0f50ab396a9c70756c0d89370a7dea91b21f4cc6cdc37647d439be80fb5cfbea",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    101
+   ],
+   "selection": "every WETH transaction (only the withdrawal transaction 101)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is withdraw(200 WETH) by 0x6e812678... (tx 101 call 1, Block.ver 3); it votes the debit and the holder gets 0, where v0.7.3 inferred nothing and left 200 WETH",
+   "calls": [
+    {
+     "tx": 101,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 101,
+     "call": 2,
+     "address": "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x6e8126781eb7b15a6298a29dbaf91d0dc8816628": "0"
+     }
+    },
+    "method": "Read-only, 2026-10-17: no 1-minute bar at the block. The holder's next RPC-era observation (historical_erc20_balances_state, block 10,053,856) is 0, and mainnet:evm-transfers@v0.3.3 has no transfer, deposit or withdrawal of the holder in the token between the block and it."
+   }
+  },
+  {
+   "file": "eth-6870128-weth-withdrawal.pb",
+   "chain": "eth",
+   "block": 6870128,
+   "block_hash": "0x74afce3c360b5dc59a92a1e0ea1fb0a3278765f66e1d78db3c0117cc486034ce",
+   "ver": 3,
+   "source_block_sha256": "0f0a6321fe087043206d73d96b659f4bf532270dacd4a6a826b39c9119bb5e81",
+   "fixture_sha256": "bbb177d38a537a18836db0dd173895d5789ba036b97a113117b0b729b66737b9",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    28
+   ],
+   "selection": "every WETH transaction (only the withdrawal transaction 28)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is the withdraw of 0.3599 WETH by 0xd4651483... (tx 28 call 1, Block.ver 3) of its whole balance; it votes the debit and the holder gets 0, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 28,
+     "call": 1,
+     "log_topic0": "7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+     "input_len": 36
+    },
+    {
+     "tx": 28,
+     "call": 2,
+     "address": "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6",
+     "input_len": 0,
+     "gas_limit": 2300
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0xd4651483100394a58c0b6a9ecb68a9248c7f97e6": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-7641947-weth-deposit.pb",
+   "chain": "eth",
+   "block": 7641947,
+   "block_hash": "0xb2e8dd859be0dc054a6069b2344a4c7b3fc918a63e13df706abb88c356fc0150",
+   "ver": 3,
+   "source_block_sha256": "6d6a960f3ff6b165113cf29fa168aac1d78edbc7a286a82954f04a107916f3e8",
+   "fixture_sha256": "20303a3cd48833ee2529db5eb44f1d5b03fa4990f49ee9ef864421ec384d03de",
+   "token": "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+   "kept_transactions": [
+    61
+   ],
+   "selection": "every WETH transaction (only the deposit transaction 61)",
+   "rule": "C2",
+   "demonstrates": "WETH's only frame in the block is a fallback deposit (empty input) of 0.0005 ETH by 0x674ebd53... (tx 61 call 1, Block.ver 3), which makes no call; it votes the credit and the holder gets 500000000000000, where v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 61,
+     "call": 1,
+     "log_topic0": "e1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c",
+     "input_len": 0
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x674ebd53c056b7e63ac511922ea4241c90834d09": "500000000000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+     "0x674ebd53c056b7e63ac511922ea4241c90834d09"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x674ebd53c056b7e63ac511922ea4241c90834d09": "500000000000000"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-19439412-usdt-destroyed-black-funds.pb",
+   "chain": "eth",
+   "block": 19439412,
+   "block_hash": "0xf5d1099c48fbaa9e9066b9b7e92342415224db90e6b22801c2d4a3a0f8ff3e7a",
+   "ver": 3,
+   "source_block_sha256": "b8e5520a8c6096b33227575b477ca73989d5fe9023e5ee8745846957ccd689c9",
+   "fixture_sha256": "e93df98a4c726c002e5e38906926eb8c454a68542b0908c6f384b15e4a0319a8",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    27,
+    30,
+    32,
+    34,
+    39,
+    40,
+    41,
+    42,
+    44,
+    45,
+    46,
+    54,
+    58,
+    61,
+    63,
+    66,
+    112,
+    122,
+    135,
+    164
+   ],
+   "selection": "every USDT transaction with one call, and the destroyBlackFunds transaction 135",
+   "rule": "C3",
+   "demonstrates": "destroyBlackFunds(0x5ff793c0...) in tx 135 call 2 zeroes 206,582.903646 USDT with DestroyedBlackFunds; the holder gets 0 where v0.7.3 kept the old balance",
+   "calls": [
+    {
+     "tx": 135,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x0e7b7bd85e1a25822b43c2df9f4772738b0687ba": "597356620",
+     "0x1195634f81013e2733bb147152f3ebebb0b1a845": "109458458842",
+     "0x13469ac3c072302490fa0c9f5acd8fba15aff587": "1667003816",
+     "0x1440ec793ae50fa046b95bfeca5af475b6003f9e": "54180310000",
+     "0x3b82ff2ea45595c8d0c79a2e5749b7347dd4970a": "0",
+     "0x42202574b1d6177c4cb2de3b87f5716cc95f631e": "0",
+     "0x4a973c62bf243de4fff3c73e1700acab279be183": "0",
+     "0x5382b0d3d88e3fae0ae9fd98909c3c9997c761e5": "570312243",
+     "0x5ca30b1ea934d35cd285141d9e075d693eeca429": "195750427",
+     "0x5ff793c01a443a22b925df59d1b2c427347db36e": "0",
+     "0x6c69fa64ec451b1bc5b5fbaa56cf648a281634be": "268598633686",
+     "0x6f9c67baac8a89694d83260921de72385929c425": "0",
+     "0x74aa5387681505c806ff1e972b12cdfd01406828": "2685995741722",
+     "0x75e89d5979e4f6fba9f97c104c2f0afb3f1dcb88": "4641408935582",
+     "0x7b05785cce801abcc613a29138e922fd1526f842": "135406801",
+     "0x7cab2e5f73334d08a48bd6031cb95a3444f01a17": "7998372801",
+     "0x8138d1f3d8caf1739051cb957d837d0ab538cb8b": "3600391007",
+     "0x822afa2b74c87412eb528ef93bfd14017488466e": "40000000000",
+     "0x83c41363cbee0081dab75cb841fa24f3db46627e": "40790525463028",
+     "0x8b1f67d124c013ff5fd5f73d1eb51fe7fd29dc17": "405000000",
+     "0xa03400e098f4421b34a3a44a1b4e571419517687": "619820082816",
+     "0xa88f86e5685fca7c5d6de0e4d944875b007137b5": "500247025302",
+     "0xa95ff9669f424fc159fd3e7cb986512bf1739927": "0",
+     "0xab782bc7d4a2b306825de5a7730034f8f63ee1bc": "5782330936313",
+     "0xb2d5a2d7286d4c8c3c202dd6dd748e2bba3f51ba": "70368999596",
+     "0xbc47c7365a7dd039a0974cf517e344e353d42732": "50000000000",
+     "0xc4f6f3c4c393c99d0994bd92a3a87619c8cd969a": "497000000",
+     "0xc64c9294696cc1617bf7f00350ae972edeab5e84": "38544910654",
+     "0xc7dc59a6e40a6ccd79c340fdea1a197117ff0e00": "687094267",
+     "0xd35b616d9bbcf89d0ff718cfbc0d74a61c6d55ab": "500000000",
+     "0xe42a06ea431dc1524fc93d58ad0f6eec9775e1a6": "2071170000",
+     "0xfb8ed165b827ad43cf3b63e96917b573d67878a0": "12600000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x5ff793c01a443a22b925df59d1b2c427347db36e"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x0e7b7bd85e1a25822b43c2df9f4772738b0687ba": "597356620",
+      "0x3b82ff2ea45595c8d0c79a2e5749b7347dd4970a": "0",
+      "0x42202574b1d6177c4cb2de3b87f5716cc95f631e": "0",
+      "0x4a973c62bf243de4fff3c73e1700acab279be183": "0",
+      "0x5382b0d3d88e3fae0ae9fd98909c3c9997c761e5": "570312243",
+      "0x5ff793c01a443a22b925df59d1b2c427347db36e": "0",
+      "0x6f9c67baac8a89694d83260921de72385929c425": "0",
+      "0x8b1f67d124c013ff5fd5f73d1eb51fe7fd29dc17": "405000000",
+      "0xa95ff9669f424fc159fd3e7cb986512bf1739927": "0",
+      "0xb2d5a2d7286d4c8c3c202dd6dd748e2bba3f51ba": "70368999596"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-22730180-usdt-destroyed-black-funds.pb",
+   "chain": "eth",
+   "block": 22730180,
+   "block_hash": "0x015d2dff837e858348b2b2514dbbb1c510e2d922eddfe87e6c1e12f1f6e26bae",
+   "ver": 4,
+   "source_block_sha256": "d79502356028bec19843d487230862db426e2c1a3c983f4473d99722da55bea3",
+   "fixture_sha256": "1b301500a993671001367425a9d48a42733ef87f81376aed1dc0dd607dc29bbf",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    6,
+    8,
+    25,
+    82,
+    110,
+    115,
+    133,
+    134,
+    140,
+    144,
+    159,
+    164,
+    165,
+    171,
+    173,
+    176,
+    181,
+    183,
+    189,
+    190,
+    243,
+    245,
+    246,
+    247,
+    251,
+    261,
+    262,
+    263,
+    264
+   ],
+   "selection": "every USDT transaction with one call, and the four destroyBlackFunds transactions 261 to 264",
+   "rule": "C3",
+   "demonstrates": "the owner Safe's destroyBlackFunds(holder) CALLs (call 2 of txs 261 to 264) each zero a blacklisted holder's balances word under base 2 and move _totalSupply (slot 1) by the same amount, with only the 1-topic DestroyedBlackFunds(holder, amount); the event explains each zeroing write, so the four holders get 0 where v0.7.3 kept their old balances (64,707,708.53, 2,903,914.21, 87,464,642.26 and 30,000,000.35 USDT)",
+   "calls": [
+    {
+     "tx": 261,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 262,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 263,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    },
+    {
+     "tx": 264,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8": "0",
+     "0x0fb40309aa1a668681f0ccdbe88690a5743ac8a5": "3003",
+     "0x1a564b0dfbe4820a98fe8bd666d5f759f2726d81": "3220353",
+     "0x1a74b617eb88c597978f18768956381461dffd27": "5000000",
+     "0x20e7899f4fdd469d68048938ec3d9f0167fa1b3a": "976244736032",
+     "0x28c6c06298d514db089934071355e5743bf21d60": "374748939263238",
+     "0x2fa2308eb42d7fde2151d493a1574f872393504f": "206348871",
+     "0x34fbbb8fcc18ce261e60f690586180b66285ba07": "522805924",
+     "0x37f2c792b56f320a2c693d66baa706da445af8a0": "254949800",
+     "0x3c02290922a3618a4646e3bbca65853ea45fe7c6": "683577743908",
+     "0x43d210f15e720713493439eec5f1222687c14cc4": "98654985",
+     "0x48106a9eed30f27d167737234f371e5e1931346a": "1210",
+     "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "4062608423158",
+     "0x559432e18b281731c054cd703d4b49872be4ed53": "383758035418216",
+     "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16": "0",
+     "0x5a977aa7476a1ef69473e285e2adfb94fe047800": "2169718131",
+     "0x5d5ad65ebd58f63193bf7e14a61134366c79e7f1": "16171506525",
+     "0x5e83859828955e022f5b75f410396ad76ee814bc": "3003",
+     "0x605d698e15393fba8771088b43bef87a764145f8": "53269460634",
+     "0x61a045232cf2175fd5569be89360c16961e128c8": "165017996",
+     "0x633dcf31bb890b26279c9a0480754dc09e27c01e": "98677985",
+     "0x63c79fccd0a21e4a4d87056a0efe3b85d8c373d4": "7494760624298",
+     "0x6b45731884d12cfb3ee065ad64d7651ba0cb5b57": "300000000",
+     "0x76a8115555ad1050d52652ce8f649596be243313": "63000057704",
+     "0x8297b890d762562a333f21e2b43898a95f22821c": "660000000",
+     "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb": "0",
+     "0x83829970dc02dbf5f080377a13bd318544f4cd1d": "603762872",
+     "0x852687c55fb6876082c4cb8fc6b8199453fb228d": "104979004",
+     "0x85411916fbbe372f2bb7e24af0c8578880e8e02c": "0",
+     "0x8e9dedb712fe1a7536c6dab80367d73d44323ba9": "55400000000",
+     "0x91dca37856240e5e1906222ec79278b16420dc92": "1931136432158",
+     "0x979672630fb3cc4bdb328943662476fd03a172db": "426001000",
+     "0x99ebaf3661065dc1e44feff4b80365678bdff6ce": "0",
+     "0x9e513b6b5d5005343331159fc82a24feff8d12b3": "50560484",
+     "0xa937d576eb152a7ba8a2176e75c25abced5d94cd": "98722870",
+     "0xb809343568101d1ab52a0d17f7311959b67d0c49": "13563951",
+     "0xb8356a14e2610315f4d6604c71738c7f2ef7aa2a": "177274800880",
+     "0xbb8672490e99fae095c1d2784422ecb00fcb961e": "343640000",
+     "0xbc66594da6feb2e2581e2a376c40fd59c9b16ffe": "0",
+     "0xcdf2a9eaf795d4cb5b8a659c8d18f15d06ee77d0": "0",
+     "0xd0df73b103ce041a522b891e7610dbcc830ae14f": "0",
+     "0xd10f7cf30585bbc301bac5c218304cbef858b3ab": "1424325914",
+     "0xddcdf30b41c8b5bb86725cd8d508f76138478530": "0",
+     "0xe6fd9b84508aeca59923c736279e2685705f1909": "148791725",
+     "0xf0c744479bbad117226dac19fb62bdb02defa830": "520000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb"
+    ],
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x99ebaf3661065dc1e44feff4b80365678bdff6ce"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x0b5453635e5325f5385ca1643c9e9eb173f9d5a8": "0",
+      "0x1a74b617eb88c597978f18768956381461dffd27": "5000000",
+      "0x564e11ace70bfe6c943a973f1289faa6e8a0fe16": "0",
+      "0x61a045232cf2175fd5569be89360c16961e128c8": "165017996",
+      "0x8297b890d762562a333f21e2b43898a95f22821c": "660000000",
+      "0x82e1d4ddd636857ebcf6a0e74b9b0929c158d7fb": "0",
+      "0x83829970dc02dbf5f080377a13bd318544f4cd1d": "603762872",
+      "0x852687c55fb6876082c4cb8fc6b8199453fb228d": "104979004",
+      "0x85411916fbbe372f2bb7e24af0c8578880e8e02c": "0",
+      "0x979672630fb3cc4bdb328943662476fd03a172db": "426001000",
+      "0x99ebaf3661065dc1e44feff4b80365678bdff6ce": "0",
+      "0x9e513b6b5d5005343331159fc82a24feff8d12b3": "50560484",
+      "0xb809343568101d1ab52a0d17f7311959b67d0c49": "13563951",
+      "0xbb8672490e99fae095c1d2784422ecb00fcb961e": "343640000",
+      "0xbc66594da6feb2e2581e2a376c40fd59c9b16ffe": "0",
+      "0xcdf2a9eaf795d4cb5b8a659c8d18f15d06ee77d0": "0",
+      "0xd0df73b103ce041a522b891e7610dbcc830ae14f": "0",
+      "0xe6fd9b84508aeca59923c736279e2685705f1909": "148791725"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-25804475-usdt-redeem.pb",
+   "chain": "eth",
+   "block": 25804475,
+   "block_hash": "0xe45a620d2251c311dd6fba8f601009dfe0ce3f3f1385255825a9e1689f9a5dad",
+   "ver": 5,
+   "source_block_sha256": "df08137e5cc44044e434d57d673b63e7fc270075790671257d248b2212cc4687",
+   "fixture_sha256": "08d6051f8635e61ceffc6bf47d41930ec5e2e8edae103d72b7238dc7e5910dea",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    19,
+    21,
+    25,
+    26,
+    27,
+    28,
+    29,
+    48,
+    49,
+    60,
+    62,
+    66,
+    68,
+    71,
+    85,
+    88,
+    98,
+    115,
+    143,
+    149,
+    153,
+    155,
+    160,
+    178,
+    198,
+    199,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    211,
+    218,
+    239,
+    240,
+    245,
+    246,
+    247,
+    251,
+    252,
+    254,
+    256,
+    259,
+    260,
+    262,
+    264,
+    267,
+    269,
+    270,
+    276,
+    277,
+    278,
+    282
+   ],
+   "selection": "every USDT transaction with one call, and the redeem transaction 269",
+   "rule": "C3",
+   "demonstrates": "redeem(2,000,000,000 USDT) by the owner Safe 0xc6cde7c3... in tx 269 call 2 (Block.ver 5) moves the sender's balances word and _totalSupply by the amount, with only Redeem(amount); the sender is a candidate and the event explains its write, so the owner gets 108,983.767 USDT where v0.7.3 left 2,000,108,983.767",
+   "calls": [
+    {
+     "tx": 269,
+     "call": 2,
+     "log_topic0": "702d5967f45f6513a38ffc42d6ba9bf230bd40e8f53b16363c7eb4fd2deb9a44"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x061be0bc209a27588b7e85c0032ac8a0cdfd12a5": "71473337225",
+     "0x065ddc9dd4caec60199af4cb40e31ca807e120d8": "10446164349",
+     "0x06bf555360e9b2e1ed69140ee826881c74fb0a8d": "3896100000",
+     "0x0a780b004a6f92268aeaaa5fa03f3d744c78d304": "0",
+     "0x0b4813c45f503c01b527cdab770677385a29e268": "1245426",
+     "0x0bf07a0615b37ec22354d5bf0922aee5b2c21216": "0",
+     "0x0fcbd0966b9fa51edc465d90d2d404c32a3a6e5c": "2442206441",
+     "0x1d0316cc0453c731000df8e1e1d8b14fc6074ded": "1925689830412",
+     "0x1d40718423f96f69bab57cec75ee5056366c1653": "70261393511",
+     "0x1dcdbee3bc4ca9909b0636c75fdb326831ac1ff7": "1000000",
+     "0x21a31ee1afc51d94c2efccaa2092ad1028285549": "40658709237406",
+     "0x23fd81610361f6f7cdb10ea93f0d2af422ca2579": "0",
+     "0x28c6c06298d514db089934071355e5743bf21d60": "516194852292233",
+     "0x2a327fef8c6a60d447aa3853884b9ebfb4af5ba9": "0",
+     "0x2aa060202d53d361a264a446ca66d469bfc862c9": "100000000",
+     "0x2d6f6871f2ba499b2fdbc1ec079c1476be1e2236": "117026215233",
+     "0x2fbdf825f724697da6dca73f73093f52f0134076": "0",
+     "0x3068aaa8e7e07693cf3066dd15f174f7afc30c40": "436883370000",
+     "0x42752bac0fcfe94dbaaf2fdf4925edec09fa41ab": "0",
+     "0x46a03a196c8cf0c74e35b6f525237a3a277422d2": "0",
+     "0x49682837d9a418ce425a25f30ffa2e3e20a932ab": "75653724",
+     "0x49e69ed9a6cb6714c4d5bb0f825d3212e02459bc": "0",
+     "0x4be4bb60a6213b2faa3b1049728751ebb8d03646": "200000000",
+     "0x4c2c0f0bb2631b02ac9299c59690914ee7a200b8": "29798224470",
+     "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "3690732631237",
+     "0x4ff4834475e366693a89ea4d8c06833e3de0890e": "0",
+     "0x53480145586ece7064e191109f389c0e5ca23fcd": "0",
+     "0x559432e18b281731c054cd703d4b49872be4ed53": "375086638402347",
+     "0x56eddb7aa87536c09ccc2793473599fd21a8b17f": "60277514863021",
+     "0x579da13bca2fc5bad3311f503f243bc10f1aad64": "500000009",
+     "0x57c9975b1c36d237f25797dbfc5411b381491047": "1400000000",
+     "0x58b704065b7aff3ed351052f8560019e05925023": "6144940826073",
+     "0x5ccd69abe9130ad2bbff3026e9975f593100a068": "207000000",
+     "0x5d3e4bc22e9420014f6078e1d075069b543f27f8": "40000000",
+     "0x618a5f55275b028837b3a26408ef160ab3ad00d0": "0",
+     "0x64cdaa89629fe003eaa31b480d8b63372d109a53": "12911218799",
+     "0x68e6ae8b176df01b9b669dfeee0d235047370bf3": "30405048607",
+     "0x6c45c376a8488183ba4e80d41b49c8e46ed97420": "0",
+     "0x6c772df69d8b5c8baaa5b2222b4c761f597ac075": "1144438862",
+     "0x6e99145baec37507f6b2d30b359803f3c11cd381": "0",
+     "0x702ebe3d06cb18d20872efa58dbda97351e32afc": "2606101916",
+     "0x740b0fba160c53d68f9894270a4ee7f87978499e": "4700000",
+     "0x77a4f15e968b1fa40894089f1bb82f43ce9f2e6f": "0",
+     "0x78cab31c98cccbbed510c299847478f5dbccf4be": "6210348043",
+     "0x7c0d181e0f32f4a40189be4e62ea774fe4cd96d4": "43254538274",
+     "0x7cd8cb8cc90f97de1a7d3d66131d180eb3d36678": "0",
+     "0x7e8e348f33c332ee6527f0f43f3b569cb0279aa5": "48636565641",
+     "0x83e40f7b02594e0c151a5ec50f5641183e25d5dd": "0",
+     "0x8824138e3ab22c7896a7680b801615f9f5c17bf4": "108546000",
+     "0x88ba1b22dad95daf5221ee3330104ca3866e6d53": "102489277819",
+     "0x9696f59e4d72e237be84ffd425dcad154bf96976": "42437936174904",
+     "0x98c93a7326c87a4fa9b85631a6b3dafe1f02d3f9": "841378",
+     "0x9ea9eb6e98090df3e904b02a1d99b94b453a4d32": "0",
+     "0xa05bf52279ca7b35b8a238a6ba71046b02b230be": "557",
+     "0xa26ef00ede5cffd435cb937b88c7b693b1c5390c": "1854513069",
+     "0xa2977fc332478918ddac8b3c393e28329ae0cd77": "340000000",
+     "0xa9386c8bd3beefaea22893efb1678108a54c963f": "0",
+     "0xac7b1b390becb677db28041c29ff86374afd861c": "3643602525971",
+     "0xb13f8eddc66a1169aa3cc6a38fb3d50a3179dc3d": "91150878522",
+     "0xb21b7c28c5befc80d58b326600305cdd62a4a58a": "89518041434",
+     "0xb3129b1a41b7a301b24b6c0f1d224f495a4cca3a": "0",
+     "0xb334a61a6209f14b5fa5f1684a4ed7621f66e1ef": "585779198725",
+     "0xba325093f3da06d5b0425d8b8668a77be04de466": "0",
+     "0xbc7531742b53d40a73183c657b34aa0057624fb2": "550660001",
+     "0xc575bbbac444b375dcbe9a4be280358a9ad3ed97": "424107229900",
+     "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828": "108983767000",
+     "0xc6d7ab9cedcff52ac35900053fed26014362751a": "0",
+     "0xc9d3ff433a7b7e58379f26be4efa568e994f7b23": "0",
+     "0xca0962d7cb2951ed408128fef5dc201d29635a8b": "0",
+     "0xcabb91aa70a2368174ed673705a456f97e884c70": "184364386",
+     "0xcba624d0d0e9273f6a67284a0d7dd2eb9d8eb845": "49700000",
+     "0xd0613ed65aefd88cf8a43c5d116018c0814bec71": "35040772541",
+     "0xd1573677b557cf49c1dd9f50759f39a97773aa1e": "0",
+     "0xd23ff8856030f5a347514b342fe1e2bba26812b3": "89820780200",
+     "0xd502f9785f852103de7b60e30a8d01786cd5ef8e": "77414620",
+     "0xd66cd68853da5f6d9cd4df8b3c3946d264df3e1a": "10916380200",
+     "0xd9274b3ab26cfb3b0829b79d0cb2248b0f5ba7c5": "790870",
+     "0xdc7a2e036a49b930f874fb80f4801fb5acd7f19f": "0",
+     "0xdc9b1002934461ecfc687d536ed958655163c001": "168000000",
+     "0xdf93443dfd007ec0c06f54012e83d50b8177d303": "48194805673",
+     "0xe0be37ddc78935df75c33d7ee12d68919c47774e": "0",
+     "0xe3478b0bb1a5084567c319096437924948be1964": "753287295995",
+     "0xe542ed5886d3325c2d1594f8fc68cff9db8cd629": "1962045308",
+     "0xef55f440af4e1e0a76a3f871aeb16544ff356b1b": "854354296259",
+     "0xf106c6f2b0ce398f1420cb73d472b1e44dc9f0d6": "99309600",
+     "0xf2e36adf227ecc5e6a0251f6b66836a8451a4e21": "1999379805",
+     "0xf52605c7b778563a5a9144ef4dc53b57463ca2c7": "94243282789",
+     "0xf5bbd3f496f6d83ee7706c0917ccf99c3faff553": "306133739914",
+     "0xf6d4e5a7c5215f91f59a95065190cca24bf64554": "571887564356",
+     "0xfad817fde40bcdda2d0e71c86c81999d1d75c909": "30890000",
+     "0xfb80a789631875f9cd7f5e3000db914a38f1e01f": "57163462498",
+     "0xfd323ade861f0e284b113c85ff3ab0e07804806a": "1081151582",
+     "0xfed005f027c35e3d7fd01860f57968ce06276aaa": "2921708684"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x061be0bc209a27588b7e85c0032ac8a0cdfd12a5": "71473337225",
+      "0x065ddc9dd4caec60199af4cb40e31ca807e120d8": "10446164349",
+      "0x06bf555360e9b2e1ed69140ee826881c74fb0a8d": "3896100000",
+      "0x0a780b004a6f92268aeaaa5fa03f3d744c78d304": "0",
+      "0x0b4813c45f503c01b527cdab770677385a29e268": "1245426",
+      "0x0bf07a0615b37ec22354d5bf0922aee5b2c21216": "0",
+      "0x0fcbd0966b9fa51edc465d90d2d404c32a3a6e5c": "2442206441",
+      "0x1d0316cc0453c731000df8e1e1d8b14fc6074ded": "1925689830412",
+      "0x1d40718423f96f69bab57cec75ee5056366c1653": "70261393511",
+      "0x1dcdbee3bc4ca9909b0636c75fdb326831ac1ff7": "1000000",
+      "0x21a31ee1afc51d94c2efccaa2092ad1028285549": "40658709237406",
+      "0x23fd81610361f6f7cdb10ea93f0d2af422ca2579": "0",
+      "0x28c6c06298d514db089934071355e5743bf21d60": "516194852292233",
+      "0x2a327fef8c6a60d447aa3853884b9ebfb4af5ba9": "0",
+      "0x2aa060202d53d361a264a446ca66d469bfc862c9": "100000000",
+      "0x2d6f6871f2ba499b2fdbc1ec079c1476be1e2236": "117026215233",
+      "0x2fbdf825f724697da6dca73f73093f52f0134076": "0",
+      "0x3068aaa8e7e07693cf3066dd15f174f7afc30c40": "436883370000",
+      "0x42752bac0fcfe94dbaaf2fdf4925edec09fa41ab": "0",
+      "0x46a03a196c8cf0c74e35b6f525237a3a277422d2": "0",
+      "0x49682837d9a418ce425a25f30ffa2e3e20a932ab": "75653724",
+      "0x49e69ed9a6cb6714c4d5bb0f825d3212e02459bc": "0",
+      "0x4be4bb60a6213b2faa3b1049728751ebb8d03646": "200000000",
+      "0x4c2c0f0bb2631b02ac9299c59690914ee7a200b8": "29798224470",
+      "0x4e5b2e1dc63f6b91cb6cd759936495434c7e972f": "3690732631237",
+      "0x4ff4834475e366693a89ea4d8c06833e3de0890e": "0",
+      "0x53480145586ece7064e191109f389c0e5ca23fcd": "0",
+      "0x559432e18b281731c054cd703d4b49872be4ed53": "375086638402347",
+      "0x56eddb7aa87536c09ccc2793473599fd21a8b17f": "60277514863021",
+      "0x579da13bca2fc5bad3311f503f243bc10f1aad64": "500000009",
+      "0x57c9975b1c36d237f25797dbfc5411b381491047": "1400000000",
+      "0x58b704065b7aff3ed351052f8560019e05925023": "6144940826073",
+      "0x5ccd69abe9130ad2bbff3026e9975f593100a068": "207000000",
+      "0x5d3e4bc22e9420014f6078e1d075069b543f27f8": "40000000",
+      "0x618a5f55275b028837b3a26408ef160ab3ad00d0": "0",
+      "0x64cdaa89629fe003eaa31b480d8b63372d109a53": "12911218799",
+      "0x68e6ae8b176df01b9b669dfeee0d235047370bf3": "30405048607",
+      "0x6c45c376a8488183ba4e80d41b49c8e46ed97420": "0",
+      "0x6c772df69d8b5c8baaa5b2222b4c761f597ac075": "1144438862",
+      "0x6e99145baec37507f6b2d30b359803f3c11cd381": "0",
+      "0x702ebe3d06cb18d20872efa58dbda97351e32afc": "2606101916",
+      "0x740b0fba160c53d68f9894270a4ee7f87978499e": "4700000",
+      "0x77a4f15e968b1fa40894089f1bb82f43ce9f2e6f": "0",
+      "0x78cab31c98cccbbed510c299847478f5dbccf4be": "6210348043",
+      "0x7c0d181e0f32f4a40189be4e62ea774fe4cd96d4": "43254538274",
+      "0x7cd8cb8cc90f97de1a7d3d66131d180eb3d36678": "0",
+      "0x7e8e348f33c332ee6527f0f43f3b569cb0279aa5": "48636565641",
+      "0x83e40f7b02594e0c151a5ec50f5641183e25d5dd": "0",
+      "0x8824138e3ab22c7896a7680b801615f9f5c17bf4": "108546000",
+      "0x88ba1b22dad95daf5221ee3330104ca3866e6d53": "102489277819",
+      "0x9696f59e4d72e237be84ffd425dcad154bf96976": "42437936174904",
+      "0x98c93a7326c87a4fa9b85631a6b3dafe1f02d3f9": "841378",
+      "0x9ea9eb6e98090df3e904b02a1d99b94b453a4d32": "0",
+      "0xa05bf52279ca7b35b8a238a6ba71046b02b230be": "557",
+      "0xa26ef00ede5cffd435cb937b88c7b693b1c5390c": "1854513069",
+      "0xa2977fc332478918ddac8b3c393e28329ae0cd77": "340000000",
+      "0xa9386c8bd3beefaea22893efb1678108a54c963f": "0",
+      "0xac7b1b390becb677db28041c29ff86374afd861c": "3643602525971",
+      "0xb13f8eddc66a1169aa3cc6a38fb3d50a3179dc3d": "91150878522",
+      "0xb21b7c28c5befc80d58b326600305cdd62a4a58a": "89518041434",
+      "0xb3129b1a41b7a301b24b6c0f1d224f495a4cca3a": "0",
+      "0xb334a61a6209f14b5fa5f1684a4ed7621f66e1ef": "585779198725",
+      "0xba325093f3da06d5b0425d8b8668a77be04de466": "0",
+      "0xbc7531742b53d40a73183c657b34aa0057624fb2": "550660001",
+      "0xc575bbbac444b375dcbe9a4be280358a9ad3ed97": "424107229900",
+      "0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828": "108983767000",
+      "0xc6d7ab9cedcff52ac35900053fed26014362751a": "0",
+      "0xc9d3ff433a7b7e58379f26be4efa568e994f7b23": "0",
+      "0xca0962d7cb2951ed408128fef5dc201d29635a8b": "0",
+      "0xcabb91aa70a2368174ed673705a456f97e884c70": "184364386",
+      "0xcba624d0d0e9273f6a67284a0d7dd2eb9d8eb845": "49700000",
+      "0xd0613ed65aefd88cf8a43c5d116018c0814bec71": "35040772541",
+      "0xd1573677b557cf49c1dd9f50759f39a97773aa1e": "0",
+      "0xd23ff8856030f5a347514b342fe1e2bba26812b3": "89820780200",
+      "0xd502f9785f852103de7b60e30a8d01786cd5ef8e": "77414620",
+      "0xd66cd68853da5f6d9cd4df8b3c3946d264df3e1a": "10916380200",
+      "0xd9274b3ab26cfb3b0829b79d0cb2248b0f5ba7c5": "790870",
+      "0xdc7a2e036a49b930f874fb80f4801fb5acd7f19f": "0",
+      "0xdc9b1002934461ecfc687d536ed958655163c001": "168000000",
+      "0xdf93443dfd007ec0c06f54012e83d50b8177d303": "48194805673",
+      "0xe0be37ddc78935df75c33d7ee12d68919c47774e": "0",
+      "0xe3478b0bb1a5084567c319096437924948be1964": "753287295995",
+      "0xe542ed5886d3325c2d1594f8fc68cff9db8cd629": "1962045308",
+      "0xef55f440af4e1e0a76a3f871aeb16544ff356b1b": "854354296259",
+      "0xf106c6f2b0ce398f1420cb73d472b1e44dc9f0d6": "99309600",
+      "0xf2e36adf227ecc5e6a0251f6b66836a8451a4e21": "1999379805",
+      "0xf52605c7b778563a5a9144ef4dc53b57463ca2c7": "94243282789",
+      "0xf5bbd3f496f6d83ee7706c0917ccf99c3faff553": "306133739914",
+      "0xf6d4e5a7c5215f91f59a95065190cca24bf64554": "571887564356",
+      "0xfad817fde40bcdda2d0e71c86c81999d1d75c909": "30890000",
+      "0xfb80a789631875f9cd7f5e3000db914a38f1e01f": "57163462498",
+      "0xfd323ade861f0e284b113c85ff3ab0e07804806a": "1081151582",
+      "0xfed005f027c35e3d7fd01860f57968ce06276aaa": "2921708684"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-5758964-usdt-destroyed-black-funds-only.pb",
+   "chain": "eth",
+   "block": 5758964,
+   "block_hash": "0x03fa90e75db7bbcb19e4fb574be6a927624aa408455d5f906e59f3d636ec3027",
+   "ver": 3,
+   "source_block_sha256": "fdf53983af38e0d2ed2da755b36c49656d24e473b7ae2f206901ca5373aea496",
+   "fixture_sha256": "20ffb0fee7f4680e6c3676476c392459aea27dbfd9bcf141ba7dd23627150df5",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    31
+   ],
+   "selection": "every USDT transaction (only the destroyBlackFunds transaction 31)",
+   "rule": "C3",
+   "demonstrates": "a block whose only USDT frame is destroyBlackFunds(0x008fe405...) (tx 31 call 2): no Transfer flow, so the destruction frame votes base 2 and the holder gets 0; v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 31,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x008fe40574e881e7247b50b991c0cc057d66647f": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x008fe40574e881e7247b50b991c0cc057d66647f"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x008fe40574e881e7247b50b991c0cc057d66647f": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "eth-6969323-usdt-destroyed-black-funds-only.pb",
+   "chain": "eth",
+   "block": 6969323,
+   "block_hash": "0x3a0f86053edc67ad7d5a03c10e6292885a920d10b9bea15a7754ec2670eb70c6",
+   "ver": 3,
+   "source_block_sha256": "6764c9910e5bdf8e03b84be1c12a650f2f232888caea43fdb7e487085a47b771",
+   "fixture_sha256": "0c446945a939c3462633ecb8eb716ac42f7d62e49dc996421225f5fee940e822",
+   "token": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+   "kept_transactions": [
+    56
+   ],
+   "selection": "every USDT transaction (only the destroyBlackFunds transaction 56)",
+   "rule": "C3",
+   "demonstrates": "a block whose only USDT frame is destroyBlackFunds(0x...18fe) (tx 56 call 2): no Transfer flow, so the destruction frame votes base 2 and the holder gets 0; v0.7.3 inferred nothing",
+   "calls": [
+    {
+     "tx": 56,
+     "call": 2,
+     "log_topic0": "61e6e66b0d6339b2980aecc6ccc0039736791f0ccde9ed512e789a7fbdd698c6"
+    }
+   ],
+   "rows": {
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x00000000000000000000000000000000000018fe": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xdac17f958d2ee523a2206206994597c13d831ec7",
+     "0x00000000000000000000000000000000000018fe"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+      "0x00000000000000000000000000000000000018fe": "0"
+     }
+    }
+   }
+  },
+  {
+   "file": "polygon-20007040-state-sync.pb",
+   "chain": "polygon",
+   "block": 20007040,
+   "block_hash": "0xa885926caaa623403af4f2c5facda684fc342655606f579f0a0bf4803f662ba7",
+   "ver": 3,
+   "source_block_sha256": "2161b87b3994da5d85311f83812f8f84c6489ac3312a96f83237069738c7f79a",
+   "fixture_sha256": "2161b87b3994da5d85311f83812f8f84c6489ac3312a96f83237069738c7f79a",
+   "token": "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+   "kept_transactions": [
+    0
+   ],
+   "selection": "the whole block (its only transaction is the state sync)",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction (tx 0, ordinals 1 to 57) commits ten events; each depth-1 commitState call restarts the ordinals at 4 or 5. Four bridge deposits mint PoS WETH in subtrees 0, 5, 8 and 9, whose total-supply writes fall at ordinals 17, 15, 15 and 15. By ordinal they tie and v0.7.3 dropped WETH; in call order they chain and the four holders get rows",
+   "calls": [
+    {
+     "tx": 0,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 0,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 30,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 42,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    },
+    {
+     "tx": 0,
+     "call": 46,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 452
+    }
+   ],
+   "rows": {
+    "0x11602a402281974a70c2b4824d58ebede967e2be": {
+     "0x90f1cb932dbf94385434c40d53df3727f00e50b1": "1832632215603747022550"
+    },
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+     "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7": "500000000000000",
+     "0x4dd85b1f87695834ded0f89d2b798fa408f92297": "618000000000000000",
+     "0x65d38157cded6a43917fd78318998c590000ade1": "88423872443881000",
+     "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51": "155800000000000000"
+    },
+    "0xdf7837de1f2fa4631d716cf2502f8b230f1dcc32": {
+     "0x123deef738caa91b0b45e665e2efdd1780439518": "300000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x4dd85b1f87695834ded0f89d2b798fa408f92297"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0x65d38157cded6a43917fd78318998c590000ade1"
+    ],
+    [
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+     "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x11602a402281974a70c2b4824d58ebede967e2be": {
+      "0x90f1cb932dbf94385434c40d53df3727f00e50b1": "1832632215603747022550"
+     },
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+      "0x40bff7cd71d6ddbaf20d2999a7bd2768e2e9feb7": "500000000000000",
+      "0x4dd85b1f87695834ded0f89d2b798fa408f92297": "618000000000000000",
+      "0x65d38157cded6a43917fd78318998c590000ade1": "88423872443881000",
+      "0xe714b4d34ee0764bf8c9fb9430bfec146b422b51": "155800000000000000"
+     },
+     "0xdf7837de1f2fa4631d716cf2502f8b230f1dcc32": {
+      "0x123deef738caa91b0b45e665e2efdd1780439518": "300000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "polygon-50016032-state-sync.pb",
+   "chain": "polygon",
+   "block": 50016032,
+   "block_hash": "0x5f8c64fbd54b2b7747ee743ee3e4ee24d09f85a329e5fdbb261efe71a4350421",
+   "ver": 3,
+   "source_block_sha256": "1b2dcdeed988f2efd5b83008acca08b1c51ae6cb63d6b37ac55e2d0a1f6c201e",
+   "fixture_sha256": "e03ad3939777f0478c28ff77959d360b6db6a55004ffbc01582ba1cfa771c9ae",
+   "token": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+   "kept_transactions": [
+    509,
+    607,
+    652,
+    662
+   ],
+   "selection": "every WPOL transaction: 509, 607, 652 and the state sync 662",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction (tx 662, ordinals 10,389 to 10,585) commits five events. In subtrees 0 and 4, deposits of the bridged token 0x712f0cf3... are swapped to POL through the WPOL pool 0x3d4cc8a6..., whose WPOL word is written at ordinal 10,534 in subtree 0 and 10,532 in subtree 4: by ordinal the writes run backwards and v0.7.3 dropped WPOL and 0x712f0cf3...; in call order they chain. The balanceOf calls inside the transaction compare with the word call order gives, so 0x1fdeaf93... keeps its three rows",
+   "calls": [
+    {
+     "tx": 662,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 662,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 662,
+     "call": 71,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    }
+   ],
+   "rows": {
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+     "0x1111111254eeb25477b68fb85ed929f73a960582": "1",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "242533458350013628141828",
+     "0x3ed60954467363d4eb5495ab62924699247307ef": "7768472903287438781",
+     "0x643770e279d5d0733f21d6dc03a8efbabf3255b4": "0",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0": "2025362239627385444215239",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a": "20499175636669163922",
+     "0xe592427a0aece92de3edee1f18e0157c05861564": "0"
+    },
+    "0x1fdeaf938267ca43388ed1fdb879eaf91e920c7a": {
+     "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "562961582835200981525",
+     "0xb98454270065a31d71bf635f6f7ee6a518dfb849": "0",
+     "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "0"
+    },
+    "0x3c720206bfacb2d16fa3ac0ed87d2048dbc401fc": {
+     "0x0a6c69327d517568e6308f1e1cd2fd2b2b3cd4bf": "19079332750558306040908"
+    },
+    "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "392241522955416482754384",
+     "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0"
+    },
+    "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+     "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "625613964202339418536",
+     "0x864836929f6635880fccdc09001a68b0de863dc2": "2096680000000002862",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0": "662738365118862196625",
+     "0xb79cdf3ab15fdbbbfd956274c48a12e13f045bff": "1071094377642045098",
+     "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "17914071519583"
+    },
+    "0x8505b9d2254a7ae468c0e9dd10ccea3a837aef5c": {
+     "0x3ed60954467363d4eb5495ab62924699247307ef": "461118151928354629",
+     "0x4a183b7ed67b9e14b3f45abfb2cf44ed22c29e54": "88920045355538816",
+     "0x8a347b8c5a63316d2c3c60ea73180c26189f8220": "3805970149254",
+     "0xd7f1dd5d49206349cae8b585fcb0ce3d96f1696f": "0"
+    },
+    "0xbbba073c31bf03b8acf7c28ef0738decf3695683": {
+     "0xe0b7263a26776d004df96c480252092c9bc65cbf": "881000000000000000000"
+    },
+    "0xe0b52e49357fd4daf2c15e02058dce6bc0057db4": {
+     "0x18f52ad1141ea172cb71fbc324fded1e4357b100": "981860649210870",
+     "0x4a183b7ed67b9e14b3f45abfb2cf44ed22c29e54": "10169438095652760408",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a": "36942561888456946188",
+     "0xd7f1dd5d49206349cae8b585fcb0ce3d96f1696f": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x1111111254eeb25477b68fb85ed929f73a960582"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3ed60954467363d4eb5495ab62924699247307ef"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x643770e279d5d0733f21d6dc03a8efbabf3255b4"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x86f1d8390222a3691c28938ec7404a1661e618e0"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x934fc18b73e51f247548ffe2d86108502b18037a"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0xe592427a0aece92de3edee1f18e0157c05861564"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x553bc791d746767166fa3888432038193ceed5e2"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+      "0x1111111254eeb25477b68fb85ed929f73a960582": "1",
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "242533458350013628141828",
+      "0x3ed60954467363d4eb5495ab62924699247307ef": "7768472903287438781",
+      "0x643770e279d5d0733f21d6dc03a8efbabf3255b4": "0",
+      "0x86f1d8390222a3691c28938ec7404a1661e618e0": "2025362239627385444215239",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+      "0x934fc18b73e51f247548ffe2d86108502b18037a": "20499175636669163922",
+      "0xe592427a0aece92de3edee1f18e0157c05861564": "0"
+     },
+     "0x1fdeaf938267ca43388ed1fdb879eaf91e920c7a": {
+      "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "562961582835200981525",
+      "0xb98454270065a31d71bf635f6f7ee6a518dfb849": "0",
+      "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "0"
+     },
+     "0x3c720206bfacb2d16fa3ac0ed87d2048dbc401fc": {
+      "0x0a6c69327d517568e6308f1e1cd2fd2b2b3cd4bf": "19079332750558306040908"
+     },
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "392241522955416482754384",
+      "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0"
+     },
+     "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": {
+      "0x266e2dc3c4c59e42aa07afee5b09e964cffe6778": "625613964202339418536",
+      "0x864836929f6635880fccdc09001a68b0de863dc2": "2096680000000002862",
+      "0x86f1d8390222a3691c28938ec7404a1661e618e0": "662738365118862196625",
+      "0xb79cdf3ab15fdbbbfd956274c48a12e13f045bff": "1071094377642045098",
+      "0xc315239cfb05f1e130e7e28e603cea4c014c57f0": "17914071519583"
+     },
+     "0xbbba073c31bf03b8acf7c28ef0738decf3695683": {
+      "0xe0b7263a26776d004df96c480252092c9bc65cbf": "881000000000000000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "polygon-70044000-state-sync.pb",
+   "chain": "polygon",
+   "block": 70044000,
+   "block_hash": "0x9ca157f51d5002bab1f49302aabdef0b7a32ff9e9d3c12532d9a08d828bb7541",
+   "ver": 3,
+   "source_block_sha256": "4c8d2392486a3761c019c1f1c1c189f27e892113faea62ffdcf3cd0cdec0f91c",
+   "fixture_sha256": "bcab4f5d71515a1d1d1fdab30e5ace8deb8f293b030c37f04af3cad152a7d8c8",
+   "token": "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+   "kept_transactions": [
+    29,
+    31,
+    34,
+    46
+   ],
+   "selection": "every WPOL transaction: 29, 31, 34 and the state sync 46",
+   "rule": "C5",
+   "demonstrates": "the Polygon Block.ver 3 state-sync transaction 0x60891cc1... (tx 46, ordinals 3,250 to 3,443; native's fixture) commits four events. WPOL's pool word is written in subtrees 0, 1 and 3 at ordinals 3,390, 3,389 and 3,389, and 0x712f0cf3...'s supply at 3,275, 3,274 and 3,274: ties by ordinal, so v0.7.3 dropped both tokens, also for the WPOL holders of transactions 29, 31 and 34; in call order they chain, and the balanceOf calls inside the transaction agree",
+   "calls": [
+    {
+     "tx": 46,
+     "call": 1,
+     "address": "0x0000000000000000000000000000000000000000",
+     "input_len": 0
+    },
+    {
+     "tx": 46,
+     "call": 2,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 46,
+     "call": 33,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    },
+    {
+     "tx": 46,
+     "call": 69,
+     "address": "0x0000000000000000000000000000000000001001",
+     "input_len": 644
+    }
+   ],
+   "rows": {
+    "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+     "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c": "73627400173254967139500",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "239755620864795824783826",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "910000000000000000",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "1000000000000000000",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "4199380082770000000"
+    },
+    "0x1cd0cd01c8c902adab3430ae04b9ea32cb309cf1": {
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "1090000000000000000",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "0",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "1362917230000000"
+    },
+    "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": {
+     "0xeeb17adefd06a3c67abd4adf7e42978b1f018c8e": "343498769278"
+    },
+    "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "304631281238662176630667",
+     "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "669120754160000000000"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0x9316fe60ddd64890fb43e595a76d764db9f41e51"
+    ],
+    [
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+     "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x553bc791d746767166fa3888432038193ceed5e2"
+    ],
+    [
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c",
+     "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "polygon:evm-balances@v0.3.3",
+    "values": {
+     "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270": {
+      "0x1fc39644c58396e567aa44840cf5e5c9696a9a1c": "73627400173254967139500",
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "239755620864795824783826",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "0",
+      "0x8debd063912c13fbc53ab61d49a1187c5a1f25a9": "910000000000000000",
+      "0x9316fe60ddd64890fb43e595a76d764db9f41e51": "1000000000000000000",
+      "0xfec258b2ed3a5f670f93d98c06e2287fcc2a7034": "4199380082770000000"
+     },
+     "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": {
+      "0xeeb17adefd06a3c67abd4adf7e42978b1f018c8e": "343498769278"
+     },
+     "0x712f0cf37bdb8299d0666727f73a5caba7c1c24c": {
+      "0x3d4cc8a61c7528fd86c55cfe061a78dcba48edd1": "304631281238662176630667",
+      "0x553bc791d746767166fa3888432038193ceed5e2": "0",
+      "0x884d1aa15f9957e1aeaa86a82a72e49bc2bfcbe3": "669120754160000000000"
+     }
+    },
+    "method": "Indirect, read-only, 2026-10-17: polygon:evm-balances@v0.3.3 has no 1-minute bar at these blocks for the holders the state sync names, so each value is the holder's nearest RPC-era observation before the block (historical_erc20_balances_state) plus the net of its transfer, deposit and withdrawal rows in between (polygon:evm-transfers@v0.3.3, summed in ClickHouse), checked again against the nearest observation after the block. Only rows of contracts that the state-sync transaction writes are listed."
+   }
+  },
+  {
+   "file": "eth-26174479-scrvusd-report.pb",
+   "chain": "eth",
+   "block": 26174479,
+   "block_hash": "0xe5884896feb9914a2c2cd4e6293e2e2035432e5a3c0c7383af2f4013821f5fb0",
+   "ver": 5,
+   "source_block_sha256": "42c436fdaec4900e3e93d6dd91143c031dd61c785b23432ce01d62d0d137c92e",
+   "fixture_sha256": "55733445cb11cc50a6b5eac3696d73e05d7aae729e88c27e4546be331d4a14c7",
+   "token": "0x0655977feb2f289a4ab78af67bab0d17aab84367",
+   "kept_transactions": [
+    178
+   ],
+   "selection": "every scrvUSD transaction (only the report transaction 178)",
+   "rule": "C6",
+   "demonstrates": "a report of scrvUSD, a Yearn v3 VaultV3 behind an EIP-1167 proxy (implementation 0xd8063123..., Vyper 0.3.7): the vault's DELEGATECALL frame (tx 178 call 51) emits Transfer(0, vault, 3615774490983119344) and writes the vault's own word under HashMap slot 18, preimage slot || pad(vault), to 5480155112664263237347 at ordinal 9603. VaultV3 computes balanceOf(self) as that word less the shares still unlocking, so under the Vyper base the vault never gets a row of its own; no balanceOf(vault) follows the write (right after a report the word equals the RPC era, which it later does not). crvUSD (Vyper 0.3.7, slot 1) gets its two rows; v0.7.3 read neither token's preimages",
+   "calls": [
+    {
+     "tx": 178,
+     "call": 51,
+     "address": "0xd8063123bba3b480569244ae66bfe72b6c84b00d",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 178,
+     "call": 52,
+     "address": "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x0655977feb2f289a4ab78af67bab0d17aab84367": "16270388489074394225800560",
+     "0xe8d1e2531761406af1615a6764b0d5ff52736f56": "0"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x0655977feb2f289a4ab78af67bab0d17aab84367"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xe8d1e2531761406af1615a6764b0d5ff52736f56"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x0655977feb2f289a4ab78af67bab0d17aab84367": "16270388489074394225800560",
+      "0xe8d1e2531761406af1615a6764b0d5ff52736f56": "0"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26194925-crvusd.pb",
+   "chain": "eth",
+   "block": 26194925,
+   "block_hash": "0xa007f769e74dfa6b58c0bc22f0870b2bfe78fe529eabdce4579455bbd3f70578",
+   "ver": 5,
+   "source_block_sha256": "38a73c595252a45d12d01e2f738fa43563185a178e4177e3f34ec337ab615a4c",
+   "fixture_sha256": "a01d755ff2010955aa837391cf490923c627a809508ad9a593c56c5f3cbf4a46",
+   "token": "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+   "kept_transactions": [
+    38,
+    43
+   ],
+   "selection": "crvUSD transactions 38 and 43 (of 12), whose rows equal the full block's",
+   "rule": "C6",
+   "demonstrates": "crvUSD (Vyper 0.3.7, HashMap slot 1) in two swap transactions next to tBTC and WBTC (Solidity): crvUSD gets 6 rows, where v0.7.3 gave only the 6 Solidity rows",
+   "calls": [
+    {
+     "tx": 38,
+     "call": 14,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 43,
+     "call": 12,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0x18084fba666a33d37592fa2633fd49a74dd93a88": {
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "18103967803864128176",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "27455188446984765140"
+    },
+    "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": {
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "7095159393",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "2604481321"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "4803108505934387689897555",
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "728001551011865175449931",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "4113680304595623327300663",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "5672530252664945538822899"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x51c72848c68a965f66fa7a88855f9f7784502a7f"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xec6fc9be2d5e505b40a2df8b0622cd25333823db"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xf1f435b05d255a5dbde37333c0f61da6f69c6127"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x51c72848c68a965f66fa7a88855f9f7784502a7f": "4803108505934387689897555",
+      "0xbc5c3a16dbbb5dc39e533e69dd7247151bd19c4e": "0",
+      "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": "728001551011865175449931",
+      "0xd9ff8396554a0d18b2cfbec53e1979b7ecce8373": "4113680304595623327300663",
+      "0xec6fc9be2d5e505b40a2df8b0622cd25333823db": "0",
+      "0xf1f435b05d255a5dbde37333c0f61da6f69c6127": "5672530252664945538822899"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26203984-3crv.pb",
+   "chain": "eth",
+   "block": 26203984,
+   "block_hash": "0x2e129e77ab9ef6b411ccf59ffb75b722da60615c00a86ad829c895c36f6b1b7c",
+   "ver": 5,
+   "source_block_sha256": "640a9338fdbbee411c02a77719a63aae6ed60a56c568b01adc88c910efb62fc4",
+   "fixture_sha256": "2ec2b5b0c1191b918d24a8e3da9915482daa99ce4b9fa349743f11e103fb65f4",
+   "token": "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+   "kept_transactions": [
+    172
+   ],
+   "selection": "every 3Crv transaction (only transaction 172)",
+   "rule": "C6",
+   "demonstrates": "Curve's 3pool LP token 3Crv (Vyper 0.2.4) moves in 13 Transfers of tx 172, with crvUSD (Vyper 0.3.7) in the same transaction; each holder's word is keyed keccak(slot || pad(holder)), so 3Crv (slot 3) gets 14 rows and crvUSD (slot 1) 3, where v0.7.3 inferred neither",
+   "calls": [
+    {
+     "tx": 172,
+     "call": 6,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+     "input_len": 68
+    }
+   ],
+   "rows": {
+    "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490": {
+     "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f": "1634575401092454343721",
+     "0x1288e3dad9deb275deb8793f5e206ab17bf11224": "1800505285872095969458",
+     "0x18e603a003e81705250ca52fc27ab44f23574a1e": "1804905869770571593539",
+     "0x33bb361ff578fa67a726a39383d430b09f259fd5": "2126086026859704923281",
+     "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e": "1993519177305138381084",
+     "0x41339d9825963515e5705df8d3b0ea98105ebb1c": "2140593370902475719584",
+     "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8": "1722518672278420231752",
+     "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9": "1741348919914155033343",
+     "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4": "1936408901984283990602",
+     "0xa464e6dcda8ac41e03616f95f4bc98a13b8922dc": "1135712324229634238612405",
+     "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19": "1965022868265937783401",
+     "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e": "2080586290569163117373",
+     "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93": "2491877682907172455867",
+     "0xf929122994e177079c924631ba13fb280f5cd1f9": "9863946980075099561804"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d": "1741438826242268398593",
+     "0x99fd1378ca799ed6772fe7bcdc9b30b389518962": "1923363141150344218971",
+     "0xd16d5ec345dd86fb63c6a9c43c517210f1027914": "278215638510745247166695"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x1288e3dad9deb275deb8793f5e206ab17bf11224"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x18e603a003e81705250ca52fc27ab44f23574a1e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x33bb361ff578fa67a726a39383d430b09f259fd5"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x41339d9825963515e5705df8d3b0ea98105ebb1c"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xa464e6dcda8ac41e03616f95f4bc98a13b8922dc"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93"
+    ],
+    [
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490",
+     "0xf929122994e177079c924631ba13fb280f5cd1f9"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x99fd1378ca799ed6772fe7bcdc9b30b389518962"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xd16d5ec345dd86fb63c6a9c43c517210f1027914"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x6c3f90f043a72fa612cbac8115ee7e52bde6e490": {
+      "0x0280c0cf4c6f35f26bc2f66aa4538f3eb6802f3f": "1634575401092454343721",
+      "0x1288e3dad9deb275deb8793f5e206ab17bf11224": "1800505285872095969458",
+      "0x18e603a003e81705250ca52fc27ab44f23574a1e": "1804905869770571593539",
+      "0x33bb361ff578fa67a726a39383d430b09f259fd5": "2126086026859704923281",
+      "0x3d75c58e07ff3a44e296b0701b8a54055dbaa07e": "1993519177305138381084",
+      "0x41339d9825963515e5705df8d3b0ea98105ebb1c": "2140593370902475719584",
+      "0x478c1a5c1a1ee1be30e6a7099ef145a759722dc8": "1722518672278420231752",
+      "0x6f54902bb9b1dca9ef8b30ee16372451dd8535f9": "1741348919914155033343",
+      "0x83be8a9306945690c2cf558fac3d4ca4e9eec1b4": "1936408901984283990602",
+      "0xd7e228b7eb0c727706d5955c4c518cb10a3e7a19": "1965022868265937783401",
+      "0xdb5aa12ad695ef2a28c6cdb69f2bb04bed20a48e": "2080586290569163117373",
+      "0xe103abfa0f867e53cef1ad2cb0dcbc193b385a93": "2491877682907172455867",
+      "0xf929122994e177079c924631ba13fb280f5cd1f9": "9863946980075099561804"
+     },
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x7ab8c84ca8739f89232e2a28e1fec209b4acc23d": "1741438826242268398593",
+      "0x99fd1378ca799ed6772fe7bcdc9b30b389518962": "1923363141150344218971"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-26210251-crv.pb",
+   "chain": "eth",
+   "block": 26210251,
+   "block_hash": "0xfa30f6b2056751cfb10fb2a11bd9e3fba4d03b029938c3f16dd7d12879cd66b5",
+   "ver": 5,
+   "source_block_sha256": "623532ccad55a019bdf039a4f6389110068c7aef762694848a028be7b49f57e1",
+   "fixture_sha256": "7fecb624c0cc92e333d86c4018cf6ac626a29892b94ede7ddc64bbb0d12fbfe7",
+   "token": "0xd533a949740bb3306d119cc777fa900ba034cd52",
+   "kept_transactions": [
+    109,
+    164
+   ],
+   "selection": "CRV transactions 109 and 164 (of 109, 114, 150 and 164), whose rows equal the full block's",
+   "rule": "C6",
+   "demonstrates": "CRV (CurveDAOToken, Vyper 0.2.4, HashMap slot 3) in two transactions: 16 CRV rows, and 5 crvUSD rows, where v0.7.3 inferred neither token",
+   "calls": [
+    {
+     "tx": 109,
+     "call": 10,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 164,
+     "call": 16,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "3460027492670217584",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04": "365443108088030054"
+    },
+    "0xd533a949740bb3306d119cc777fa900ba034cd52": {
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "1947042100707686456084",
+     "0x1389388d01708118b497f59521f6943be2541bb7": "99962186851054040017913",
+     "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e": "1055422954834439952324516",
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "24257890371712083162081",
+     "0x6be96d00b50375af852d63db7d55656b306f398e": "3575509936239221490246",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+     "0x7e880867363a7e321f5d260cade2b0bb2f717b02": "37715598089058605368676",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466": "190355503050141569001530",
+     "0x989aeb4d175e16225e39e87d0d97a3360524ad80": "0",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1913901478611035775341",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04": "101542394134772935",
+     "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa": "273384432678852780221162",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "469548213232187539097",
+     "0xc10fd95fd3b56535668426b2c8681ad1e15be608": "8326200487649961350479",
+     "0xcf50b810e57ac33b91dcf525c6ddd9881b139332": "1157342913650559154211058",
+     "0xf403c135812408bfbe8713b5a23a04b3d48aae31": "0"
+    },
+    "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "2103812760245306724380",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466": "217245794757595321399930",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1556883710969189077015",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "311389836250316810004"
+    }
+   },
+   "added_since_v073": [
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x1389388d01708118b497f59521f6943be2541bb7"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x58dc5a51fe44589beb22e8ce67720b5bc5378009"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x6be96d00b50375af852d63db7d55656b306f398e"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7e880867363a7e321f5d260cade2b0bb2f717b02"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0x989aeb4d175e16225e39e87d0d97a3360524ad80"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xabdcac13b637600bc5b954461d769ea531c8ba04"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xc10fd95fd3b56535668426b2c8681ad1e15be608"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xcf50b810e57ac33b91dcf525c6ddd9881b139332"
+    ],
+    [
+     "0xd533a949740bb3306d119cc777fa900ba034cd52",
+     "0xf403c135812408bfbe8713b5a23a04b3d48aae31"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0x7f50786a0b15723d741727882ee99a0bf34e3466"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xa0fb1b11cca5871fb0225b64308e249b97804e99"
+    ],
+    [
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e",
+     "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2"
+    ]
+   ],
+   "removed_since_v073": [],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xd533a949740bb3306d119cc777fa900ba034cd52": {
+      "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "1947042100707686456084",
+      "0x1389388d01708118b497f59521f6943be2541bb7": "99962186851054040017913",
+      "0x3fe65692bfcd0e6cf84cb1e7d24108e434a7587e": "1055422954834439952324516",
+      "0x58dc5a51fe44589beb22e8ce67720b5bc5378009": "24257890371712083162081",
+      "0x6be96d00b50375af852d63db7d55656b306f398e": "3575509936239221490246",
+      "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+      "0x7e880867363a7e321f5d260cade2b0bb2f717b02": "37715598089058605368676",
+      "0x7f50786a0b15723d741727882ee99a0bf34e3466": "190355503050141569001530",
+      "0x989aeb4d175e16225e39e87d0d97a3360524ad80": "0",
+      "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1913901478611035775341",
+      "0xabdcac13b637600bc5b954461d769ea531c8ba04": "101542394134772935",
+      "0xb1fb0ba0676a1ffa83882c7f4805408ba232c1fa": "273384432678852780221162",
+      "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "469548213232187539097",
+      "0xc10fd95fd3b56535668426b2c8681ad1e15be608": "8326200487649961350479",
+      "0xcf50b810e57ac33b91dcf525c6ddd9881b139332": "1157342913650559154211058",
+      "0xf403c135812408bfbe8713b5a23a04b3d48aae31": "0"
+     },
+     "0xf939e0a03fb07f59a73314e73794be0e57ac1b4e": {
+      "0x09b0e3a114135f528f762db8363b4f5eae3f3bf1": "2103812760245306724380",
+      "0x7e0f27b24bcd527ffac4d61fee9de00b29352d45": "0",
+      "0x7f50786a0b15723d741727882ee99a0bf34e3466": "217245794757595321399930",
+      "0xa0fb1b11cca5871fb0225b64308e249b97804e99": "1556883710969189077015",
+      "0xbc6dbe2c5f172bbb736aa58cfa9bfcb20c85ffe2": "311389836250316810004"
+     }
+    },
+    "method": "Vyper rows: the 1-minute bars of mainnet:evm-balances@v0.3.3 historical_erc20_balances_state read on 2026-10-17 for the C6 research, by the method above. Rows of Solidity tokens, which v0.7.3 also emits, were not queried."
+   }
+  },
+  {
+   "file": "eth-25852210-liquorice-scaled.pb",
+   "chain": "eth",
+   "block": 25852210,
+   "block_hash": "0x635a7f3349feda064547b4f895751a4e3cb029d896163d055582e6dba31f1d12",
+   "ver": 5,
+   "source_block_sha256": "7981f307c14204e6a37d48939e6be8bf3f0cae7b6cb3194f5e9c5221a6c9321c",
+   "fixture_sha256": "aa458f2b87622a7a0b886e77a23e01cb29e8fc0f3d4e0608d626e8258ca11af8",
+   "token": "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722",
+   "kept_transactions": [
+    81
+   ],
+   "selection": "transaction 81, the block's only transaction of either Liquorice token (LLCUSDC 0x13fb3b0a... and LDWETH 0xf6f38c88...)",
+   "rule": "R1",
+   "demonstrates": "Liquorice's LendingPool 0x1cce0034... repays the RFQ maker 0x9af47260...'s WETH debt, burning 799694894989247543898 LDWETH shares (call 27), and withdraws its locked USDC collateral, burning 1997705565000 LLCUSDC shares (call 38). Both tokens (OpenZeppelin ERC20, _balances at slot 0) store and transfer shares, and their balanceOf converts them through the pool, shares * (pool total + 1) / (supply + 1000); no balanceOf of either token is traced. Each burn frame votes exactly for slot 0, so v0.7.3 emitted the maker's share words. The pool's keyed scaledBalanceOf(maker) calls, 25 and 52 of LDWETH and 77 of LLCUSDC (the isSolvent loop), return the stored share word under slot 0, so since R1 neither token gets a row; the block's USDC and WETH rows stay",
+   "calls": [
+    {
+     "tx": 81,
+     "call": 38,
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 81,
+     "call": 77,
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 81,
+     "call": 27,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 81,
+     "call": 25,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    },
+    {
+     "tx": 81,
+     "call": 52,
+     "address": "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x1cce0034331638fec50b291a0bf42073346bb7c0": "73618825840",
+     "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+     "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "2103232393",
+     "0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d": "100132371111",
+     "0xdbb1164a57969dbcbea0b0b19afe4a636f5d9308": "29691495"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x1cce0034331638fec50b291a0bf42073346bb7c0": "9454545997001386325",
+     "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+     "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "0",
+     "0x43dcd6586e6209ee7235a21bdc4aa301e5bc44e8": "0"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722",
+     "0x9af47260d157e8e20aaa1d46c9f890422072a6a0"
+    ],
+    [
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a",
+     "0x9af47260d157e8e20aaa1d46c9f890422072a6a0"
+    ]
+   ],
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x1cce0034331638fec50b291a0bf42073346bb7c0": "73618825840",
+      "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+      "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "2103232393",
+      "0x6ea08ca8f313d860808ef7431fc72c6fbcf4a72d": "100132371111",
+      "0xdbb1164a57969dbcbea0b0b19afe4a636f5d9308": "29691495"
+     },
+     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+      "0x1cce0034331638fec50b291a0bf42073346bb7c0": "9454545997001386325",
+      "0x25ed72c3f671b626810a6db597dcfd50f215a423": "0",
+      "0x2a218d381c0ae2b781865c473bc3f36915608b4b": "0",
+      "0x43dcd6586e6209ee7235a21bdc4aa301e5bc44e8": "0"
+     }
+    },
+    "dropped": {
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "7975146307"
+     },
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "563115926388786128"
+     }
+    },
+    "v073": {
+     "0x13fb3b0a7ab1ab9591c10fe136a6a85599d8a722": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "7975146307000"
+     },
+     "0xf6f38c888e6a25aa2e6134f29e83660e85da833a": {
+      "0x9af47260d157e8e20aaa1d46c9f890422072a6a0": "562901164525316466662"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above; every fixture row has a bar at the block (WETH 0x2a218d38...'s bar opens at 25852209 and closes at the block at 0). dropped gives the RPC-era values of the two pairs that v0.7.3 emitted as the share words in v073 and that v0.7.4 no longer emits: shares * (pool total + 1) / (supply + 1000), 7975146307000 * 7975146308 / 7975146308000 and 562901164525316466662 * 563115926388786130 / 562901164525316467662 with the block's own end-of-block storage."
+   }
+  },
+  {
+   "file": "eth-26197322-ousd-rebasing-holder.pb",
+   "chain": "eth",
+   "block": 26197322,
+   "block_hash": "0x36026b6d51622ed3070194ac60fb6f3fb43d61373ccdaccf3c7112af24b81c62",
+   "ver": 5,
+   "source_block_sha256": "4fe0669144be0609eae93f4e83c0569818b16ecd75d4a257f86a941d19e8c0b5",
+   "fixture_sha256": "44a4e178c985474b7d0a209e6da81dd4ef31ba50c2eb3adbc14c4323906fef63",
+   "token": "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+   "kept_transactions": [
+    58
+   ],
+   "selection": "transaction 58, the block's only OUSD transaction; the USDC and USDT rows of 0x000000000004444c... (the Uniswap v4 PoolManager), which later transactions of the block change, are its words after transaction 58, not the block's",
+   "rule": "R3",
+   "demonstrates": "a CoW settlement (0x9008d19f...) moves OUSD from the non-rebasing accounts 0x000000000004444c..., 0xdbdc27b6... and 0x6d18e1a7... to itself (calls 108, 135, 181) and from itself to the rebasing holder 0x6e3fddab... (call 183); OUSD (Origin, proxy 0x2a8e1e67..., implementation 0xa7b7c59a...) keeps credits under slot 157, the balance for a non-rebasing account and about 6.09e8 times it for a rebasing one. The non-rebasing sides vote exactly for slot 157; 0x6e3fddab... receives 64746254124984710421885 for 39446154778387942038879160434345 credits. v0.7.3 emitted its credits; since R3 the thousandfold mismatch drops OUSD for the block, with the rows of its four non-rebasing holders",
+   "calls": [
+    {
+     "tx": 58,
+     "call": 183,
+     "address": "0xa7b7c59a1705e4a624ea8a4ad8a06f9de22dcc33",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 58,
+     "call": 108,
+     "address": "0xa7b7c59a1705e4a624ea8a4ad8a06f9de22dcc33",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "769584542039751750654685",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "477873719538548020765707",
+     "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "150121348776907118411658",
+     "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "0",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "8029636440836654168",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "32840339495776912621281"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "43924012922348",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "10945785193325",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "486379371488",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "2938108085"
+    },
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "84607698418693",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "33643473914507",
+     "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "1050768978252",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "1591647030"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x000000000004444c5dc75cb358380d2e3de08a90"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89"
+    ]
+   ],
+   "provenance": "Fetched on 2026-10-18 for R3 by the main session, which reported the owner's approval for exactly two single-block fetches (one block per request, base64 bytes decoded offline). Picked from the read-only join of mainnet:evm-balances-erc20@v0.7.3 and mainnet:evm-balances@v0.3.3 erc20_balances by (contract, address, block_num), where the v0.7.3 row of a rebasing holder differs from the RPC era's.",
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+      "0x52aa899454998be5b000ad077a46bbe360f4e497": "477873719538548020765707",
+      "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "150121348776907118411658",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "0",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "8029636440836654168",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "32840339495776912621281"
+     },
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "486379371488",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "2938108085"
+     }
+    },
+    "dropped": {
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "283386425981817071165976",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+     }
+    },
+    "v073": {
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+      "0x000000000004444c5dc75cb358380d2e3de08a90": "20548144781148038484172",
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "172650989195362567572595137206188",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   }
+  },
+  {
+   "file": "eth-26197859-oeth-rebasing-holder.pb",
+   "chain": "eth",
+   "block": 26197859,
+   "block_hash": "0x89a7ca81f349822cca381fa3eed2d1805ff5577eb5febb2b9a021f2fe446c024",
+   "ver": 5,
+   "source_block_sha256": "e8f0698b69ed3d6fe8379e6d24ca0c2dccc6798c2791e0612e9338d528d780c7",
+   "fixture_sha256": "f0bdf97e43b35c3b2f9e934067980e47948e9e3c5869718a12e63e5a1131ab19",
+   "token": "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+   "kept_transactions": [
+    308
+   ],
+   "selection": "transaction 308, the block's only OETH transaction",
+   "rule": "R3",
+   "demonstrates": "the rebasing holder 0x6a059587... (the transaction's sender) swaps 41864840289475 OETH through the Uniswap router 0x68b34658... into the pool 0x52299416..., a non-rebasing account (call 9, OETH proxy 0x856c4efb..., implementation 0xd86756db...); the pool's word under slot 157 votes exactly, and its keyed balanceOf (calls 5 and 10) returns its word, while 0x6a059587... gives 35753149851027605918364 credits, about 8.54e8 times the flow. v0.7.3 emitted those credits; since R3 the thousandfold mismatch drops OETH for the block, with the pool's row",
+   "calls": [
+    {
+     "tx": 308,
+     "call": 9,
+     "address": "0xd86756dbb01e75a11aadacb75c8495759ed92033",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 308,
+     "call": 10,
+     "address": "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x52299416c469843f4e0d54688099966a6c7d720f": "1808148704327265",
+     "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45": "0"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "0x52299416c469843f4e0d54688099966a6c7d720f"
+    ],
+    [
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6"
+    ]
+   ],
+   "provenance": "Fetched on 2026-10-18 for R3 by the main session, which reported the owner's approval for exactly two single-block fetches (one block per request, base64 bytes decoded offline). Picked from the read-only join of mainnet:evm-balances-erc20@v0.7.3 and mainnet:evm-balances@v0.3.3 erc20_balances by (contract, address, block_num), where the v0.7.3 row of a rebasing holder differs from the RPC era's.",
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {},
+    "dropped": {
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+      "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151",
+      "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6": "244087121381851"
+     }
+    },
+    "v073": {
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+      "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151",
+      "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6": "208453761369422252955361"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   }
+  }
+ ],
+ "setcode_transactions": {
+  "source": "Arbitrum One Firehose (Pinax), fetched 2026-10-17 with firecore tools firehose-client -o bytes --bytes-encoding base64, and -o json for the same block hash. Copied byte for byte from native v0.7.9's fixtures (native/balances/tests/fixtures/, provenance arbitrum-setcode-v079.json).",
+  "protobuf_type": "sf.ethereum.type.v2.TransactionTrace",
+  "extraction": "Sliced the selected transaction's TransactionTrace bytes (Block field 10) out of the encoded Extended block without decoding or editing them. No RPC was used.",
+  "limits": "Arbitrum One, Block.ver 3, whose root calls record begin_ordinal 0. Five failed SetCode transactions whose sender authorizes itself with the transaction's own nonce, an authorization that cannot apply and that the producer leaves unmarked; ERC-20 v0.7.3 and native v0.7.8 refuse their blocks. Not a producer matrix.",
+  "rows": "A failed transaction persists no storage write or log, so no slice gives an ERC-20 row: run gives none for each slice alone, where v0.7.3 refused it.",
+  "records": [
+   {
+    "file": "arbitrum-358023229-failed-setcode.pb",
+    "block_number": 358023229,
+    "block_hash": "0x8cc513b41e47551977ad373ecece44d32e0955adc4c5d6b9fb7e0eeb0d35ac20",
+    "producer_version": 3,
+    "transaction_index": 5,
+    "transaction_hash": "0x95af748ba8653d9e0487e23519203be703ee1c5ea4957360645ce8e5da78016c",
+    "transaction_status": 3,
+    "transaction_nonce": 47,
+    "bytes": 2744,
+    "sha256": "f89caf322709043fda7e755ea6a3fcee7aeaf4953a836534758242f1181bdf04",
+    "note": "reverted; its only authorization is by the sender with the transaction nonce 47, cannot apply, not marked discarded; found by a later v0.7.8 noop",
+    "transaction_ordinals": [
+     353,
+     365
+    ],
+    "root_begin_ordinal": 0,
+    "root_end_ordinal": 359,
+    "unrecorded_ordinal": 358,
+    "sender": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+    "authorizations": [
+     {
+      "authority": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+      "address": "0xf519ba3d865cd0fe5a8a927aad1fa1345fe77d94",
+      "nonce": 47,
+      "discarded": false
+     }
+    ],
+    "root_account_creations": [],
+    "root_nonces": [
+     {
+      "address": "0x0128c9c96874c951d4b6296375ed76df6996221e",
+      "old": 47,
+      "new": 48,
+      "ordinal": 357
+     }
+    ],
+    "root_codes": []
+   },
+   {
+    "file": "arbitrum-360021045-failed-setcode.pb",
+    "block_number": 360021045,
+    "block_hash": "0x290cada8a20ca106aa100b45e8649d3589d9572cd8ef41ade5ab4ac76147e159",
+    "producer_version": 3,
+    "transaction_index": 4,
+    "transaction_hash": "0x1550f5d16eb996e2a42e0049b8612e39c7adc6f9c2d4df8bec6af104793ebaef",
+    "transaction_status": 3,
+    "transaction_nonce": 1,
+    "bytes": 1646,
+    "sha256": "d3f75ffa54373d9ac14ad070dbcb84244ad81094f1a22ae7546d427ccffc66ea",
+    "note": "two self-authorizations: the first carries the transaction nonce 1 and cannot apply, the second (nonce 2) applies; neither marked discarded",
+    "transaction_ordinals": [
+     118,
+     133
+    ],
+    "root_begin_ordinal": 0,
+    "root_end_ordinal": 126,
+    "unrecorded_ordinal": 125,
+    "sender": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+    "authorizations": [
+     {
+      "authority": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "address": "0x9bbcc327f7d924e057dbc076d5455f16144261a6",
+      "nonce": 1,
+      "discarded": false
+     },
+     {
+      "authority": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "address": "0x9bbcc327f7d924e057dbc076d5455f16144261a6",
+      "nonce": 2,
+      "discarded": false
+     }
+    ],
+    "root_account_creations": [],
+    "root_nonces": [
+     {
+      "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "old": 1,
+      "new": 2,
+      "ordinal": 122
+     },
+     {
+      "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "old": 2,
+      "new": 3,
+      "ordinal": 123
+     }
+    ],
+    "root_codes": [
+     {
+      "address": "0xb8b2730af0ce3f94c1bc03f128f29da8c8f673f0",
+      "old_hash": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "new_hash": "0xb8f6cef70cb6735bf1186913a6e9487e0115e6025429f8bf0f8120b641e424e5",
+      "ordinal": 124
+     }
+    ]
+   },
+   {
+    "file": "arbitrum-382234350-failed-setcode.pb",
+    "block_number": 382234350,
+    "block_hash": "0x88fbda0e7492693e9514eb6017e9f92406fff6d44b52d0cf33d943b3f40f1617",
+    "producer_version": 3,
+    "transaction_index": 3,
+    "transaction_hash": "0xfb8afecedd440cc00113a497591df175a2a0546a3b07dddebc65851e3770a074",
+    "transaction_status": 2,
+    "transaction_nonce": 322,
+    "bytes": 1586,
+    "sha256": "56184b30668483098a74e6dd00c917fd43e862febfe0527777f994701647f70a",
+    "note": "failed (out of gas); its only authorization is by the sender with the transaction nonce 322, cannot apply, not marked discarded; transaction 7 of the block carries the same authority and nonce, marked discarded",
+    "transaction_ordinals": [
+     1970,
+     1986
+    ],
+    "root_begin_ordinal": 0,
+    "root_end_ordinal": 1980,
+    "unrecorded_ordinal": 1975,
+    "sender": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+    "authorizations": [
+     {
+      "authority": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+      "address": "0xe4b11be8fd81da755843f6ab5cca2698e20a4d04",
+      "nonce": 322,
+      "discarded": false
+     }
+    ],
+    "root_account_creations": [],
+    "root_nonces": [
+     {
+      "address": "0xbd25f6e6f7544abd76170a1e895f305b01462bb8",
+      "old": 322,
+      "new": 323,
+      "ordinal": 1974
+     }
+    ],
+    "root_codes": []
+   },
+   {
+    "file": "arbitrum-420239048-failed-setcode.pb",
+    "block_number": 420239048,
+    "block_hash": "0x0930a65588e2968d0564cf6a36b4af6bf5e917fbceee2c806e8061f1febf78a5",
+    "producer_version": 3,
+    "transaction_index": 5,
+    "transaction_hash": "0x80435ffda58420773e381f4dad4592cd4d4b259300beca525478e5d75c3c8e59",
+    "transaction_status": 3,
+    "transaction_nonce": 6,
+    "bytes": 4549,
+    "sha256": "122600f5ec2134e1a188f310fc5647124be5ac1a0d8f3b4e417b918249d9aa02",
+    "note": "reverted; its only authorization is by the sender with the transaction nonce 6, cannot apply, not marked discarded",
+    "transaction_ordinals": [
+     105,
+     122
+    ],
+    "root_begin_ordinal": 0,
+    "root_end_ordinal": 113,
+    "unrecorded_ordinal": 110,
+    "sender": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+    "authorizations": [
+     {
+      "authority": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+      "address": "0xca11bde05977b3631167028862be2a173976ca11",
+      "nonce": 6,
+      "discarded": false
+     }
+    ],
+    "root_account_creations": [],
+    "root_nonces": [
+     {
+      "address": "0xbced5a7bf5cbca273308f1e9d95288e8a9890196",
+      "old": 6,
+      "new": 7,
+      "ordinal": 109
+     }
+    ],
+    "root_codes": []
+   },
+   {
+    "file": "arbitrum-472773590-failed-setcode.pb",
+    "block_number": 472773590,
+    "block_hash": "0x05ca29824488a71c5c9aa1e9e164420134ae618b332f7f26baef5097fb9b70ad",
+    "producer_version": 3,
+    "transaction_index": 2,
+    "transaction_hash": "0xc495d3c37d211db14fb80f8083c2c58677ae9c6bd9c71205919b7a4d3af16be8",
+    "transaction_status": 3,
+    "transaction_nonce": 9,
+    "bytes": 2013,
+    "sha256": "1bea3ed6ca686a36e103803b120aed5c775ef40391ca068fa8e08e114742e50e",
+    "note": "reverted; its only authorization (to the zero address) is by the sender with the transaction nonce 9, cannot apply, not marked discarded",
+    "transaction_ordinals": [
+     40,
+     58
+    ],
+    "root_begin_ordinal": 0,
+    "root_end_ordinal": 46,
+    "unrecorded_ordinal": 45,
+    "sender": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+    "authorizations": [
+     {
+      "authority": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+      "address": "0x0000000000000000000000000000000000000000",
+      "nonce": 9,
+      "discarded": false
+     }
+    ],
+    "root_account_creations": [],
+    "root_nonces": [
+     {
+      "address": "0x207b7745d0e6f7114e0f5b11bfdd77017cc70410",
+      "old": 9,
+      "new": 10,
+      "ordinal": 44
+     }
+    ],
+    "root_codes": []
+   }
+  ]
+ }
+}

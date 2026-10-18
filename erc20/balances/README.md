@@ -33,28 +33,69 @@ the preserved historical package from the package built in this repository.
 
 A block fails only when it is not a complete Extended block (detail level,
 producer version 3–5, block identity, transaction status and calls) or when the
-embedded [persistence rules](src/persist.rs) cannot resolve it. Inference itself
-never fails a block: any doubt drops that contract's rows for the block. Work
+embedded [persistence rules](src/persist.rs) cannot resolve it. Since v0.7.4 a
+block they refuse is retried once, with each failed SetCode transaction's
+self-authorization that cannot apply marked discarded
+([producer releases](#producer-releases)); any other refusal stands. Inference
+itself never fails a block: any doubt drops that contract's rows for the block. Work
 per block is bounded by the block's calls, logs, writes and 64-byte preimages;
 longer recorded preimages are never decoded. Per block and per contract
 ([`src/infer.rs`](src/infer.rs)):
 
 1. **Candidates** are the RPC reference's `(contract, holder)` pairs: logs of
    non-reverted calls in successful transactions matching its 64 event shapes,
-   their participants, `tx.from` and the emitting contract. USDT
-   `Issue`/`Redeem` holders need an `owner()` call and are excluded.
+   their participants, `tx.from` and the emitting contract. Since v0.7.4
+   (owner, 2026-10-17), Tether `Issue`/`Redeem`, whose holder the reference
+   took from an `owner()` call, name the msg.sender of the emitting frame
+   (both are owner-only and move the sender's balance), and TrueCurrency's
+   `DestroyedBlackFunds(address indexed, uint256)`, which the reference lacks,
+   names its holder.
 2. **Votes**: in every such call frame, each holder's signed net `Transfer` flow
    is compared with the net persisted delta of the frame's writes whose key has
-   a verified same-frame preimage `pad(holder) || base`. DELEGATECALL frames
-   match by the proxy address of logs and writes. Exact votes for flows below
+   a verified same-frame preimage of the holder's key under a mapping base:
+   Solidity's `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17),
+   Vyper's `slot || pad(holder)` with a slot below 2^64. Vyper's `HashMap`
+   uses that order in every release from 0.1 to 0.5, so crvUSD, CRV, Curve
+   pools and gauges and Yearn vaults are inferred. The two orders are
+   different bases and never share votes or reads. DELEGATECALL frames match
+   by the proxy address of logs and writes. Exact votes for flows below
    10^6 do not count for a mapping that also mismatches. `Deposit`,
-   `Withdrawal`, `Mint` and `Burn` never vote, because staking pools and lock
-   ledgers emit the same shapes; a contract without a nonzero `Transfer` in
-   the block is not inferred.
+   `Withdrawal`, `Mint` and `Burn` do not vote, because staking pools and lock
+   ledgers emit the same shapes, so a contract without a nonzero `Transfer` in
+   the block is not inferred, with exceptions since v0.7.4 (owner,
+   2026-10-17). In such a block, a CALL frame to the contract, neither failed
+   nor reverted, whose only log of the contract states an amount that the
+   frame's own execution backs votes that amount:
+   - a WETH9 deposit: `Deposit(holder, wad)` in a frame called by the holder,
+     whose input is empty (the fallback) or starts with `deposit()`, that
+     receives exactly wad in native value, makes no call and writes one word
+     of the contract;
+   - a WETH9 withdrawal: `Withdrawal(holder, wad)` in a frame called by the
+     holder, whose input starts with `withdraw(wad)`, that receives no value,
+     whose only call pays exactly wad to the holder (a CALL with no input and
+     the 2,300 gas of a Solidity `transfer`, neither failed nor reverted) and
+     that writes one word of the contract;
+   - a TetherToken `destroyBlackFunds(holder)`: the 1-topic
+     `DestroyedBlackFunds(holder, amount)` in a frame that makes no call,
+     whose input names the holder and whose writes are the holder's word,
+     which ends at zero, and one unhashed word (the supply), which falls by the
+     amount.
+
+   The holder's word must have the frame's preimage `pad(holder) || base`.
+   Wallets append bytes to WETH9 call data, so its inputs are matched by
+   prefix. On the 2,238 live WETH and WBNB frames of 124 Ethereum and BSC
+   blocks this rejects one genuine deposit, a fallback with 68 bytes of call
+   data; of 27 frames of 24 other contracts with these events, only a WBNB
+   copy's passes. No state crosses blocks: a contract whose `Transfer`s vote
+   one mapping and which also keeps a WETH9-shaped native ledger would get the
+   ledger's word in a block without a `Transfer`; none was seen. Tether
+   `Issue`/`Redeem` never vote: a deprecated TetherToken still issues to its
+   owner once its `balanceOf` forwards to the upgraded contract.
 3. **Base**: the mapping every keyed `balanceOf` reads, if it has exact votes;
    otherwise the mapping with the most exact votes, and a tie infers nothing.
-   A traced `balanceOf` is keyed when its storage context recorded a
-   `pad(holder) || base` preimage; see [producer releases](#producer-releases).
+   A traced `balanceOf` is keyed when its storage context recorded the
+   preimage of the holder's key under a base; see
+   [producer releases](#producer-releases).
    Inner mappings (with their own 64-byte preimage, such as allowances) and
    mappings with more large mismatches than exact votes (a packed word whose
    other field moves) are never chosen.
@@ -63,8 +104,44 @@ longer recorded preimages are never decoded. Per block and per contract
    that calls another contract (a beacon `implementation()` lookup followed by
    its DELEGATECALL is allowed) or contradicts the stored word at its execution
    ordinal, or a keyed one that reads another holder mapping; a successful
-   `balanceOf` call to the contract without a 36-byte input or return data,
-   the shape a producer leaves when it truncates a call.
+   `balanceOf` call to the contract that keeps only its 4-byte selector or has
+   no return data, the shape a producer leaves when it cuts a call, where a
+   cut was possible ([producer releases](#producer-releases)). A `balanceOf`
+   input of more than 36 bytes is read as `balanceOf(input[16..36])`, as the
+   ABI decoder reads it; a shorter one, or a longer one with nonzero upper
+   address bytes, only vetoes. Since v0.7.4, a candidate's written word under
+   the base whose next or second next key is also written in the block is a
+   struct field, such as Curve BoostV2's `Point` (bias, slope, ts), which
+   need not be the balance: it excludes the contract unless the holder's own
+   keyed `balanceOf` traced after its last write shows the word. Of the
+   48,106 rows v0.7.4 gives on the 131 saved blocks, one is such a word, and
+   that read shows it: a holder of an ERC-4626 vault of USDT at Ethereum block
+   23,892,123, which keeps the holder's index snapshot next to its shares.
+   Since v0.7.4 a traced `scaledBalanceOf(holder)` (`0x1da24f3e`: a completed
+   CALL or STATICCALL with at least 36 bytes of input, a padded address
+   argument and a 32-byte return) excludes the contract when it reads the
+   chosen mapping: keyed to exactly the holder's key under the base with no
+   call out, or, in a non-reverted frame, returning the holder's stored word
+   at its ordinal. The word is then a scaled balance that `balanceOf`
+   converts, such as the shares of Liquorice's lending-pool tokens
+   ([computed balances](#limits)). Scaled reads play no other part: they
+   never choose the base, vouch, supply a value or veto otherwise. On the 131
+   saved blocks this removes exactly two rows, the share words of Liquorice's
+   LLCUSDC and LDWETH at Ethereum block 25,852,210, which v0.7.3 emitted at
+   about 1000 times the RPC era's `balanceOf`. Since v0.7.4 a holder whose net
+   delta under the chosen base is nonzero and differs from its flow by a
+   factor of at least 1000 (`|delta| >= 1000 |flow|` or
+   `1000 |delta| <= |flow|`) also excludes the contract: the word is in
+   another unit for that holder, as Origin's OUSD and OETH keep a rebasing
+   holder's credits (about 6.1e8 and 8.5e8 per token), while the exact votes
+   come from non-rebasing accounts, whose credits are their balance. It
+   removes no row on the 131 saved blocks (an offline model of the rules puts
+   every mismatch under a chosen base there within 0.42 to 1.18 times the
+   flow). On Ethereum blocks 26,197,322 (OUSD) and 26,197,859 (OETH) it
+   removes 7 rows: the two rebasing holders' credits, which v0.7.3 emitted at
+   6.09e8 and 8.54e8 times the RPC era's value, and the rows of the tokens'
+   non-rebasing holders, 4 of which equal the RPC era at the block (the fifth
+   has no RPC-era bar there).
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
@@ -72,11 +149,26 @@ longer recorded preimages are never decoded. Per block and per contract
    of the flow (counters) are ignored.
 6. **Rows**: candidate holders written under the base get their last persisted
    word. If that write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
-   naming a holder other than the contract itself (a flag such as FiatToken's
-   blacklist bit, an admin or a sync write), that holder needs its own keyed
-   `balanceOf`. A candidate without a write gets the value of a keyed
-   `balanceOf` that read only the base. Everyone else stays unknown; nothing
-   becomes zero.
+   naming a holder other than the contract itself (an admin, a sync or a flag
+   write), that holder needs its own keyed `balanceOf`, traced after that
+   write: a read before it saw only the earlier word. FiatToken v2.2's
+   blacklist flag, which its `balanceOf` masks, is never vouched this way:
+   since v0.7.4 a read that returns the flagged word without the flag leaves
+   that holder without a row instead of dropping the token
+   ([FiatToken blacklists](#limits)). Since v0.7.4 a Tether `Issue`/`Redeem`
+   (for the frame's sender) or `DestroyedBlackFunds` in the frame also
+   explains the write when its amount equals the frame's net change of the
+   holder's word, a destruction also leaving it at zero. The contract's own
+   word needs no explanation, except under a Vyper base since v0.7.4 (owner,
+   2026-10-17): there the contract's own row is never emitted, from a write
+   or a read, because a Yearn v3 vault's `balanceOf(self)` is its word less
+   the shares still unlocking, which fall with time and no write. A
+   candidate without a write gets the value of a keyed `balanceOf` that read
+   only the base. Everyone else stays unknown; nothing becomes zero.
+
+Writes chain, and reads compare with the stored word, in execution order: by
+ordinal, except in a recognized Polygon state-sync transaction, which is
+ordered by depth-1 call, then ordinal ([Polygon state syncs](#limits)).
 
 ## Producer releases
 
@@ -89,17 +181,33 @@ things this package reads
 - `Call.keccak_preimages` keeps only the preimages that explain a storage
   write of their transaction or system call. A `balanceOf` of a holder whose
   balance the transaction does not write usually records none.
-- Once a transaction's internal calls pass 50 MiB of input, or 25 MiB of
-  return data, later calls keep only their 4-byte selector and no return data.
-  The flags that mark them (`Call` fields 35 and 36) are not in
-  substreams-ethereum 0.12.0, so this package sees only the shape.
+- Once a transaction's internal calls pass 50 MiB of input, later calls keep
+  only their 4-byte selector; once they pass 25 MiB of return data, later calls
+  keep no return data. The two cuts are independent. A block whose encoding
+  passes 1 GiB is then cut again with both limits halved, until it fits
+  (`call_data_limit.rs` at `70497b7`). The flags that mark a cut call (`Call`
+  fields 35 and 36) are not in substreams-ethereum 0.12.0, so this package
+  sees only the shape.
 
 At the owner's direction (2026-10-06), an unkeyed read still excludes its
 contract when it calls out or contradicts the stored word, but it never
-chooses the base, vouches for a holder or supplies a value. A truncated-shape
-`balanceOf` call drops its contract's rows for the block (rule 4). Each
-qualification records the reader release (client and tracer version), not just
-`Block.ver`.
+chooses the base, vouches for a holder or supplies a value. Since v0.7.4
+(owner, 2026-10-17), a `balanceOf` call of the cut shape drops its contract's
+rows for the block (rule 4) only where a cut was possible: in a `Block.ver` 5
+transaction whose internal calls (failed, reverted and cut ones included)
+record more than 25 MiB of input or 12.5 MiB of return data, the limits of
+the first halving, or in a `Block.ver` 5 block of at least 64 MiB or 150M gas,
+which a later halving needs. Every cut meets one of these bounds. Elsewhere
+the call is a genuine 4-byte call, which a token compiled before Solidity 0.5
+answers with `balanceOf(0)`, or one that returned nothing, and is neither a
+read nor a doubt. The bounds are re-reviewed on every tracer release. They do
+not stop a transaction that records 25 MiB of internal input on purpose from
+dropping a token for its block. A longer input is read as
+`balanceOf(input[16..36])`: arbitrage bots call `balanceOf(self)` with their
+68-byte `transfer` buffer, and v0.7.3 dropped the whole token for the block on
+every such call (156 of the 160 flagged calls in the 104 investigated drop
+blocks; the others had 64 and 28 bytes). Each qualification records the reader
+release (client and tracer version), not just `Block.ver`.
 
 Since v0.7.2 (owner, 2026-10-14), a chosen word at or above 2^128 drops its
 contract's rows for the block. Such a word holds another field next to the
@@ -127,7 +235,38 @@ their provenance in
 [native README](../../native/balances/README.md#failed-transactions) gives the
 whole shape.
 
+Since v0.7.4 a block that the rules refuse is retried once, outside them
+([`src/setcode.rs`](src/setcode.rs)), as native v0.7.9 does in its own crate.
+Geth and Nitro increment the sender's nonce from the transaction's nonce `n`
+before they apply the authorization list, so the sender's own authorization
+with nonce `n` never applies and leaves no record, and the Firehose tracer
+leaves it unmarked because the root call has the sender's nonce change
+`n -> n + 1`. The retry marks that authorization discarded on a copy of the
+block when the shape is exact: a failed SetCode transaction whose root call
+records `begin_ordinal` 0 and that the rules refuse; exactly one unmarked
+authorization of the sender with the transaction's nonce; exactly one nonce
+record of the sender from `n` to `n + 1`, at a positive ordinal; and then
+either the rules accept the sender's other authorizations, or none is left
+and the ordinal after the sender's nonce record is free, before the root
+call's end, with no other nonce or code record of the sender before it. The
+unchanged rules then resolve the copy, and inference takes their records of
+it; a shape where only other authorities' authorizations are left still
+fails, and blocks the rules accept never reach the retry. A failed
+transaction persists no storage write or log, so the retry changes no row of
+the block's other transactions. v0.7.3 failed Arbitrum One blocks
+358,023,229, 360,021,045, 382,234,350, 420,239,048 and 472,773,590 on it;
+v0.7.4 gives them 2, 4, 24, 4 and 0 rows, and the 4 of those 34 rows with an
+RPC-era 1-minute bar at their block equal it. The five captured transactions
+are the `arbitrum-*-failed-setcode.pb` fixtures in
+[`tests/fixtures/v074/`](tests/fixtures/v074/), with their provenance in
+[`cases.json`](tests/fixtures/v074/cases.json) (`setcode_transactions`).
+
 ## Measured
+
+Measured with the inference source of 2026-10-05 (`68fe1ce`, package v0.2.0),
+and the simulated 5.5.0 table with that of 2026-10-06 (`5a422b5`). Neither
+table was re-run for later versions, v0.7.4 included; v0.7.4 was checked on
+131 saved blocks instead ([history](#build-and-rust-tests)).
 
 Offline replays of captured Extended BSC blocks. Each interval is scored against
 every row the RPC reference package `erc20-balances-v0.3.4.spkg` (`8aaa03b5…`)
@@ -201,25 +340,101 @@ and holders.
   constant-default balances are excluded only when the block shows it. On
   5.5.0 blocks it shows less: a `balanceOf` that also reads a second holder
   mapping usually keeps only the base's preimage. Only a tracer option that
-  keeps read preimages would restore that exclusion.
-- **Certification by exact votes alone.** When the real balance key is not
-  `pad(holder) || base` (struct offsets, Vyper ordering, assembly hashing),
-  another mapping that moves exactly, such as a cumulative `received[holder]`,
-  can be emitted instead. A packed word is emitted whole when its other fields
+  keeps read preimages would restore that exclusion. Tokens whose
+  `balanceOf` is a function of the stored word (shares times a rate, credits
+  divided by a rate, time decay, vesting) while every `Transfer` matches the
+  stored delta vote exactly for that word, and their rows are wrong. A traced
+  `balanceOf` in the block drops them, because it calls out or contradicts
+  the word, and since v0.7.4 so does a traced `scaledBalanceOf` that reads
+  the word, or a holder whose word moves a thousand times more or less than
+  its flow (rule 4). Otherwise nothing in the block separates them from a
+  plain token without a contract list, a code-hash list or RPC, all outside
+  this package. Liquorice's lending-pool tokens (LLC* locked collateral, LD*
+  debt) store and transfer shares, and their `balanceOf` is
+  shares × (pool total + 1) / (supply + 1000), about a thousandth of the
+  word. Their pool reads `scaledBalanceOf` on every repay, borrow,
+  liquidation and locked-collateral withdrawal or transfer; from its code
+  paths, that covers 3,672 of the 3,881 Liquorice token-blocks from
+  2026-07-01 to Ethereum block 26,210,920 (94.6%). The other 209, a
+  locked-collateral mint alone, still emit the share word. In seven sampled
+  windows of 48,000–60,000 Ethereum blocks (about 1.3% of history), compared
+  with the RPC era by `(contract, holder, block)` (read-only, 2026-10-17),
+  twelve other contracts of this class had latest v0.7.3 rows that differ
+  from the RPC era's, 3,832 of them at the RPC row's block; a lower bound:
+
+  | Family | Contracts | `balanceOf` | Latest rows: differ / comparable (at the same block) |
+  | --- | --- | --- | --- |
+  | Shares × internal rate | gMOVE `0xc78dfe95…`, mMOVE `0x248c647d…`, fstMOVE `0xc7b26dbf…` | `_shares × shareRate() / BASE` | 437/618 (437), 143/145 (143), 280/358 (280) |
+  | | Bracket brETH `0x3588e6cb…`, BBOR1 `0x7a859b5a…` | `convertToAssets(sharesOf(a), assetsPerShare())` | 548/567 (545), 407/407 (405) |
+  | | Amplol `0xeadf1de2…` | `super.balanceOf × tvlBase() / 1e18` | 1193/2737 (1192) |
+  | Mixed credits (since v0.7.4 dropped in a block where a rebasing holder moves, rule 4) | OUSD `0x2a8e1e67…`, OETH `0x856c4efb…` | credits × 1e18 / credits per token (1e18 for non-rebasing accounts) | 526/761 (120), 502/884 (156) |
+  | Time or vesting | DBR `0xad038eb6…` | balance − accrued dues − debt × elapsed / 365 days | 630/1149 (198) |
+  | | DICK `0xfdca7994…`, BENCH `0xf4e21623…`, ONE DAY `0xe216daf9…` (ERC-7660) | balance + releasable | 105/175 (76), 663/783 (267), 15/17 (13) |
+- **Certification by exact votes alone.** When the real balance key is
+  neither `pad(holder) || slot` nor Vyper's `slot || pad(holder)` (struct
+  offsets, assembly hashing), another mapping that moves exactly, such as a
+  cumulative `received[holder]`, can be emitted instead. A packed word is emitted whole when its other fields
   never change, or change on no more of the block's touches than those that move
   the balance alone.
+- **Vyper tokens.** Since v0.7.4, Curve gauges and st-yETH move other holder
+  maps (working balances, reward and weight maps) with every flow, so their
+  rows are usually dropped as shadowed or tied: missing, not wrong. Curve's
+  BoostV2 computes every holder's balance from the voting escrow and two
+  `Point` structs (bias, slope, ts). Its `boost` frames are shadowed: the
+  delegated points mismatch the flows. Its `checkpoint_user` frames lower a
+  received bias by exactly the `Transfer(user, 0)` they emit, but also write
+  the point's ts (and slope) right after it, which excludes the contract
+  (rule 4); a traced `balanceOf` calls the voting escrow, which vetoes. No
+  saved block has a BoostV2 write. A Yearn v3 vault computes only its own
+  balance, a row that rule 6 never emits. A traced keyed `balanceOf(vault)`
+  after the vault's last write that returns less than its word (shares still
+  unlocking) contradicts it and drops all of the vault's rows for the block.
+  Yearn v3's Solidity TokenizedStrategy computes its own balance the same
+  way, and keeps its own row like any Solidity contract. On Ethereum blocks
+  26,174,479, 26,194,925, 26,203,984 and 26,210,251, the 123 rows of Vyper
+  tokens include 121 that equal the RPC era at the block; its 1-minute bars
+  cannot pin the other 2, and only the vault's own row, which rule 6 never
+  emits, is missing against an offline model of the rules.
+- **FiatToken blacklists.** FiatToken v2.2, USDC on Ethereum, Base,
+  Optimism, Polygon, Arbitrum One and Unichain, sets bit 255 of a holder's
+  balance word on `blacklist` and clears it on `unBlacklist`, and its
+  `balanceOf` masks the bit. Since v0.7.4, a traced `balanceOf` of the
+  holder that follows the flag write, or precedes the write that clears it,
+  does not contradict the stored word when it returns the word without bit
+  255, that write changes only bit 255, and its frame emits `Blacklisted` or
+  `UnBlacklisted` naming the holder. The read still checks the other 255
+  bits; the holder gets no row in that block, and the token keeps its other
+  rows. In v0.7.3 such a read dropped all of the token's rows for the block.
+  Any other masked flag still does: holders that changed in the block keep
+  their earlier value until a later block emits them. Without such a read,
+  the flagged holder's write is unexplained and only that holder stays
+  unknown.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
-  ([native](../../native/balances/README.md#execution-order-v078)). A
-  contract with a storage word that the transaction writes in two or more of
-  those calls, such as WPOL or WETH, fails the chain check by ordinal and gets
-  no rows in that block. On the nine Polygon blocks checked on 2026-10-14, no
-  row was wrong (443 of 444 rows match `balanceOf`; the other is a computed
-  balance from another transaction), and the dropped rows come back offline
-  without the state-sync transaction. A write pattern that chains by ordinal
-  to another final value remains possible; none was observed.
+  ([native](../../native/balances/README.md#execution-order-v078)). Until
+  v0.7.3, a contract with a storage word that the transaction writes in two
+  or more of those calls, such as WPOL or WETH, failed the chain check by
+  ordinal and got no rows in that block, and a write pattern that chains by
+  ordinal to another final value was possible. Since v0.7.4 (owner,
+  2026-10-17), the transaction's records are ordered by depth-1 call, then
+  ordinal, when it has native v0.7.8's exact shape, checked over storage
+  records as well as balance records (a bridge mint usually moves no native
+  balance): among other conditions, every record of the transaction lies
+  within its ordinals and its calls' ranges, and no record of the block
+  outside it does. A transaction with the state-sync signature in any other
+  layout drops every contract it writes or calls `balanceOf` of. On blocks
+  20,007,040, 50,016,032 and 70,044,000, all 75 keys the state-sync
+  transactions write chain in call order, the 34 written in two or more calls
+  included, none of which chains by ordinal; the 18 `balanceOf` calls inside
+  them return the word call order gives; and the 24 rows that v0.7.3 dropped
+  there match the RPC era, checked from the nearest RPC-era observation and
+  the transfers in between (the RPC era has no bar at those blocks). The
+  producer's later numbering (blocks 73,439,280 to 73,440,255) and span-commit
+  blocks were not re-checked over storage. On the nine Polygon blocks checked
+  on 2026-10-14, no row was wrong (443 of 444 rows match
+  `balanceOf`; the other is a computed balance from another transaction).
 - **Guards from synthetic scenarios.** Inner mappings, dust votes,
-  self-destruct, non-voting `Deposit`/`Mint`, large own mismatches and
+  self-destruct, unbacked `Deposit` and `Mint`, large own mismatches and
   unexplained writes come from synthetic scenarios and change at most a few rows
   in these intervals.
 
@@ -233,7 +448,8 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`: `spkg/evm-balances-erc20-v0.7.3.spkg`, not live-qualified. v0.7.1
+`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.4.spkg`
+(from CI's artifact), not live-qualified. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
 same rows on every block v0.7.0 decodes. v0.7.2 drops a contract's rows for
@@ -243,7 +459,33 @@ recovers the SetCode boundary of Arbitrum One's `Block.ver` 3
 ([producer releases](#producer-releases)) and otherwise gives v0.7.2's rows;
 its ClickHouse history keeps only the 1h, 4h, 1d and 1w bars the Token API
 serves (owner, 2026-10-14), and the replay check and repair work in 1-hour
-windows. Before v0.7.0 it was `erc20_balances`:
+windows. v0.7.4 (owner, 2026-10-17) addresses the causes of stale and
+missing rows that the investigation of 131 saved Ethereum, BSC and Polygon
+blocks found in v0.7.3: it
+reads `balanceOf` inputs longer than 36 bytes and doubts the cut shape only
+where a cut was possible, lets native-backed WETH9 frames and TetherToken
+destructions vote in a block without a `Transfer`, explains Tether's admin
+writes, vouches for an unexplained write only with a later read, orders
+Polygon state syncs by depth-1 call, and reads Vyper's key order (rules 1 to
+6, [producer releases](#producer-releases), [limits](#limits)). It also
+retries a block that the persistence rules refuse with a failed SetCode
+transaction's unapplicable self-authorization marked discarded, and so
+accepts five Arbitrum One blocks that v0.7.3 refused
+([producer releases](#producer-releases)), and drops a contract whose
+`scaledBalanceOf` reads the chosen mapping or whose chosen mapping moves a
+thousand times more or less than a holder's flow (rule 4). On those
+blocks it keeps 31,743 of the 31,745 rows of v0.7.3 with the same value,
+drops the other two, the share words of Liquorice's LLCUSDC and LDWETH at
+Ethereum block 25,852,210, whose RPC-era values are 7,975,146,307 and
+563,115,926,388,786,128 (rule 4), and adds 16,363: 15,814 from long reads,
+36 from WETH9 frames, 8 from Tether's admin events, 24 from Polygon state
+syncs and 481 from Vyper tokens. Of those 48,106 rows, the 10,572 with an
+RPC-era 1-minute bar at their block equal it; the other 37,534 were not
+compared, among them 31,555 of the rows v0.7.3 also gives and 360 of the
+481 Vyper rows. Because its rows differ
+from v0.7.3's for past blocks, it is written to a new database,
+`<chain>:evm-balances-erc20@v0.7.4`, by a full resync. Before v0.7.0 it was
+`erc20_balances`:
 `spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions skip
 v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf generation
 is needed here; the public schema is already maintained by the shared `proto`
@@ -274,7 +516,27 @@ the 383 preimages a 5.5.0 producer would not record
 ([`bsc-122260950-5.5.0-dropped-preimages.json`](tests/fixtures/bsc-122260950-5.5.0-dropped-preimages.json)),
 13 of its `balanceOf` calls lose their holder's preimage and all 164 rows stay
 the same. The tests of the embedded persistence rules also cover the captured
-Arbitrum One SetCode transactions.
+Arbitrum One SetCode transactions, and `tests/setcode.rs` the five whose
+self-authorization cannot apply, which v0.7.3 refused: each block gives no
+row alone and a token transfer's rows when it holds one. The v0.7.4 captures in
+[`tests/fixtures/v074/`](tests/fixtures/v074/) are Ethereum, BSC and Polygon
+blocks cut to one token's transactions, with their provenance and the RPC-era values at
+each block in [`cases.json`](tests/fixtures/v074/cases.json); every recorded
+RPC-era value equals its row. They include five blocks whose tokens v0.7.3
+dropped on a 68-, 64- or 28-byte `balanceOf`, five Tether destructions and a
+redemption whose holders v0.7.3 left at the old balance, two blocks whose
+only USDT frame is a destruction, six blocks whose only WETH or WBNB
+frames are WETH9 deposits or withdrawals, three Polygon state-sync blocks
+whose tokens v0.7.3 dropped, and four blocks of Vyper tokens (scrvUSD, 3Crv,
+CRV and crvUSD) that v0.7.3 did not infer, one of them a Yearn v3 report
+whose vault gets no row of its own, even when a read after the report is
+added, and the Liquorice transaction of Ethereum block 25,852,210, whose two
+share tokens get no row because the pool's `scaledBalanceOf` calls read
+their words, and two blocks of OUSD and OETH whose rebasing holder's
+credits drop the token. The same test reads two
+one-transaction WBNB captures of
+[`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
+deposit and a withdrawal without a `Transfer`.
 
 ## History
 
