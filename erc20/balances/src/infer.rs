@@ -52,7 +52,12 @@
 //!    holder's key under it with no call out, or in a non-reverted frame
 //!    returning the holder's stored word. The word is then a scaled balance
 //!    that `balanceOf` converts, such as the shares of Liquorice's
-//!    lending-pool tokens. Scaled reads play no other part.
+//!    lending-pool tokens. Scaled reads play no other part. Since v0.7.4 it
+//!    is also excluded when a holder's net delta under the chosen base is
+//!    nonzero and differs from its flow by a factor of at least 1000 (see
+//!    [`rescaled`]): the word is kept in another unit for that holder, as
+//!    OUSD and OETH keep a rebasing holder's credits, while the exact votes
+//!    come from holders whose word is the balance.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
@@ -421,6 +426,25 @@ impl Net {
         out
     }
 }
+/// `1000 * a <= b` for magnitudes (little-endian limbs).
+fn thousandfold(a: [u64; 5], b: [u64; 5]) -> bool {
+    let mut scaled = [0u64; 5];
+    let mut carry = 0u128;
+    for (s, l) in scaled.iter_mut().zip(a) {
+        let p = u128::from(l) * 1000 + carry;
+        *s = p as u64;
+        carry = p >> 64;
+    }
+    carry == 0 && scaled.iter().rev().cmp(b.iter().rev()).is_le()
+}
+/// A nonzero delta that differs from the flow by a factor of at least 1000
+/// (`|delta| >= 1000 |flow|` or `1000 |delta| <= |flow|`): a word kept in
+/// another unit than the events, such as OUSD's and OETH's credits of a
+/// rebasing holder.
+fn rescaled(flow: &Net, delta: &Net) -> bool {
+    let (f, d) = (flow.abs(), delta.abs());
+    !delta.is_zero() && (thousandfold(f, d) || thousandfold(d, f))
+}
 /// `|delta| * 1000 >= |flow|`: a mismatch too large for a counter.
 fn large(flow: &Net, delta: &Net) -> bool {
     let (flow, delta) = (flow.abs(), delta.abs());
@@ -673,6 +697,9 @@ struct Tally {
     mismatch: u32,
     /// Mismatches whose delta is at least a thousandth of the flow.
     large: u32,
+    /// Mismatches whose nonzero delta differs from the flow by a factor of at
+    /// least 1000 (see [`rescaled`]).
+    rescaled: u32,
     /// Exact votes for flows below 10^6.
     dust: u32,
     /// The base's slot has its own verified 64-byte preimage: an inner
@@ -863,6 +890,7 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
             } else {
                 tally.mismatch += 1;
                 tally.large += u32::from(large(flow, &delta));
+                tally.rescaled += u32::from(rescaled(flow, &delta));
             }
         }
     }
@@ -1200,6 +1228,12 @@ fn decide(
 ) -> Option<BTreeMap<Addr, Word>> {
     let (scaled, reads) = (&reads.scaled, &reads.balance);
     let base = choose(tallies, reads)?;
+    // A holder whose word under the base moved a thousand times more or less
+    // than its flow keeps it in another unit: the base is not the balance of
+    // every holder, and the exact votes may come from those it is for.
+    if tallies[&base].rescaled > 0 {
+        return None;
+    }
     // A Tether admin event explains a holder's write in its frame when the
     // frame's net change of the holder's word equals the amount it states, and
     // a destruction also leaves the word at zero.

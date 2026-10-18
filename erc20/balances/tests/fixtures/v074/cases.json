@@ -3316,6 +3316,183 @@
     },
     "method": "Read-only, 2026-10-18, by the method above; every fixture row has a bar at the block (WETH 0x2a218d38...'s bar opens at 25852209 and closes at the block at 0). dropped gives the RPC-era values of the two pairs that v0.7.3 emitted as the share words in v073 and that v0.7.4 no longer emits: shares * (pool total + 1) / (supply + 1000), 7975146307000 * 7975146308 / 7975146308000 and 562901164525316466662 * 563115926388786130 / 562901164525316467662 with the block's own end-of-block storage."
    }
+  },
+  {
+   "file": "eth-26197322-ousd-rebasing-holder.pb",
+   "chain": "eth",
+   "block": 26197322,
+   "block_hash": "0x36026b6d51622ed3070194ac60fb6f3fb43d61373ccdaccf3c7112af24b81c62",
+   "ver": 5,
+   "source_block_sha256": "4fe0669144be0609eae93f4e83c0569818b16ecd75d4a257f86a941d19e8c0b5",
+   "fixture_sha256": "44a4e178c985474b7d0a209e6da81dd4ef31ba50c2eb3adbc14c4323906fef63",
+   "token": "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+   "kept_transactions": [
+    58
+   ],
+   "selection": "transaction 58, the block's only OUSD transaction; the USDC and USDT rows of 0x000000000004444c... (the Uniswap v4 PoolManager), which later transactions of the block change, are its words after transaction 58, not the block's",
+   "rule": "R3",
+   "demonstrates": "a CoW settlement (0x9008d19f...) moves OUSD from the non-rebasing accounts 0x000000000004444c..., 0xdbdc27b6... and 0x6d18e1a7... to itself (calls 108, 135, 181) and from itself to the rebasing holder 0x6e3fddab... (call 183); OUSD (Origin, proxy 0x2a8e1e67..., implementation 0xa7b7c59a...) keeps credits under slot 157, the balance for a non-rebasing account and about 6.09e8 times it for a rebasing one. The non-rebasing sides vote exactly for slot 157; 0x6e3fddab... receives 64746254124984710421885 for 39446154778387942038879160434345 credits. v0.7.3 emitted its credits; since R3 the thousandfold mismatch drops OUSD for the block, with the rows of its four non-rebasing holders",
+   "calls": [
+    {
+     "tx": 58,
+     "call": 183,
+     "address": "0xa7b7c59a1705e4a624ea8a4ad8a06f9de22dcc33",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 58,
+     "call": 108,
+     "address": "0xa7b7c59a1705e4a624ea8a4ad8a06f9de22dcc33",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    }
+   ],
+   "rows": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "769584542039751750654685",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "477873719538548020765707",
+     "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "150121348776907118411658",
+     "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "0",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "8029636440836654168",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "32840339495776912621281"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "43924012922348",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "10945785193325",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "486379371488",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "2938108085"
+    },
+    "0xdac17f958d2ee523a2206206994597c13d831ec7": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "84607698418693",
+     "0x52aa899454998be5b000ad077a46bbe360f4e497": "33643473914507",
+     "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "1050768978252",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "1591647030"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x000000000004444c5dc75cb358380d2e3de08a90"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41"
+    ],
+    [
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89"
+    ]
+   ],
+   "provenance": "Fetched on 2026-10-18 for R3 by the main session, which reported the owner's approval for exactly two single-block fetches (one block per request, base64 bytes decoded offline). Picked from the read-only join of mainnet:evm-balances-erc20@v0.7.3 and mainnet:evm-balances@v0.3.3 erc20_balances by (contract, address, block_num), where the v0.7.3 row of a rebasing holder differs from the RPC era's.",
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {
+     "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+      "0x52aa899454998be5b000ad077a46bbe360f4e497": "477873719538548020765707",
+      "0x5b03cccab7ba3010fa5cad23746cbf0794938e96": "150121348776907118411658",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "0",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "8029636440836654168",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "32840339495776912621281"
+     },
+     "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "486379371488",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "2938108085"
+     }
+    },
+    "dropped": {
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "283386425981817071165976",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+     }
+    },
+    "v073": {
+     "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+      "0x000000000004444c5dc75cb358380d2e3de08a90": "20548144781148038484172",
+      "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+      "0x6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc": "172650989195362567572595137206188",
+      "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+      "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   }
+  },
+  {
+   "file": "eth-26197859-oeth-rebasing-holder.pb",
+   "chain": "eth",
+   "block": 26197859,
+   "block_hash": "0x89a7ca81f349822cca381fa3eed2d1805ff5577eb5febb2b9a021f2fe446c024",
+   "ver": 5,
+   "source_block_sha256": "e8f0698b69ed3d6fe8379e6d24ca0c2dccc6798c2791e0612e9338d528d780c7",
+   "fixture_sha256": "f0bdf97e43b35c3b2f9e934067980e47948e9e3c5869718a12e63e5a1131ab19",
+   "token": "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+   "kept_transactions": [
+    308
+   ],
+   "selection": "transaction 308, the block's only OETH transaction",
+   "rule": "R3",
+   "demonstrates": "the rebasing holder 0x6a059587... (the transaction's sender) swaps 41864840289475 OETH through the Uniswap router 0x68b34658... into the pool 0x52299416..., a non-rebasing account (call 9, OETH proxy 0x856c4efb..., implementation 0xd86756db...); the pool's word under slot 157 votes exactly, and its keyed balanceOf (calls 5 and 10) returns its word, while 0x6a059587... gives 35753149851027605918364 credits, about 8.54e8 times the flow. v0.7.3 emitted those credits; since R3 the thousandfold mismatch drops OETH for the block, with the pool's row",
+   "calls": [
+    {
+     "tx": 308,
+     "call": 9,
+     "address": "0xd86756dbb01e75a11aadacb75c8495759ed92033",
+     "log_topic0": "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    },
+    {
+     "tx": 308,
+     "call": 10,
+     "address": "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "input_len": 36,
+     "return_len": 32,
+     "keyed": true
+    }
+   ],
+   "rows": {
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x52299416c469843f4e0d54688099966a6c7d720f": "1808148704327265",
+     "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45": "0"
+    }
+   },
+   "added_since_v073": [],
+   "removed_since_v073": [
+    [
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "0x52299416c469843f4e0d54688099966a6c7d720f"
+    ],
+    [
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+     "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6"
+    ]
+   ],
+   "provenance": "Fetched on 2026-10-18 for R3 by the main session, which reported the owner's approval for exactly two single-block fetches (one block per request, base64 bytes decoded offline). Picked from the read-only join of mainnet:evm-balances-erc20@v0.7.3 and mainnet:evm-balances@v0.3.3 erc20_balances by (contract, address, block_num), where the v0.7.3 row of a rebasing holder differs from the RPC era's.",
+   "rpc_era": {
+    "database": "mainnet:evm-balances@v0.3.3",
+    "values": {},
+    "dropped": {
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+      "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151",
+      "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6": "244087121381851"
+     }
+    },
+    "v073": {
+     "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+      "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151",
+      "0x6a059587b69eb541ecbd63f98a1847e2b3cd87e6": "208453761369422252955361"
+     }
+    },
+    "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   }
   }
  ],
  "setcode_transactions": {

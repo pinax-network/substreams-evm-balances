@@ -130,7 +130,9 @@ hashes" job's `packages` artifact. Identify a build by its module hash
   lending-pool tokens, which a traced `scaledBalanceOf` now drops, adds
   16,363, and the 10,572 of its 48,106 rows
   there that have an RPC-era 1-minute bar at their block equal it (the rest
-  were not compared). Not qualified. Offline, on five captured BSC intervals
+  were not compared); it also drops Origin's OUSD and OETH for a block in
+  which a rebasing holder's credits move a thousand times more than its
+  flow. Not qualified. Offline, on five captured BSC intervals
   scored against every row the RPC reference package emitted for them, the
   inference source of 2026-10-05 (v0.2.0) reproduced 58.5–62.8% of those rows
   with 99.92–100% value precision, a measurement not re-run since

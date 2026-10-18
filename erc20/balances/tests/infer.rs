@@ -608,6 +608,53 @@ fn scaled_reads_of_the_chosen_mapping_drop_the_token() {
     assert_eq!(with(vec![cut, big_input]), kept);
 }
 
+/// A holder whose word under the chosen base moves by a nonzero delta a
+/// thousand times more or less than its flow keeps the word in another unit,
+/// as OUSD and OETH keep a rebasing holder's credits, while the exact votes of
+/// the other holders (non-rebasing accounts) chose the base: the token is
+/// dropped for the block. Below that factor the mismatch only counts against
+/// the base, as before.
+#[test]
+fn thousandfold_mismatches_under_the_base_drop_the_token() {
+    let mut first = root();
+    first.logs = vec![transfer(A, B, 30 * U)];
+    store(&mut first, A, BASE, 100 * U, 70 * U, 10);
+    store(&mut first, B, BASE, 5 * U, 35 * U, 11);
+    // B sends 10U to C, whose word moves by `delta` under `slot`.
+    let with = |slot: u8, old: u64, new: u64| {
+        let mut second = root();
+        second.logs = vec![transfer(B, C, 10 * U)];
+        store(&mut second, B, BASE, 35 * U, 25 * U, 20);
+        store(&mut second, C, slot, old, new, 21);
+        rows(&block(vec![vec![first.clone()], vec![second]]))
+    };
+    let kept = |c: u64| vec![r(A, 70 * U), r(B, 25 * U), r(C, c)];
+    // A thousand times the flow, or a thousandth of it, drops the token.
+    assert!(with(BASE, 0, 10_000 * U).is_empty());
+    assert!(with(BASE, 10_000 * U, 0).is_empty());
+    assert!(with(BASE, 0, 10 * U / 1000).is_empty());
+    assert!(with(BASE, 5 * U, 5 * U + 10_000).is_empty());
+    // Just inside either factor, the mismatched word is still emitted.
+    assert_eq!(with(BASE, 0, 9_999 * U), kept(9_999 * U));
+    assert_eq!(with(BASE, 0, 10 * U / 1000 + 1), kept(10 * U / 1000 + 1));
+    // A zero delta is a mismatch of no scale.
+    let mut zero = root();
+    zero.logs = vec![transfer(B, C, 10 * U)];
+    store(&mut zero, B, BASE, 35 * U, 25 * U, 20);
+    store(&mut zero, C, BASE, 7 * U, 8 * U, 21);
+    store(&mut zero, C, BASE, 8 * U, 7 * U, 22);
+    assert_eq!(rows(&block(vec![vec![first.clone()], vec![zero]])), kept(7 * U));
+    // Under another mapping it does not drop the token: C has no word under
+    // the base, so no row.
+    assert_eq!(with(4, 0, 10_000 * U), vec![r(A, 70 * U), r(B, 25 * U)]);
+    // A dust flow counts too.
+    let mut dust = root();
+    dust.logs = vec![transfer(B, C, 1)];
+    store(&mut dust, B, BASE, 35 * U, 35 * U - 1, 20);
+    store(&mut dust, C, BASE, 0, 1000, 21);
+    assert!(rows(&block(vec![vec![first], vec![dust]])).is_empty());
+}
+
 /// A reflection-style second mapping (`rOwned`) that moves with the flows
 /// suggests a computed `balanceOf`. A traced read vouches only for its holder,
 /// whose code path may differ (e.g. `holder == pair ? tOwned : rOwned / rate`).
@@ -1841,6 +1888,83 @@ fn captured_liquorice_share_tokens_get_no_rows() {
         c.return_data[31] ^= 1;
     });
     assert_eq!((of(&b, &ldweth), of(&b, &llcusdc)), shares);
+}
+
+/// Captured Ethereum blocks 26,197,322 (OUSD, transaction 58) and 26,197,859
+/// (OETH, transaction 308), in `fixtures/v074/`. Origin's OUSD and OETH keep
+/// a credits word per holder under slot 157: a non-rebasing account's credits
+/// are its balance, and a rebasing holder's are its balance times the credits
+/// per token, about 6.1e8 (OUSD) and 8.5e8 (OETH). Each transaction moves
+/// tokens between non-rebasing accounts, which vote exactly for slot 157, and
+/// a rebasing holder: OUSD `0x6e3fddab…` receives 64746254124984710421885
+/// for 39446154778387942038879160434345 credits, and OETH `0x6a059587…` sends
+/// 41864840289475 for 35753149851027605918364. v0.7.3 emitted their credits,
+/// where the RPC era reads 283386425981817071165976 and 244087121381851; the
+/// thousandfold mismatch now drops both tokens for the block, with the rows
+/// of their non-rebasing holders. The block's other tokens keep their rows.
+/// Made exact, the rebasing holder's write brings the token's rows back.
+#[test]
+fn captured_rebasing_holders_drop_ousd_and_oeth() {
+    struct Case {
+        bytes: &'static [u8],
+        token: &'static str,
+        holder: &'static str,
+        flow: u128,
+        credit: bool,
+        rows: usize,
+    }
+    let cases = [
+        Case {
+            bytes: include_bytes!("fixtures/v074/eth-26197322-ousd-rebasing-holder.pb"),
+            token: "2a8e1e676ec238d8a992307b495b45b3feaa5e86",
+            holder: "6e3fddab68bf1ebaf9dacf9f7907c7bc0951d1dc",
+            flow: 64746254124984710421885,
+            credit: true,
+            rows: 5,
+        },
+        Case {
+            bytes: include_bytes!("fixtures/v074/eth-26197859-oeth-rebasing-holder.pb"),
+            token: "856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3",
+            holder: "6a059587b69eb541ecbd63f98a1847e2b3cd87e6",
+            flow: 41864840289475,
+            credit: false,
+            rows: 2,
+        },
+    ];
+    let all = |b: &eth::Block| {
+        let rows = run(b).unwrap().balances.into_iter();
+        rows.map(|r| (hex::encode(r.contract.unwrap()), hex::encode(r.address), r.amount))
+            .collect::<Vec<_>>()
+    };
+    for case in cases {
+        let block = eth::Block::decode_from_slice(case.bytes).unwrap();
+        let others = all(&block);
+        assert!(!others.is_empty() && others.iter().all(|r| r.0 != case.token), "{}", case.token);
+        // The rebasing holder's credits under slot 157 move far more than the
+        // flow; set them to move by exactly the flow.
+        let mut pre = [0u8; 64];
+        pre[12..32].copy_from_slice(&hex::decode(case.holder).unwrap());
+        pre[63] = 157;
+        let key = hash(&pre).to_vec();
+        let mut exact = block.clone();
+        let mut written = 0;
+        for c in exact.transaction_traces[0].calls.iter_mut().flat_map(|c| &mut c.storage_changes) {
+            if hex::encode(&c.address) == case.token && c.key == key {
+                let old = u128::from_be_bytes(c.old_value[16..].try_into().unwrap());
+                let delta = u128::from_be_bytes(c.new_value[16..].try_into().unwrap()).abs_diff(old);
+                assert!(delta / case.flow > 600_000_000, "{}", case.token);
+                let new = if case.credit { old + case.flow } else { old - case.flow };
+                c.new_value[16..].copy_from_slice(&new.to_be_bytes());
+                written += 1;
+            }
+        }
+        assert_eq!(written, 1);
+        let restored = all(&exact);
+        let token: Vec<_> = restored.iter().filter(|r| r.0 == case.token).collect();
+        assert_eq!(token.len(), case.rows, "{}", case.token);
+        assert!(token.iter().any(|r| r.1 == case.holder));
+        assert_eq!(restored.len(), others.len() + case.rows);
+    }
 }
 
 #[test]
