@@ -65,7 +65,10 @@ the 1,000-block segment of every refused block. Arbitrum One and Base resync
 with it into new databases, `arbitrum-one:evm-balances-native@v0.7.9` and
 `base:evm-balances-native@v0.7.9`; the other networks keep v0.7.8.
 
-**Unreleased: native v0.7.10.** The full-history noop of native v0.7.9 on
+**Released on 2026-10-19: native v0.7.10**
+([PR #170](https://github.com/pinax-network/substreams-evm-balances/pull/170);
+tag `evm-balances-native-v0.7.10` at `52577b6`; `map_events` `ee871813…`,
+`db_out` `5feb4830…`). The full-history noop of native v0.7.9 on
 Arbitrum One refused block 500,689,520 (2026-10-18): an account created in its
 transaction self-destructs to itself, and Arbitrum One's producer records the
 burn of its balance and then a repeated withdraw. v0.7.10 drops the repeat in
@@ -76,8 +79,9 @@ At the owner's direction (2026-10-19), Arbitrum One resyncs with it into
 `arbitrum-one:evm-balances-native@v0.7.10`: full-history noops, then
 backfills. The v0.7.9 backfills of Arbitrum One stopped at block 220,000,000,
 and dropping that database needs the owner's OK. Base keeps v0.7.9
-(`base:evm-balances-native@v0.7.9`), whose rows v0.7.10 repeats. v0.7.10
-needs its pre-release noop before a tag.
+(`base:evm-balances-native@v0.7.9`), whose rows v0.7.10 repeats. The
+pre-release noop of v0.7.10 passed 126 windows on Arbitrum One and Base:
+v0.7.9's 125 and the 1,000-block segment of block 500,689,520.
 
 **Released on 2026-10-18: ERC-20 v0.7.4**
 ([PR #167](https://github.com/pinax-network/substreams-evm-balances/pull/167);
@@ -294,12 +298,11 @@ package's noop over that range passes (owner, 2026-10-13).
    package, then the backfill from genesis of the ranges it passed and the
    live sink ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
    Native v0.7.8 is backfilled on Ethereum, BSC, Polygon, Optimism, Unichain
-   and HyperEVM (`<chain>:evm-balances-native@v0.7.8`). Next are ERC-20 v0.7.4
-   on BSC and Ethereum (`<chain>:evm-balances-erc20@v0.7.4`) and native v0.7.9
-   on Arbitrum One and Base (`<chain>:evm-balances-native@v0.7.9`). Native
-   v0.7.9's noop refused Arbitrum One block 500,689,520, which v0.7.10
-   (unreleased, above) accepts; Arbitrum One resyncs with v0.7.10
-   (`arbitrum-one:evm-balances-native@v0.7.10`), and Base keeps v0.7.9.
+   and HyperEVM (`<chain>:evm-balances-native@v0.7.8`), and ERC-20 v0.7.4 on
+   Ethereum (`mainnet:evm-balances-erc20@v0.7.4`). Next are ERC-20 v0.7.4 on
+   BSC (`bsc:evm-balances-erc20@v0.7.4`), native v0.7.9 on Base
+   (`base:evm-balances-native@v0.7.9`) and native v0.7.10 on Arbitrum One
+   (`arbitrum-one:evm-balances-native@v0.7.10`).
 2. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
