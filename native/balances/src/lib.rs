@@ -1306,6 +1306,15 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// in block 450,028,504 (`0xabef75c6…`) the CREATE root call credits
 /// `0xc05da4ea…` 15,786,592,425,450 wei, which its constructor
 /// self-destructs to `0xd211dbe9…`, credited from zero (ordinals 188 to 191).
+/// To the account itself (since v0.7.10), the refund credits the account
+/// from zero to `d` and the record after it burns `d` again, as Nitro's
+/// `opSelfdestruct6780` destroys the account after the refund: the debit,
+/// the refund, the burn from `d` to zero and the repeat, at consecutive
+/// ordinals. In block 500,689,520 (ArbOS 61) the transaction `0x584f566f…`
+/// sends 1,000,000,000,000 wei to `0xe85ee3d5…`, whose CREATE (call 2)
+/// deploys `0x09bb50a3…` with it and whose next call self-destructs
+/// `0x09bb50a3…` to itself (ordinals 128 to 131); the RPC-era rows read
+/// zero for both accounts at the block.
 /// Before Cancun the records
 /// are the refund, the debit at the next ordinal and the repeat at the one
 /// after, also for an account not created in the transaction: in block
@@ -1353,13 +1362,23 @@ fn selfdestruct_to_self_pairs(block: &eth::Block) -> HashSet<(Vec<u8>, u64)> {
 /// consecutive among the call's balance records and in one of the three
 /// orders above, with `d` positive; in the first and the third, the refund
 /// two ordinals after the debit only when the call creates the refund's
-/// account at the ordinal between. The account's last persisted record
-/// before the repeat is the debit. The repeat is the account's only persisted
-/// record at its ordinal, since the repeat is dropped by account and ordinal:
-/// another record there is not dropped with it and still fails the block. No
-/// record of the destroyed account follows the repeat in the transaction
-/// (before its end ordinal), as in every capture. The destroyed account is
-/// resolved as in `selfdestruct_debits`.
+/// account at the ordinal between. In the first order the refund may instead
+/// credit the destroyed account itself from zero to `d`, at the ordinal after
+/// the debit, with a burn from `d` to zero in place of the no-op. The
+/// account's last persisted record before the repeat is the debit, or that
+/// burn. The repeat is the account's only persisted record at its ordinal,
+/// since the repeat is dropped by account and ordinal: another record there
+/// is not dropped with it and still fails the block. No record of the
+/// destroyed account follows the repeat in the transaction (before its end
+/// ordinal), as in every capture. The destroyed account is resolved as in
+/// `selfdestruct_debits`. No shape is gated to a network or an ArbOS
+/// version: the repeat is dropped only where it breaks continuity, and an
+/// account created in its transaction ends at zero after its self-destruct
+/// under the legacy opcode and EIP-6780 alike, also to itself. The
+/// self-destructs to themselves of accounts not created in the transaction
+/// are gated instead ([`legacy_selfdestruct_to_self_rewrites`],
+/// [`selfdestruct_to_self_repeats`]): there the opcode decides between two
+/// balances.
 fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashSet<(Vec<u8>, u64)> {
     use eth::balance_change::Reason;
     let words = |c: &eth::BalanceChange| {
@@ -1390,27 +1409,31 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
             let Some(start) = own.iter().position(|c| is(c, Reason::SuicideWithdraw) || is(c, Reason::SuicideRefund)) else {
                 continue;
             };
-            // The debit, the refund and the repeat.
+            // The debit, the refund, the repeat and, to the account itself,
+            // the burn between the refund and the repeat.
             let sequence = match (created, count(Reason::SuicideWithdraw), own.get(start..)) {
                 // Since Cancun, of an account created in the transaction: the
-                // debit, the refund, a no-op and the repeat.
+                // debit, the refund, a no-op and the repeat; to the account
+                // itself, the burn of the refund instead of the no-op.
                 (true, 3, Some(&[debit, refund, noop, repeat, ..])) => {
-                    let beneficiary_created = call
-                        .account_creations
-                        .iter()
-                        .any(|a| a.account == refund.address && a.ordinal == debit.ordinal + 1);
+                    let to_itself = refund.address == *destroyed;
+                    let beneficiary_created = !to_itself
+                        && call
+                            .account_creations
+                            .iter()
+                            .any(|a| a.account == refund.address && a.ordinal == debit.ordinal + 1);
                     let exact = (refund.ordinal == debit.ordinal + 1 || (refund.ordinal == debit.ordinal + 2 && beneficiary_created))
                         && noop.address == *destroyed
                         && is(noop, Reason::SuicideWithdraw)
                         && noop.ordinal == refund.ordinal + 1
                         && repeat.ordinal == noop.ordinal + 1
-                        && words(noop) == Some((zero, zero));
-                    exact.then_some((debit, refund, repeat))
+                        && (to_itself || words(noop) == Some((zero, zero)));
+                    exact.then_some((debit, refund, repeat, to_itself.then_some(noop)))
                 }
                 // Before Cancun, of an account created in the transaction or
                 // not: the refund, the debit and the repeat.
                 (_, 2, Some(&[refund, debit, repeat, ..])) if is(refund, Reason::SuicideRefund) => {
-                    (debit.ordinal == refund.ordinal + 1 && repeat.ordinal == debit.ordinal + 1).then_some((debit, refund, repeat))
+                    (debit.ordinal == refund.ordinal + 1 && repeat.ordinal == debit.ordinal + 1).then_some((debit, refund, repeat, None))
                 }
                 // Since Cancun, of an account not created in the transaction,
                 // which survives: the debit, the refund (two ordinals later
@@ -1423,15 +1446,17 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
                         .any(|a| a.account == refund.address && a.ordinal == debit.ordinal + 1);
                     let exact = (refund.ordinal == debit.ordinal + 1 || (refund.ordinal == debit.ordinal + 2 && beneficiary_created))
                         && repeat.ordinal == refund.ordinal + 1;
-                    exact.then_some((debit, refund, repeat))
+                    exact.then_some((debit, refund, repeat, None))
                 }
                 _ => None,
             };
-            let Some((debit, refund, repeat)) = sequence else {
+            let Some((debit, refund, repeat, burn)) = sequence else {
                 continue;
             };
+            // The refund credits another account, or the account itself when
+            // the burn follows.
             if [debit, repeat].iter().any(|c| c.address != *destroyed || !is(c, Reason::SuicideWithdraw))
-                || refund.address == *destroyed
+                || (refund.address == *destroyed) != burn.is_some()
                 || !is(refund, Reason::SuicideRefund)
             {
                 continue;
@@ -1443,13 +1468,20 @@ fn stale_selfdestruct_withdraws(block: &eth::Block, records: &[Record]) -> HashS
             if d == zero || debit_new != zero || repeat_old != d || repeat_new != zero || credited != before + moved {
                 continue;
             }
+            // To itself, the refund from zero to `d` and the burn from `d` to
+            // zero.
+            if burn.is_some_and(|burn| b != zero || words(burn) != Some((d, zero))) {
+                continue;
+            }
             // The account is at zero when the repeat comes: its last
-            // persisted record before it is the debit. The repeat is its only
-            // persisted record at that ordinal, since the drop goes by
-            // account and ordinal, and its last in the transaction.
+            // persisted record before it is the debit, or the burn. The
+            // repeat is its only persisted record at that ordinal, since the
+            // drop goes by account and ordinal, and its last in the
+            // transaction.
+            let zeroed = burn.unwrap_or(debit);
             let persisted = || records.iter().filter(|r| r.address == *destroyed);
             let last = persisted().filter(|r| r.ordinal < repeat.ordinal).max_by_key(|r| r.ordinal);
-            if !last.is_some_and(|r| r.ordinal == debit.ordinal)
+            if !last.is_some_and(|r| r.ordinal == zeroed.ordinal)
                 || persisted().filter(|r| r.ordinal == repeat.ordinal).count() != 1
                 || persisted().any(|r| r.ordinal > repeat.ordinal && r.ordinal < trx.end_ordinal)
             {
@@ -1476,9 +1508,9 @@ const ARBOS_CANCUN: u64 = 20;
 /// (`types.HeaderInfo`). Every captured Arbitrum One block has both; the
 /// version reads 10 at blocks 136,808,179 and 161,626,224, 20 at 223,944,083
 /// and 235,153,999, 32 at 282,198,061 and 326,011,151, 40 at 360,021,045 and
-/// 382,234,350, and 51 at 420,239,048 and 472,773,590. `None` for any other
-/// block, such as those of the other supported networks, whose first
-/// transaction is never of that type and sender.
+/// 382,234,350, 51 at 420,239,048 and 472,773,590, and 61 at 500,689,520.
+/// `None` for any other block, such as those of the other supported
+/// networks, whose first transaction is never of that type and sender.
 fn arbos_version(block: &eth::Block) -> Option<u64> {
     let first = block.transaction_traces.first()?;
     let mix = block.header.as_option()?.mix_hash.as_slice();
@@ -1697,8 +1729,9 @@ fn validate_selfdestructs_to_self(block: &eth::Block, dropped: &HashSet<(Vec<u8>
 /// `validate_selfdestructs_to_self` matches, with a gap between the
 /// ordinals, another record among them or on another network, still fails
 /// the block. An account created in the transaction is destroyed, so its
-/// records end at zero, its balance. The destroyed account is resolved as in
-/// `selfdestruct_debits`.
+/// records end at zero, its balance; Arbitrum's repeat after its burn is
+/// dropped in the exact shape of `stale_selfdestruct_withdraws`. The
+/// destroyed account is resolved as in `selfdestruct_debits`.
 fn selfdestruct_to_self_repeats(block: &eth::Block, records: &[Record], arbos: Option<u64>) -> HashSet<(Vec<u8>, u64)> {
     use eth::balance_change::Reason;
     let mut repeats = HashSet::new();

@@ -123,7 +123,10 @@ never prints them.
   (Arbitrum One, the ArbOS version read from the block's internal
   transaction and mix digest), the repeated withdraw across a new
   beneficiary's creation (Arbitrum One) and the fee vault credit after a
-  transfer into the vault (Base). Reduce records by ordinal, except a
+  transfer into the vault (Base); since v0.7.10 (2026-10-18) also the
+  repeated withdraw after the burn of an account created in its transaction
+  that self-destructs to itself (Arbitrum One; like the other repeated
+  withdraws, not gated by ArbOS version). Reduce records by ordinal, except a
   recognized Polygon `Block.ver` 3 state-sync transaction: by depth-1 call,
   then ordinal. Of a failed transaction, persist the shared rules' gas
   records and, each in its exact shape with a captured fixture, what the
