@@ -1,7 +1,8 @@
 # Token API balances: deployment status
 
-A snapshot taken on 2026-10-19 at about 16:00 UTC. For each chain, it lists
-the final package release, the ClickHouse database it writes, what is
+A snapshot taken on 2026-10-19: the databases as of about 16:00 UTC, the
+backfills in progress as of about 23:00 UTC. For each chain, it lists the
+final package release, the ClickHouse database it writes, what is
 backfilled, and what is still running. The quality comparisons with the
 RPC-era databases are on separate pages:
 
@@ -16,6 +17,30 @@ RPC-era databases are on separate pages:
 
 The rows here change as backfills finish. [Handoff](handoff.md) keeps the
 current state.
+
+## Quality at a glance
+
+- **Native balances agree with the RPC era for 99.1% (Ethereum) to 100%
+  (Unichain) of the addresses compared.** Nearly every difference is an
+  RPC-era error: on Ethereum, its live sink stored pre-block balances for
+  about 3.06 million addresses in February 2026. On BSC it never wrote 1,629
+  blocks of 2024-01-18, and on HyperEVM it missed internal transfers.
+- **The new native databases have four known gaps.** Polygon misses some
+  self-destruct debits (at least 1,831.73 POL over-counted). Optimism lacks
+  balances unchanged since Bedrock (at least 411,978 addresses, about 501
+  ETH). On Ethereum, 72 contracts keep 0.00153 ETH. On Unichain, three early
+  credits are missing from the history.
+  See [native quality](quality-native.md#gaps-in-the-new-databases).
+- **ERC-20 on Ethereum covers 62% of the RPC era's non-zero holder pairs,
+  and 99.26% of its own rows are equal.** Ordinary tokens are accurate (99.996%
+  of holders). Airdrop spam, computed balances (stETH, aTokens, reflection)
+  and balances kept elsewhere (MiniMe, Synthetix) are not served, and some
+  real tokens are stale (MKR, HEX, TUSD). See
+  [ERC-20 quality](quality-erc20.md).
+- **USDT, USDC and WETH match the RPC era for more than 99.99% of non-zero
+  holders, and their supplies close.** Apart from the zero address, which the
+  package never emits, each has at most a dozen wrong holders. See
+  [top tokens](quality-top-tokens.md).
 
 ## Final releases
 
@@ -125,6 +150,22 @@ a sink starts, it catches up from that block to the head. The
 | HyperEVM | 48,780,000 | | not proposed yet |
 | Arbitrum One | 515,680,000 | | after its backfill |
 
+### Before the cutover
+
+- **Seed the legacy state on Optimism and Arbitrum One.** Their databases
+  start at Bedrock and Nitro, so balances unchanged since then have no row
+  ([native quality](quality-native.md#optimism-balances-not-changed-since-bedrock)).
+- **Polygon's missed self-destruct debits** need a fix, or an accepted bound
+  of about 1,832 POL ([native quality](quality-native.md#polygon-missed-self-destruct-debits)).
+- **The new schema creates fewer objects than the RPC-era databases have.**
+  Those also hold 1, 5, 10 and 30-minute bars (the new history keeps 1h, 4h,
+  1d and 1w), the `native_balances_holders` and `erc20_balances_holders`
+  views (top 1,000 holders, per contract for ERC-20), and
+  `native_balances_is_deleted` and `native_balances_year_is_deleted`. Check
+  which of them the Token API reads.
+- **ERC-20 holders the package never emits.** The zero address, and the token
+  kinds listed in [ERC-20 quality](quality-erc20.md#tokens-the-new-database-does-not-serve).
+
 ## In progress
 
 ### Arbitrum One native v0.7.10
@@ -134,12 +175,14 @@ The full-history noop of native v0.7.9 refused block 500,689,520 on
 resyncs into `arbitrum-one:evm-balances-native@v0.7.10`.
 
 - Noops: 10 full-history noops over [22,208,000, 515,680,000), in ranges of
-  about 50M blocks, all running since 2026-10-19 11:22 UTC with no refusal so
-  far. The same ranges took 10.5 to 14 hours for v0.7.9, so they should finish
-  between about 22:00 UTC on 2026-10-19 and 01:30 UTC on 2026-10-20.
+  about 50M blocks, all started at 2026-10-19 11:22 UTC. 2 had passed by
+  22:50 UTC and the other 8 were still running, with no refusal. The same
+  ranges took 10.5 to 14 hours for v0.7.9, so they should finish by about
+  01:30 UTC on 2026-10-20.
 - Backfills: each range is backfilled once its noop passes, two at a time.
-  v0.7.9 took about 3.5 hours per 50M-block range. At that rate the database
-  would be complete late on 2026-10-20 UTC (an estimate).
+  The first, [22,208,000, 70,000,000), started at 22:53 UTC. v0.7.9 took
+  about 3.5 hours per 50M-block range. At that rate the database would be
+  complete late on 2026-10-20 UTC (an estimate).
 - The partial `arbitrum-one:evm-balances-native@v0.7.9`, [22,208,000,
   220,000,000), is superseded. Dropping it needs the owner's OK.
 
@@ -153,12 +196,14 @@ ascending ranges of 12,781,000 blocks, two at a time.
 | [0, 12,781,000) | done |
 | [12,781,000, 25,562,000) | done |
 | [25,562,000, 38,343,000) | done |
-| [38,343,000, 51,124,000) | running |
-| [51,124,000, 63,905,000) | running |
-| [63,905,000, 76,686,000) to [115,029,000, 128,355,000) | five ranges queued |
+| [38,343,000, 51,124,000) | done |
+| [51,124,000, 63,905,000) | done |
+| [63,905,000, 76,686,000) | running since 19:37 UTC |
+| [76,686,000, 89,467,000) | running since 20:16 UTC |
+| [89,467,000, 102,248,000) to [115,029,000, 128,355,000) | three ranges queued |
 
-A range has taken 3.5 to 4.5 hours, so the backfill should be complete around
-midday UTC on 2026-10-20 (an estimate; later BSC blocks are denser). The
+A range has taken 3.5 to 5 hours, so the backfill should be complete around
+11:00 UTC on 2026-10-20 (an estimate; later BSC blocks are denser). The
 ERC-20 comparisons for BSC (USDT, USDC, WBNB and the top tokens) follow then.
 The [top-tokens page](quality-top-tokens.md) already checks WBNB against the
 native database.

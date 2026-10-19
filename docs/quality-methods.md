@@ -27,6 +27,20 @@ be wrong. Where only an RPC call at the block could settle it, they say
 "needs RPC". These comparisons made no RPC or Firehose call: running one is a
 live step that needs the owner's OK ([AGENTS.md](../AGENTS.md#evidence)).
 
+The RPC-era side is not fully independent either. Per its source at the
+`evm-balances-v0.3.3` tag, its native module starts from the Extended
+block's balance changes and replaces them with `eth_getBalance` only for the
+addresses a transaction touches. So for an address changed without being
+touched, such as an OP Stack fee vault, both databases read the same
+Firehose data.
+
+Each comparison on these pages had two passes. The first ran the
+comparison and classified every difference. The second recomputed the
+numbers from the raw results, re-derived at least one shard with another
+formulation (`argMax(balance, block_num) ... GROUP BY address` instead of
+`FINAL`, `NOT IN` or `LEFT ANTI JOIN` instead of the full join), and tried to
+refute each attribution. The pages give the corrected results.
+
 ## Holder comparison at the cutoff
 
 `native_balances` and `erc20_balances` hold one row per address (per contract
@@ -43,6 +57,7 @@ read with `FINAL`. A full outer join on the address gives:
 | mismatch, new newer | the new row is newer: the RPC-era database missed a change (for example a fee, a reward or a gap in its live sink), or the new database recorded one that did not happen |
 | after | address in both, but the RPC-era row is after the cutoff, so this join cannot compare it (the top-holder comparison can) |
 | only RPC-era | address only in the RPC-era database, with its row at or before the cutoff |
+| only RPC-era, after | address only in the RPC-era database, with its row after the cutoff: compare its hourly bars before the cutoff hour to see whether it held a balance at the cutoff |
 | only new | address only in the new database |
 | value match | the share of the comparable RPC-era balance sum held by matching rows |
 
@@ -60,6 +75,7 @@ SELECT
   countIf(isNotNull(nb) AND isNotNull(ob) AND oblk > <cutoff>) AS after,
   countIf(isNull(nb) AND oblk <= <cutoff>) AS only_rpc,
   countIf(isNull(nb) AND oblk <= <cutoff> AND ob = 0) AS only_rpc_zero,
+  countIf(isNull(nb) AND oblk > <cutoff>) AS only_rpc_after,
   countIf(isNull(ob)) AS only_new,
   countIf(isNull(ob) AND nb = 0) AS only_new_zero,
   sumIf(toFloat64(ob), c AND nb = ob) AS value_matched,
@@ -136,6 +152,37 @@ Some tokens give a total that does not depend on either database:
   `mainnet:evm-transfers@v0.3.3`, wherever those tables cover the full
   history.
 
+## Evidence databases
+
+The pages explain differences with `<chain>:evm-transfers@v0.3.3` (transfers,
+native transfers, blocks) and `<chain>:evm-contracts@v0.3.0` (deployed code).
+Check each table's actual row range, not only its `backfill_processed_ranges`,
+before reading anything into an absence:
+
+- **Duplicate rows.** `mainnet:evm-transfers@v0.3.3`'s `transfers` table is a
+  plain MergeTree with repeated rows: 42,140 extra USDT rows in blocks
+  11,780,000 to 11,789,999, 9,879 duplicated USDC (`tx_hash`, `log_index`)
+  keys between 11,262,961 and 24,571,109, repeats in 1,243 blocks between
+  14,497,047 and 14,509,804, and every `burn` stored as three rows.
+  Duplicates also appear on Optimism, Unichain and HyperEVM. Deduplicate on
+  (`tx_hash`, `log_index`) before summing.
+- **Missing kinds.** It holds no zero-amount transfer. `native_transfers`
+  holds value transfers (and Ethereum's block rewards), not fees. The
+  `withdrawals` and `selfdestructs` tables are empty. HyperEVM has no
+  internal-call transfers before block 44,830,465. Its `transactions` and
+  `calls` tables, and per-event tables such as `usdt_*`, `usdc_mint` and
+  `weth_deposit`, hold only recent blocks. Use `transfers.transfer_type`
+  for mints, burns, deposits and withdrawals.
+- **Drift.** On Ethereum, the cumulative WETH deposits minus withdrawals in
+  `transfers` depart from the WETH contract's native balance by up to
+  110,537 ETH, so they cannot serve as WETH's supply. On Polygon, the WPOL
+  history rebuilt from it exceeds the supply by 11.38M WPOL.
+- **History views.** `historical_erc20_balances_state` is ordered by
+  (`interval_min`, `address`, `contract`, `timestamp`). Selecting one
+  token's top holders at a past hour scans every contract's bars, so narrow
+  the holder set first, for example to holders with a weekly high above a
+  threshold.
+
 ## Running the queries
 
 - The new databases do not change once backfilled, but the RPC-era databases
@@ -149,3 +196,9 @@ Some tokens give a total that does not depend on either database:
 - A new database's `blocks` table has a row only for blocks with a balance
   change, so its absent blocks are not gaps. Coverage is in
   `backfill_processed_ranges`.
+- "Value match" covers comparable addresses only. The addresses changed
+  after the cutoff often hold much of the value (84% on Unichain, 32% of
+  USDC), so compare them from the hourly bars too.
+- A cutoff block with no balance change has no row in the new `blocks`
+  table. Take the cutoff hour from `block_num <= <cutoff>`, as above, not
+  `block_num = <cutoff>`, which gives 1970-01-01.
