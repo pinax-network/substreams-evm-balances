@@ -231,14 +231,23 @@ compared at the start of the cutoff's hour (H) from hourly bars.
   error:
   - BSC: 73 WBNB holders whose last change fell in the 2,063 blocks the
     RPC-era never wrote are stale. Their missed changes sum to
-    −250.083920231925075354 WBNB, which leaves +0.00000167 WBNB.
-  - Polygon: the excess is the same to the wei since at least 2026-04-01.
-    It is not missing blocks, orphaned rows, stale holders or the zero
-    address. Finding the holders needs RPC.
+    −250.083920231925075354 WBNB, which leaves +0.00000167 WBNB. For the five
+    largest (72% of the amount), the superseded
+    `bsc:evm-balances-erc20@v0.7.3`, also built from Extended blocks, holds
+    exactly the RPC-era value minus the missed change.
+  - Polygon: the excess is the same to the wei since at least 2026-03-01,
+    13 days after the RPC-era's live start. It is not missing blocks, the
+    zero address or a holder left stale in the live part. The holders are not
+    identified yet; a rebuild from `polygon:evm-transfers@v0.3.3` with
+    duplicate rows removed should find them without RPC.
 - **Small positive gaps** fit native currency sent without a deposit:
-  exactly 1 WHYPE on HyperEVM, a single send visible in both databases, and
-  0.000572 ETH on Ethereum. On Base, Optimism and Unichain the sum equals the
-  balance, to 1 wei.
+  0.000572 ETH on Ethereum, and exactly 1 WHYPE on HyperEVM, a step visible
+  in both databases whose block was not isolated. On Base, Optimism and
+  Unichain the sum equals the balance, to 1 wei.
+- **RPC-era hourly closes lag.** In its live part, the RPC-era's hourly
+  close of the wrapped contract ends before the hour's last change in 95% of
+  the hours on BSC (median 11 blocks) and 82% on Base (median 6 blocks). The
+  comparisons at H above happen to be free of this lag.
 - **New ERC-20 database on Ethereum.** WETH holders sum to
   1,089.413184732877412499 ETH below the contract's balance (the zero address
   and the missed deposits, [above](#weth)). The top 20 holders are equal in

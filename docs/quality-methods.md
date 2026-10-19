@@ -173,10 +173,19 @@ before reading anything into an absence:
   `calls` tables, and per-event tables such as `usdt_*`, `usdc_mint` and
   `weth_deposit`, hold only recent blocks. Use `transfers.transfer_type`
   for mints, burns, deposits and withdrawals.
-- **Drift.** On Ethereum, the cumulative WETH deposits minus withdrawals in
-  `transfers` depart from the WETH contract's native balance by up to
-  110,537 ETH, so they cannot serve as WETH's supply. On Polygon, the WPOL
-  history rebuilt from it exceeds the supply by 11.38M WPOL.
+- **Drift and gaps.** On Ethereum, the cumulative WETH deposits minus
+  withdrawals in `transfers` depart from the WETH contract's native balance
+  by up to 110,537 ETH, so they cannot serve as WETH's supply. On Polygon, a
+  WPOL history rebuilt from the raw rows exceeds the supply by 11.38M WPOL,
+  all of it duplicates: deduplicated, the four largest outliers equal the
+  RPC-era to the wei. `polygon:evm-transfers@v0.3.3` also lacks 2,048,962
+  blocks with native changes, 2,026,476 of them between 2020-05 and
+  2021-04.
+- **Missing RPC-era rows are not always missing blocks.** An anti-join of
+  the `blocks` tables finds only blocks the RPC-era never wrote. It also
+  wrote blocks without some of their balance rows (Ethereum on 2026-02-24,
+  BSC around 122,049,723 to 122,049,880), which only a row comparison
+  shows.
 - **History views.** `historical_erc20_balances_state` is ordered by
   (`interval_min`, `address`, `contract`, `timestamp`). Selecting one
   token's top holders at a past hour scans every contract's bars, so narrow

@@ -327,7 +327,9 @@ balances](#optimism-balances-not-changed-since-bedrock). The OP Stack fee
 vaults, WETH, `L2ToL1MessagePasser`, the messenger, the bridge and the zero
 address agree at the cutoff hour. On daily bars, in a 1/128 address sample,
 98.25% of the address-days in both databases are equal. In every other day,
-the new database's last change comes after the RPC-era's last reading.
+the new database's last change comes after the RPC-era's last reading. And
+in a 1/1,024 sample, every RPC-era reading in the window equals the new
+database's balance at the same block: 99,833 readings, none different.
 
 ### Polygon
 
