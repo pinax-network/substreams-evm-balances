@@ -1,0 +1,71 @@
+{
+ "source": "Polygon Firehose (Pinax), fetched 2026-10-20 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 55741124,
+ "hash": "6aad4d1d1dc0b402fc8db967929c7d50a5cb1fe3432c1df1e8701bdecb670fa1",
+ "ver": 3,
+ "coinbase": "0000000000000000000000000000000000000000",
+ "base_fee_per_gas": "3b7415d560",
+ "contents": "transaction 87 whole: every call with its balance records, self-destruct flag and ordinals, gas fields and the block's base fee. Its root call from 0xd55ffe27\u2026 self-destructs 0xeb0de914\u2026 (1,391.161138394424768831 POL) to the sender without the self-destruct flag: the producer records only the sender's SUICIDE_REFUND at ordinal 6549 and no record of 0xeb0de914\u2026, and the call ends at 6550; the RPC-era rows read zero for 0xeb0de914\u2026 at the block; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 87,
+   "hash": "055a91ac30a82427d6a3c7ad157b53dc549cdd3f2c4b04e8feec61b083f5da05",
+   "type": 2,
+   "begin_ordinal": 6543,
+   "end_ordinal": 6554,
+   "status": 1,
+   "gas_limit": 28522,
+   "gas_used": 28522,
+   "gas_price": "42a1e251dd",
+   "value": "",
+   "from": "d55ffe275319ea75ae5e60868f5f10c4cd48ca99",
+   "to": "eb0de914824c613ea396604f103a45945108346e",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "d55ffe275319ea75ae5e60868f5f10c4cd48ca99",
+     "address": "eb0de914824c613ea396604f103a45945108346e",
+     "value": "",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 6550,
+     "balance_changes": [
+      {
+       "address": "d55ffe275319ea75ae5e60868f5f10c4cd48ca99",
+       "old_value": "0199a137653c6b2d44",
+       "new_value": "019984379d133674c2",
+       "ordinal": 6544,
+       "reason": 7
+      },
+      {
+       "address": "d55ffe275319ea75ae5e60868f5f10c4cd48ca99",
+       "old_value": "019984379d133674c2",
+       "new_value": "4d03c16c4bb2efee01",
+       "ordinal": 6549,
+       "reason": 11
+      },
+      {
+       "address": "7a8ed27f4c30512326878652d20fc85727401854",
+       "old_value": "051975c576ec768a554982",
+       "new_value": "051975c590cc6a12e44342",
+       "ordinal": 6551,
+       "reason": 15
+      },
+      {
+       "address": "7c7379531b2aee82e4ca06d4175d13b9cbeafd49",
+       "old_value": "02e68b72a8c758d1887dfe",
+       "new_value": "02e68b72abe72d722e3cc0",
+       "ordinal": 6552,
+       "reason": 8
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

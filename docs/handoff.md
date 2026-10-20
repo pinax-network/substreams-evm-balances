@@ -113,9 +113,14 @@ of the 61 contracts it found (1,694.17 POL) showed the cause. After Napoli
 flag on the call) and records only the beneficiary's `SUICIDE_REFUND`, and
 `selfdestruct_debits` restores the debit only for a marked call
 ([native quality](quality-native.md#polygon-missed-self-destruct-debits)).
-v0.7.11 restores it in that exact shape. Unlike v0.7.9 and v0.7.10, it
-changes the output of blocks that v0.7.8 accepts, so Polygon would resync
-into `polygon:evm-balances-native@v0.7.11` (owner's OK needed).
+v0.7.11 restores it in that exact shape. At the owner's direction
+(2026-10-20) near-shapes that could keep a wrong balance fail the block
+instead: a call without the mark that holds a self-destruct credit in any
+other shape, on every network, except a self-destruct to itself, whose
+records keep the right balance. No saved block is refused. Unlike v0.7.9 and
+v0.7.10, it changes the output of blocks that v0.7.8 accepts, so Polygon
+would resync into `polygon:evm-balances-native@v0.7.11` (owner's OK
+needed).
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |

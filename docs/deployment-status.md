@@ -162,12 +162,18 @@ Each spkg is the release asset
 The hashes above were read with `substreams info` from the published assets.
 The cluster A workflows stream these assets.
 
-The native versions differ only in which producer shapes they accept.
-v0.7.9 and v0.7.10 accept blocks that v0.7.8 refused on Arbitrum One and
-Base, and give v0.7.8's output for every block v0.7.8 accepts. So cluster A
-runs v0.7.10 on every chain. v0.7.11, not released yet, is the first to
-change the output of blocks that earlier versions accept: it adds the debits
-of unmarked Polygon self-destructs ([below](#polygon-native-v0711)).
+From v0.7.8 to v0.7.10 the native versions differ only in which producer
+shapes they accept. v0.7.9 and v0.7.10 accept blocks that v0.7.8 refused on
+Arbitrum One and Base, and give v0.7.8's output for every block v0.7.8
+accepts. So cluster A runs v0.7.10 on every chain. v0.7.11, not released
+yet, is the first since v0.7.8 to change the output of blocks that earlier
+versions accept, and the first since v0.7.8 that can refuse such blocks:
+it adds the debits of unmarked Polygon self-destructs, and refuses a call
+without the mark that holds a self-destruct credit in any other shape but
+a self-destruct to itself. Such a self-destruct was found in the saved
+blocks of Polygon only, so only Polygon is planned to move to it
+([below](#polygon-native-v0711)).
+
 
 ## Cluster A databases
 
@@ -372,13 +378,27 @@ contract's debit.
 - **Fix:** native v0.7.11 restores the debit in that exact shape. The patch,
   with captured fixtures and tests, passed two review rounds. Replayed
   offline, it debits 58 of the 61 contracts (1,692.97 POL), each by exactly
-  the balance v0.7.8 kept; the other 3 (1.2 POL) self-destructed in blocks not
-  fetched. No other block of any chain in the saved data changes.
+  the balance v0.7.8 kept; the other 3 (1.2 POL) lie in blocks not fetched.
+  No other block of any chain in the saved data changes.
 - **Only Polygon is planned to resync.** The survey of every saved block of
   the other chains found the unmarked shape only on Polygon.
-- **Fail closed (owner, 2026-10-20):** a self-destruct close to that shape
-  but not exactly it will refuse the block instead of keeping a wrong
-  balance. That guard is being added and reviewed.
+- **Fail closed (owner, 2026-10-20), done:** a call without the flag that
+  holds a self-destruct credit in any other shape now refuses the block
+  instead of keeping a balance that may be wrong. One shape is kept as
+  recorded, as by v0.7.10: a self-destruct to itself recorded as the
+  contract's own credit from zero, whose records hold the right balance.
+  The offline replay of the 63 fetched blocks (the 61, and blocks
+  56,042,508 and 58,697,458 with 2 of the 58) refuses none, and neither does
+  any other saved block of any chain. Still, v0.7.11 is the first native
+  version since v0.7.8 that can refuse blocks that earlier versions accept,
+  and that is untested on Polygon `Block.ver` 4 and 5 (from block
+  73,440,256), on Polygon before Napoli and on the chains with no saved
+  self-destruct of a positive balance (BSC, Base, Optimism, Unichain and
+  HyperEVM). The pre-release noop and Polygon's full-history noop are the
+  guard's test there. A few refused shapes may hold the right balance, such
+  as a debit that the producer records itself, but no capture shows them
+  without the flag; one would stop the noop at its block, for a capture and
+  a decision.
 - **Next, approved by the owner (2026-10-20):** the PR with the CI-built
   spkg, the pre-release noop on all eight chains, the merge and tag,
   Polygon's full-history noop, its resync, and the supply check. v0.7.11 was

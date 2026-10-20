@@ -3466,10 +3466,15 @@ fn the_selfdestruct_debit_with_other_records_is_exact() {
         }
     }
     const D: u64 = 106_671_293_064_353_727;
-    // Without the self-destruct, the account keeps the balance it was created with.
+    // Without the self-destruct flag the account would keep the balance it
+    // was created with: its refund is outside Polygon's unflagged shape (the
+    // account is created in the transaction), so the block fails (since
+    // v0.7.11).
     let mut b = captured_polygon_selfdestruct_created();
     root(&mut b).suicide = false;
-    assert_eq!(destroyed(&b), D.to_string());
+    let account = hex::decode(POLYGON_DESTROYED).unwrap();
+    assert!(!selfdestruct_debits(&b).iter().any(|r| r.address == account));
+    assert!(refused_as_unflagged_selfdestruct(&b));
     // When the producer records the debit, it is used, not doubled.
     let mut b = captured_polygon_selfdestruct_created();
     let withdraw = record(POLYGON_DESTROYED, 14, D, 0, eth::balance_change::Reason::SuicideWithdraw);
@@ -3487,6 +3492,811 @@ fn the_selfdestruct_debit_with_other_records_is_exact() {
     let refund = record(SENDER, 16, 0, 1, eth::balance_change::Reason::SuicideRefund);
     root(&mut b).balance_changes.insert(4, refund);
     assert_eq!(destroyed(&b), D.to_string());
+}
+
+/// Polygon block 55,741,124 (`Block.ver` 3, after Napoli) as captured from
+/// Firehose: transaction 87 (`0x055a91ac…`) whole. Its root call, from
+/// `0xd55ffe27…`, self-destructs `0xeb0de914…` to the sender without the
+/// self-destruct flag.
+const POLYGON_UNFLAGGED_ROOT: &str = include_str!("../tests/fixtures/polygon-55741124-selfdestruct-unflagged-root.json");
+/// Polygon block 55,412,000 (`Block.ver` 3, after Napoli) as captured from
+/// Firehose: transaction 72 (`0xe8d9e1d3…`) whole. Its call 3, a depth-1 CALL
+/// from `0xd98be101…`, self-destructs `0xeba4fc1a…` to `0xd98be101…` without
+/// the self-destruct flag; calls 4 to 6 pay the sender, create `0xc3e92661…`
+/// and fund it.
+const POLYGON_UNFLAGGED_NESTED: &str = include_str!("../tests/fixtures/polygon-55412000-selfdestruct-unflagged-nested.json");
+const UNFLAGGED_ROOT: &str = "eb0de914824c613ea396604f103a45945108346e";
+const UNFLAGGED_ROOT_SENDER: &str = "d55ffe275319ea75ae5e60868f5f10c4cd48ca99";
+const UNFLAGGED_ROOT_D: u128 = 1_391_161_138_394_424_768_831;
+const UNFLAGGED_NESTED: &str = "eba4fc1a2d7ed043faa09a0f6610934d841f1073";
+const UNFLAGGED_NESTED_CALLER: &str = "d98be101aed688621ba47496aff1c013a6ee1ce7";
+const UNFLAGGED_NESTED_D: u128 = 19_800_000_000_000_000_000;
+/// The account that Polygon credits the base fee to with a `BURN` record in
+/// the blocks fetched on 2026-10-20, from 55,412,000 to 71,461,200. It is
+/// not fixed by `Block.ver`: block 50,016,032, also `Block.ver` 3, credits
+/// `0x70bca57f…`.
+const POLYGON_BURN_55M: &str = "7a8ed27f4c30512326878652d20fc85727401854";
+fn captured_polygon_unflagged_root() -> eth::Block {
+    captured_block(&serde_json::from_str(POLYGON_UNFLAGGED_ROOT).unwrap())
+}
+fn captured_polygon_unflagged_nested() -> eth::Block {
+    captured_block(&serde_json::from_str(POLYGON_UNFLAGGED_NESTED).unwrap())
+}
+/// The row of `account` in the block's output, if it has one: old and new
+/// amount, first and last ordinal, records.
+fn row_if_any(b: &eth::Block, account: &str) -> Option<(String, String, u64, u64, u32)> {
+    let rows = changes(b).unwrap();
+    let address = hex::decode(account).unwrap();
+    rows.iter().any(|r| r.address == address).then(|| row_values(&rows, account))
+}
+/// Whether the block fails as a `SUICIDE_REFUND` in a persisted call without
+/// the self-destruct flag outside the shape whose debit is restored
+/// (`validate_unflagged_selfdestructs`).
+fn refused_as_unflagged_selfdestruct(b: &eth::Block) -> bool {
+    changes(b).is_err_and(|e| e.to_string().contains("unrecognized self-destruct without the self-destruct flag"))
+}
+
+#[test]
+fn captured_polygon_unflagged_selfdestruct_debit_is_restored() {
+    use eth::balance_change::Reason;
+    for (b, index, destroyed, d, refund) in [
+        (captured_polygon_unflagged_root(), 1, UNFLAGGED_ROOT, UNFLAGGED_ROOT_D, 6549),
+        (captured_polygon_unflagged_nested(), 3, UNFLAGGED_NESTED, UNFLAGGED_NESTED_D, 4949),
+    ] {
+        assert_eq!(b.ver, 3);
+        let account = hex::decode(destroyed).unwrap();
+        let trx = &b.transaction_traces[0];
+        // A persisted CALL of the account without the self-destruct flag,
+        // whose only SUICIDE_REFUND credits another account with the whole
+        // balance at the ordinal before the call's end.
+        let call = trx.calls.iter().find(|c| c.index == index).unwrap();
+        assert!(!call.suicide && !call.state_reverted && !persist::is_failed(trx));
+        assert_eq!((call.call_type.as_known(), &call.address), (Some(eth::CallType::CALL), &account));
+        let refunds: Vec<_> = call
+            .balance_changes
+            .iter()
+            .filter(|c| c.reason.as_known() == Some(Reason::SuicideRefund))
+            .collect();
+        let [credit] = refunds.as_slice() else { panic!("{refunds:?}") };
+        let [old, new] =
+            [&credit.old_value, &credit.new_value].map(|v| BigInt::from_unsigned_bytes_be(&value(v.as_option().map(|v| v.bytes.as_slice())).unwrap()));
+        assert_eq!((new - old).to_string(), d.to_string());
+        assert_eq!((credit.ordinal, call.end_ordinal), (refund, refund + 1));
+        assert_ne!(credit.address, account);
+        // No call of the transaction is flagged, and it holds no
+        // SUICIDE_WITHDRAW, no record of the account and no CREATE of it.
+        assert!(!trx.calls.iter().any(|c| c.suicide));
+        let all = || trx.calls.iter().flat_map(|c| &c.balance_changes);
+        assert!(!all().any(|c| c.reason.as_known() == Some(Reason::SuicideWithdraw) || c.address == account));
+        assert!(!trx
+            .calls
+            .iter()
+            .any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == account));
+        // The restored debit: the account from `d` to zero at the refund's
+        // ordinal.
+        let mut moved = [0; 32];
+        moved[16..].copy_from_slice(&d.to_be_bytes());
+        let debit = Record {
+            address: account,
+            old_value: Some(moved.to_vec()),
+            new_value: Some(vec![0; 32]),
+            ordinal: refund,
+            reason: Reason::SuicideWithdraw as i32,
+            scope: persist::Scope::Tx,
+            state_sync_call: None,
+        };
+        assert_eq!(selfdestruct_debits(&b), [debit]);
+        // No other self-destruct rule applies.
+        let persisted = records(&b).unwrap();
+        assert_eq!(arbos_version(&b), None);
+        assert!(selfdestruct_to_self_pairs(&b).is_empty());
+        assert!(stale_selfdestruct_withdraws(&b, &persisted).is_empty());
+        assert!(selfdestruct_to_self_repeats(&b, &persisted, None).is_empty());
+        assert!(legacy_selfdestruct_to_self_rewrites(&b, &persisted, None).is_empty());
+        assert!(selfdestruct_credit_shifts(&b, &persisted).is_empty());
+    }
+    // The destroyed account ends at zero, as the RPC-era rows read it at the
+    // block, and the sender keeps the credit.
+    let rows = changes(&captured_polygon_unflagged_root()).unwrap();
+    assert_eq!(rows.len(), 4);
+    assert_rows(
+        &rows,
+        &[
+            (UNFLAGGED_ROOT, "1391161138394424768831", "0", 6549, 1),
+            (UNFLAGGED_ROOT_SENDER, "29516934340707822916", "1420669910200634830337", 6549, 2),
+            (POLYGON_BURN_55M, "6164860758021577616214402", "6164860765304689095099202", 6551, 1),
+            (
+                "7c7379531b2aee82e4ca06d4175d13b9cbeafd49",
+                "3506568289788223073844734",
+                "3506568290667646092721344",
+                6552,
+                1,
+            ),
+        ],
+    );
+    assert_eq!(row_of(&rows, &hex::decode(UNFLAGGED_ROOT).unwrap()).first_ordinal, 6549);
+    // The caller's credit from zero chains into its payment to the sender and
+    // its funding of the contract call 5 creates.
+    let rows = changes(&captured_polygon_unflagged_nested()).unwrap();
+    assert_eq!(rows.len(), 6);
+    assert_rows(
+        &rows,
+        &[
+            (UNFLAGGED_NESTED, "19800000000000000000", "0", 4949, 1),
+            (UNFLAGGED_NESTED_CALLER, "0", "0", 4982, 3),
+            (
+                "9c989113261cf3af15d6f7b3572391b7640a8c19",
+                "1001211829844785000",
+                "2132182003990458561",
+                4990,
+                3,
+            ),
+            ("c3e92661e247be242e747286a4ad09269fbdbc4d", "0", "18642830774176954733", 4983, 1),
+            (POLYGON_BURN_55M, "5639513709850837255737682", "5639513727488101212793978", 4991, 1),
+            (
+                "f0245f6251bef9447a08766b9da2b07b28ad80b0",
+                "6952421677351237798525",
+                "6952430239138958113935",
+                4992,
+                1,
+            ),
+        ],
+    );
+    assert_eq!(row_of(&rows, &hex::decode(UNFLAGGED_NESTED_CALLER).unwrap()).first_ordinal, 4949);
+}
+
+#[test]
+fn the_unflagged_selfdestruct_debit_shape_is_exact() {
+    use eth::balance_change::Reason;
+    const D: u128 = UNFLAGGED_ROOT_D;
+    const THIRD: &str = "1111111111111111111111111111111111111111";
+    let (root, nested) = (captured_polygon_unflagged_root, captured_polygon_unflagged_nested);
+    // The root call of the first fixture, and call 3 of the second.
+    fn root_call(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[0]
+    }
+    fn nested_call(b: &mut eth::Block) -> &mut eth::Call {
+        &mut b.transaction_traces[0].calls[2]
+    }
+    fn record(address: &str, ordinal: u64, old: u128, new: u128, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            old_value: wei(old).into(),
+            new_value: wei(new).into(),
+            ordinal,
+            reason: reason.into(),
+        }
+    }
+    let amounts = |old: u128, new: u128, first: u64, last: u64, records: u32| Some((old.to_string(), new.to_string(), first, last, records));
+    let discontinuous = |b: &eth::Block| changes(b).is_err_and(|e| e.to_string().contains("discontinuous"));
+    let restored_root = amounts(D, 0, 6549, 6549, 1);
+    let restored_nested = amounts(UNFLAGGED_NESTED_D, 0, 4949, 4949, 1);
+    assert_eq!(row_if_any(&root(), UNFLAGGED_ROOT), restored_root);
+    assert_eq!(row_if_any(&nested(), UNFLAGGED_NESTED), restored_nested);
+    // With the self-destruct flag the debit is the same, restored once; and
+    // it is not gated by `Block.ver`.
+    for (b, call) in [(root(), 0), (nested(), 2)] {
+        let expected = changes(&b).unwrap();
+        let mut flagged = b.clone();
+        flagged.transaction_traces[0].calls[call].suicide = true;
+        assert_eq!(changes(&flagged).unwrap(), expected);
+        for ver in [4, 5] {
+            let mut other = b.clone();
+            other.ver = ver;
+            assert_eq!(changes(&other).unwrap(), expected);
+        }
+    }
+    // Only of a persisted call: a reverted call's refund does not persist,
+    // and the caller's next record starts from the credited balance.
+    let mut b = nested();
+    nested_call(&mut b).state_reverted = true;
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), None);
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED_CALLER), amounts(UNFLAGGED_NESTED_D, 0, 4958, 4982, 2));
+    // Only in a succeeded transaction: in a failed one the refund reverts
+    // with the frame, and the gas records and the base-fee BURN of
+    // 28,522 gas at 255,350,658,400 wei persist.
+    for status in [eth::TransactionTraceStatus::Reverted, eth::TransactionTraceStatus::Failed] {
+        let mut b = root();
+        b.transaction_traces[0].status = status.into();
+        assert!(selfdestruct_debits(&b).is_empty());
+        let rows = changes(&b).unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_rows(
+            &rows,
+            &[
+                (UNFLAGGED_ROOT_SENDER, "29516934340707822916", "29508771806210061506", 6544, 1),
+                (POLYGON_BURN_55M, "6164860758021577616214402", "6164860765304689095099202", 6551, 1),
+                (
+                    "7c7379531b2aee82e4ca06d4175d13b9cbeafd49",
+                    "3506568289788223073844734",
+                    "3506568290667646092721344",
+                    6552,
+                    1,
+                ),
+            ],
+        );
+        assert_eq!(
+            28_522u128 * 255_350_658_400,
+            6_164_860_765_304_689_095_099_202 - 6_164_860_758_021_577_616_214_402
+        );
+        let mut b = nested();
+        b.transaction_traces[0].status = status.into();
+        assert!(selfdestruct_debits(&b).is_empty());
+    }
+    // Only a SUICIDE_REFUND: as a TRANSFER the credit is no self-destruct,
+    // and the records are kept as they are.
+    let mut b = root();
+    root_call(&mut b).balance_changes[1].reason = Reason::Transfer.into();
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), None);
+    // Each near-shape below has no debit. Without the flag the refund is the
+    // only trace of the self-destruct, so the block fails instead of keeping
+    // a balance that may be wrong (`validate_unflagged_selfdestructs`, since
+    // v0.7.11).
+    let refused = |b: &eth::Block| selfdestruct_debits(b).is_empty() && refused_as_unflagged_selfdestruct(b);
+    // Exactly one: a second refund in the call, of a third account.
+    let mut b = nested();
+    nested_call(&mut b).balance_changes.insert(0, record(THIRD, 4948, 0, 1, Reason::SuicideRefund));
+    assert!(refused(&b));
+    // Of another account: a refund of the account itself not from zero, from
+    // the sender's balance or from `d` to `2d`, is refused. Its refund from
+    // zero, a self-destruct to itself, is left as it is
+    // (`an_unflagged_selfdestruct_to_itself_keeps_its_records`).
+    let mut b = root();
+    root_call(&mut b).balance_changes[1].address = hex::decode(UNFLAGGED_ROOT).unwrap();
+    assert!(refused(&b));
+    let mut b = root();
+    root_call(&mut b).balance_changes[1] = record(UNFLAGGED_ROOT, 6549, D, 2 * D, Reason::SuicideRefund);
+    assert!(refused(&b));
+    // A positive credit: a no-op or a debit.
+    for new in [29_508_771_806_210_061_506, 29_508_771_806_210_061_505] {
+        let mut b = root();
+        root_call(&mut b).balance_changes[1].new_value = wei(new).into();
+        assert!(refused(&b), "new value {new}");
+    }
+    // No SUICIDE_WITHDRAW in the call, even a no-op of a third account.
+    let mut b = nested();
+    nested_call(&mut b)
+        .balance_changes
+        .insert(0, record(THIRD, 4948, 0, 0, Reason::SuicideWithdraw));
+    assert!(refused(&b));
+    // No debit that the producer records, in the call or elsewhere in the
+    // transaction: such records may chain to zero, but no capture shows
+    // them in a call without the flag.
+    let mut b = root();
+    root_call(&mut b)
+        .balance_changes
+        .insert(1, record(UNFLAGGED_ROOT, 6548, D, 0, Reason::SuicideWithdraw));
+    assert!(refused(&b));
+    let mut b = nested();
+    let withdraw = record(UNFLAGGED_NESTED, 4934, UNFLAGGED_NESTED_D, 0, Reason::SuicideWithdraw);
+    b.transaction_traces[0].calls[0].balance_changes.insert(1, withdraw);
+    assert!(refused(&b));
+    // No record of the account before the refund in the transaction: a
+    // value credit before it, in the call or in the root call before the
+    // call. Without the debit the account would keep `d`, although a
+    // self-destruct to another account ends it at zero on the chain.
+    let mut b = root();
+    root_call(&mut b)
+        .balance_changes
+        .insert(1, record(UNFLAGGED_ROOT, 6545, D - 1, D, Reason::Transfer));
+    assert!(refused(&b));
+    let mut b = nested();
+    let credit = record(UNFLAGGED_NESTED, 4945, UNFLAGGED_NESTED_D - 1, UNFLAGGED_NESTED_D, Reason::Transfer);
+    b.transaction_traces[0].calls[0].balance_changes.insert(1, credit);
+    assert!(refused(&b));
+    // A record after the refund, in a later call, chains from the restored
+    // zero, as for a flagged call: the account survives an EIP-6780
+    // self-destruct and can be credited again. A credit from zero gives the
+    // account the credited balance; one from `d` breaks continuity.
+    let later = |old: u128, new: u128| {
+        let mut b = nested();
+        b.transaction_traces[0].calls[5]
+            .balance_changes
+            .push(record(UNFLAGGED_NESTED, 4984, old, new, Reason::Transfer));
+        b
+    };
+    assert_eq!(row_if_any(&later(0, 5), UNFLAGGED_NESTED), amounts(UNFLAGGED_NESTED_D, 5, 4949, 4984, 2));
+    assert!(discontinuous(&later(UNFLAGGED_NESTED_D, UNFLAGGED_NESTED_D + 5)));
+    // A record of the account in another transaction of the block checks
+    // `d`: the debit chains from an earlier balance of `d` and into a later
+    // record from zero.
+    fn with_transaction(mut b: eth::Block, index: u32, ordinal: u64, old: u128, new: u128) -> eth::Block {
+        let mut t = tx(eth::Call {
+            index: 1,
+            call_type: eth::CallType::CALL.into(),
+            begin_ordinal: ordinal - 1,
+            end_ordinal: ordinal + 1,
+            balance_changes: vec![record(UNFLAGGED_ROOT, ordinal, old, new, Reason::Transfer)],
+            ..Default::default()
+        });
+        (t.index, t.begin_ordinal, t.end_ordinal) = (index, ordinal - 2, ordinal + 2);
+        b.transaction_traces.push(t);
+        b.transaction_traces.sort_by_key(|t| t.begin_ordinal);
+        b
+    }
+    assert_eq!(
+        row_if_any(&with_transaction(root(), 86, 6500, 5, D), UNFLAGGED_ROOT),
+        amounts(5, 0, 6500, 6549, 2)
+    );
+    assert!(discontinuous(&with_transaction(root(), 86, 6500, 5, D + 1)));
+    assert_eq!(
+        row_if_any(&with_transaction(root(), 88, 6600, 0, 7), UNFLAGGED_ROOT),
+        amounts(D, 7, 6549, 6600, 2)
+    );
+    assert!(discontinuous(&with_transaction(root(), 88, 6600, 1, 7)));
+    // Not created in the transaction: a CREATE of the account before the
+    // refund. The second fixture's CREATE of another account does not
+    // matter.
+    let mut b = root();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(UNFLAGGED_ROOT).unwrap(),
+        begin_ordinal: 6545,
+        end_ordinal: 6546,
+        ..Default::default()
+    });
+    assert!(refused(&b));
+    // Only persisted calls count, as the shared rules keep them: a reverted
+    // CREATE of the account, a reverted call that credits it before the
+    // refund, or a reverted child of the call that pays out of it, persists
+    // nothing, and the debit is kept.
+    b.transaction_traces[0].calls[1].state_reverted = true;
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), restored_root);
+    let mut b = nested();
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 7,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CALL.into(),
+        caller: hex::decode(THIRD).unwrap(),
+        address: hex::decode(UNFLAGGED_NESTED).unwrap(),
+        state_reverted: true,
+        begin_ordinal: 4941,
+        end_ordinal: 4944,
+        balance_changes: vec![
+            record(THIRD, 4942, 5, 4, Reason::Transfer),
+            record(UNFLAGGED_NESTED, 4943, UNFLAGGED_NESTED_D, UNFLAGGED_NESTED_D + 1, Reason::Transfer),
+        ],
+        ..Default::default()
+    });
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), restored_nested);
+    let mut b = nested();
+    nested_call(&mut b).begin_ordinal = 4944;
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 7,
+        parent_index: 3,
+        depth: 2,
+        call_type: eth::CallType::CALL.into(),
+        caller: hex::decode(UNFLAGGED_NESTED).unwrap(),
+        address: hex::decode(THIRD).unwrap(),
+        state_reverted: true,
+        begin_ordinal: 4945,
+        end_ordinal: 4948,
+        balance_changes: vec![
+            record(UNFLAGGED_NESTED, 4946, UNFLAGGED_NESTED_D, UNFLAGGED_NESTED_D - 1, Reason::Transfer),
+            record(THIRD, 4947, 0, 1, Reason::Transfer),
+        ],
+        ..Default::default()
+    });
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), restored_nested);
+    // Not a STATICCALL, which cannot self-destruct.
+    let mut b = nested();
+    nested_call(&mut b).call_type = eth::CallType::STATIC.into();
+    assert!(refused(&b));
+    // The destroyed account is the execution context: a DELEGATECALL's or a
+    // CALLCODE's caller, here the beneficiary itself (refused: it has the
+    // refund's record) or another account.
+    let mut b = nested();
+    nested_call(&mut b).call_type = eth::CallType::DELEGATE.into();
+    assert!(refused(&b));
+    for kind in [eth::CallType::DELEGATE, eth::CallType::CALLCODE] {
+        let mut b = nested();
+        let call = nested_call(&mut b);
+        call.call_type = kind.into();
+        call.caller = hex::decode(THIRD).unwrap();
+        assert_eq!(row_if_any(&b, THIRD), restored_nested);
+        assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), None);
+    }
+    // The refund ends the frame. A later end ordinal alone keeps the debit;
+    // a record of the call or a child call after the refund is refused.
+    let mut b = nested();
+    nested_call(&mut b).end_ordinal = 4953;
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), restored_nested);
+    let mut later = b.clone();
+    nested_call(&mut later).balance_changes.push(record(THIRD, 4951, 0, 1, Reason::Transfer));
+    assert!(refused(&later));
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 7,
+        parent_index: 3,
+        depth: 2,
+        call_type: eth::CallType::CALL.into(),
+        begin_ordinal: 4950,
+        end_ordinal: 4951,
+        ..Default::default()
+    });
+    assert!(refused(&b));
+    // Every child call ends before the refund, and has an end ordinal. A
+    // child that ends before it keeps the debit, as in block 56,243,453. A
+    // refund within a child's ordinals belongs to the child's execution, so
+    // with the child flagged or not no account is debited, neither the
+    // call's context nor the child's, and the block is refused.
+    let child = |begin: u64, end: u64, suicide: bool| eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CALL.into(),
+        caller: hex::decode(UNFLAGGED_ROOT).unwrap(),
+        address: hex::decode(THIRD).unwrap(),
+        suicide,
+        begin_ordinal: begin,
+        end_ordinal: end,
+        ..Default::default()
+    };
+    let mut b = root();
+    root_call(&mut b).balance_changes[1].ordinal = 6548;
+    let restored_at_6548 = amounts(D, 0, 6548, 6548, 1);
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), restored_at_6548);
+    let mut before = b.clone();
+    before.transaction_traces[0].calls.push(child(6545, 6547, false));
+    assert_eq!(row_if_any(&before, UNFLAGGED_ROOT), restored_at_6548);
+    for (begin, end) in [(6547, 6549), (6545, 0)] {
+        for suicide in [false, true] {
+            let mut inside = b.clone();
+            inside.transaction_traces[0].calls.push(child(begin, end, suicide));
+            assert!(refused(&inside), "child {begin} to {end}, flag {suicide}");
+        }
+    }
+    // The refund within the call's ordinals: after its begin ordinal, and
+    // before its end ordinal, which it must have, with the base-fee BURN and
+    // the fee after the end.
+    let mut b = nested();
+    nested_call(&mut b).begin_ordinal = 4949;
+    assert!(refused(&b));
+    for end in [6549, 6548, 0, 6560] {
+        let mut b = root();
+        root_call(&mut b).end_ordinal = end;
+        assert!(refused(&b), "end ordinal {end}");
+    }
+}
+
+/// Since v0.7.11 a `SUICIDE_REFUND` in a persisted call without the
+/// self-destruct flag outside Polygon's shape, other than a self-destruct to
+/// itself, fails the block (`validate_unflagged_selfdestructs`), at the
+/// owner's direction (2026-10-20): the records of such a near-shape may keep
+/// the balance that the self-destruct moves away, as here. Built from block
+/// 55,741,124: a value credit of `0xeb0de914…` from `d − 1` to `d` at
+/// ordinal 6,545, before the refund in the root call of transaction
+/// `0x055a91ac…`.
+#[test]
+fn an_unflagged_selfdestruct_outside_the_shape_fails_the_block() {
+    use eth::balance_change::Reason;
+    const D: u128 = UNFLAGGED_ROOT_D;
+    let near = || {
+        let mut b = captured_polygon_unflagged_root();
+        let credit = eth::BalanceChange {
+            address: hex::decode(UNFLAGGED_ROOT).unwrap(),
+            old_value: wei(D - 1).into(),
+            new_value: wei(D).into(),
+            ordinal: 6545,
+            reason: Reason::Transfer.into(),
+        };
+        b.transaction_traces[0].calls[0].balance_changes.insert(1, credit);
+        b
+    };
+    // No rule restores the debit, and the records chain: the account would
+    // keep `d`. The block fails, naming the call, the transaction and the
+    // account, on every `Block.ver`.
+    let b = near();
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert_eq!(
+        changes(&b).unwrap_err().to_string(),
+        "unrecognized self-destruct without the self-destruct flag: call 1 of transaction \
+         0x055a91ac30a82427d6a3c7ad157b53dc549cdd3f2c4b04e8feec61b083f5da05 holds a SUICIDE_REFUND outside the shape whose \
+         debit is restored, so the balance of its execution context 0xeb0de914824c613ea396604f103a45945108346e after the \
+         self-destruct is unknown"
+    );
+    assert!(project(&b).is_err());
+    for ver in [4, 5] {
+        let mut other = near();
+        other.ver = ver;
+        assert!(refused_as_unflagged_selfdestruct(&other), "Block.ver {ver}");
+    }
+    // Checked after the reduction: records that break continuity keep that
+    // error.
+    let mut b = near();
+    let jump = eth::BalanceChange {
+        address: hex::decode(UNFLAGGED_ROOT).unwrap(),
+        old_value: wei(D + 1).into(),
+        new_value: wei(D + 2).into(),
+        ordinal: 6546,
+        reason: Reason::Transfer.into(),
+    };
+    b.transaction_traces[0].calls[0].balance_changes.insert(2, jump);
+    assert!(changes(&b).unwrap_err().to_string().contains("discontinuous"));
+    // Only a persisted call: in a failed transaction the credit and the
+    // refund revert with the frame, and the block passes with the gas
+    // records, the base-fee BURN and the fee.
+    for status in [eth::TransactionTraceStatus::Reverted, eth::TransactionTraceStatus::Failed] {
+        let mut b = near();
+        b.transaction_traces[0].status = status.into();
+        assert_eq!(changes(&b).unwrap().len(), 3);
+    }
+    // A reverted self-destruct moves nothing: with a value credit of
+    // `0xeba4fc1a…` in the root call of block 55,412,000's transaction
+    // `0xe8d9e1d3…` before its call 3, and call 3 reverted, the account keeps
+    // the credited balance and the block passes.
+    let mut b = captured_polygon_unflagged_nested();
+    let credit = eth::BalanceChange {
+        address: hex::decode(UNFLAGGED_NESTED).unwrap(),
+        old_value: wei(UNFLAGGED_NESTED_D - 1).into(),
+        new_value: wei(UNFLAGGED_NESTED_D).into(),
+        ordinal: 4945,
+        reason: Reason::Transfer.into(),
+    };
+    b.transaction_traces[0].calls[0].balance_changes.insert(1, credit);
+    assert!(refused_as_unflagged_selfdestruct(&b));
+    b.transaction_traces[0].calls[2].state_reverted = true;
+    assert_eq!(
+        row_if_any(&b, UNFLAGGED_NESTED),
+        Some(((UNFLAGGED_NESTED_D - 1).to_string(), UNFLAGGED_NESTED_D.to_string(), 4945, 4945, 1))
+    );
+    // With the flag, the same records are v0.7.8's shape, a self-destruct
+    // with other records before its credit, and the debit chains from the
+    // value credit.
+    let mut b = near();
+    b.transaction_traces[0].calls[0].suicide = true;
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), Some(((D - 1).to_string(), "0".to_string(), 6545, 6549, 2)));
+}
+
+/// Since Cancun (EIP-6780) an account not created in its transaction that
+/// self-destructs to itself keeps its balance `d`. Without the flag,
+/// Polygon's `Block.ver` 3 producer would record that as the account's own
+/// `SUICIDE_REFUND` from zero to `d`, its only record in the transaction;
+/// none is captured. Those records end at `d` and are left as they are, as
+/// up to v0.7.10 (`unflagged_selfdestruct_to_self`), and every other refund
+/// of the account itself fails the block. Built from blocks 55,741,124 (the
+/// root call of transaction `0x055a91ac…`, `0xeb0de914…`) and 55,412,000
+/// (call 3 of transaction `0xe8d9e1d3…`, `0xeba4fc1a…`), with the refund
+/// turned to the destroyed account.
+#[test]
+fn an_unflagged_selfdestruct_to_itself_keeps_its_records() {
+    use eth::balance_change::Reason;
+    const D: u128 = UNFLAGGED_ROOT_D;
+    const THIRD: &str = "1111111111111111111111111111111111111111";
+    fn record(address: &str, ordinal: u64, old: u128, new: u128, reason: Reason) -> eth::BalanceChange {
+        eth::BalanceChange {
+            address: hex::decode(address).unwrap(),
+            old_value: wei(old).into(),
+            new_value: wei(new).into(),
+            ordinal,
+            reason: reason.into(),
+        }
+    }
+    let amounts = |old: u128, new: u128, first: u64, last: u64, records: u32| Some((old.to_string(), new.to_string(), first, last, records));
+    let discontinuous = |b: &eth::Block| changes(b).is_err_and(|e| e.to_string().contains("discontinuous"));
+    let refused = |b: &eth::Block| selfdestruct_debits(b).is_empty() && refused_as_unflagged_selfdestruct(b);
+    // The root fixture's refund credits `0xeb0de914…` from zero to `d` at
+    // ordinal 6,549, before the call's end at 6,550.
+    let root = |old: u128, new: u128| {
+        let mut b = captured_polygon_unflagged_root();
+        b.transaction_traces[0].calls[0].balance_changes[1] = record(UNFLAGGED_ROOT, 6549, old, new, Reason::SuicideRefund);
+        b
+    };
+    let b = root(0, D);
+    assert!(selfdestruct_debits(&b).is_empty());
+    let rows = changes(&b).unwrap();
+    assert_rows(
+        &rows,
+        &[
+            (UNFLAGGED_ROOT, "0", "1391161138394424768831", 6549, 1),
+            (UNFLAGGED_ROOT_SENDER, "29516934340707822916", "29508771806210061506", 6544, 1),
+            (POLYGON_BURN_55M, "6164860758021577616214402", "6164860765304689095099202", 6551, 1),
+            (
+                "7c7379531b2aee82e4ca06d4175d13b9cbeafd49",
+                "3506568289788223073844734",
+                "3506568290667646092721344",
+                6552,
+                1,
+            ),
+        ],
+    );
+    assert_eq!(rows.len(), 4);
+    // The same rows as with the flag, on every `Block.ver`.
+    let mut flagged = b.clone();
+    flagged.transaction_traces[0].calls[0].suicide = true;
+    assert_eq!(changes(&flagged).unwrap(), rows);
+    for ver in [4, 5] {
+        let mut other = b.clone();
+        other.ver = ver;
+        assert_eq!(changes(&other).unwrap(), rows);
+    }
+    // In a depth-1 CALL: call 3 of the second fixture, whose caller
+    // `0xd98be101…` then pays the sender and funds `0xc3e92661…` from its
+    // balance before the transaction.
+    let mut b = captured_polygon_unflagged_nested();
+    b.transaction_traces[0].calls[2].balance_changes[0] = record(UNFLAGGED_NESTED, 4949, 0, UNFLAGGED_NESTED_D, Reason::SuicideRefund);
+    assert!(selfdestruct_debits(&b).is_empty());
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED), amounts(0, UNFLAGGED_NESTED_D, 4949, 4949, 1));
+    assert_eq!(row_if_any(&b, UNFLAGGED_NESTED_CALLER), amounts(UNFLAGGED_NESTED_D, 0, 4958, 4982, 2));
+    // The refund's zero old value is checked against the account's records
+    // in earlier transactions of the block, and its later records chain from
+    // `d`.
+    fn with_transaction(mut b: eth::Block, index: u32, ordinal: u64, old: u128, new: u128) -> eth::Block {
+        let mut t = tx(eth::Call {
+            index: 1,
+            call_type: eth::CallType::CALL.into(),
+            begin_ordinal: ordinal - 1,
+            end_ordinal: ordinal + 1,
+            balance_changes: vec![record(UNFLAGGED_ROOT, ordinal, old, new, Reason::Transfer)],
+            ..Default::default()
+        });
+        (t.index, t.begin_ordinal, t.end_ordinal) = (index, ordinal - 2, ordinal + 2);
+        b.transaction_traces.push(t);
+        b.transaction_traces.sort_by_key(|t| t.begin_ordinal);
+        b
+    }
+    assert!(discontinuous(&with_transaction(root(0, D), 86, 6500, 5, D)));
+    assert_eq!(
+        row_if_any(&with_transaction(root(0, D), 88, 6600, D, 7), UNFLAGGED_ROOT),
+        amounts(0, 7, 6549, 6600, 2)
+    );
+    assert!(discontinuous(&with_transaction(root(0, D), 88, 6600, 0, 7)));
+    // Refused: a refund of the account itself from `d` to `2d` (as Arbitrum
+    // One's producer records a legacy self-destruct to itself, which burns
+    // the balance), from the sender's balance, or from zero to zero.
+    assert!(refused(&root(D, 2 * D)));
+    assert!(refused(&root(29_508_771_806_210_061_506, 1_420_669_910_200_634_830_337)));
+    assert!(refused(&root(0, 0)));
+    // Refused: another persisted record of the account in the transaction,
+    // after the refund (in the call past its end, or in a later call) or
+    // before it (a payment of its whole balance in a child call, which
+    // chains into the refund from zero). In a reverted child call it does not
+    // count.
+    let mut b = root(0, D);
+    b.transaction_traces[0].calls[0]
+        .balance_changes
+        .push(record(UNFLAGGED_ROOT, 6553, D, D + 1, Reason::Transfer));
+    assert!(refused(&b));
+    let mut b = captured_polygon_unflagged_nested();
+    b.transaction_traces[0].calls[2].balance_changes[0] = record(UNFLAGGED_NESTED, 4949, 0, UNFLAGGED_NESTED_D, Reason::SuicideRefund);
+    b.transaction_traces[0].calls[5]
+        .balance_changes
+        .push(record(UNFLAGGED_NESTED, 4984, UNFLAGGED_NESTED_D, UNFLAGGED_NESTED_D + 5, Reason::Transfer));
+    assert!(refused(&b));
+    let mut b = root(0, D);
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CALL.into(),
+        caller: hex::decode(UNFLAGGED_ROOT).unwrap(),
+        address: hex::decode(THIRD).unwrap(),
+        state_reverted: true,
+        begin_ordinal: 6545,
+        end_ordinal: 6548,
+        balance_changes: vec![
+            record(UNFLAGGED_ROOT, 6546, 5, 0, Reason::Transfer),
+            record(THIRD, 6547, 0, 5, Reason::Transfer),
+        ],
+        ..Default::default()
+    });
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), amounts(0, D, 6549, 6549, 1));
+    b.transaction_traces[0].calls[1].state_reverted = false;
+    assert!(refused(&b));
+    // Refused: an account created in the transaction, which the
+    // self-destruct destroys; a reverted CREATE does not count.
+    let mut b = root(0, D);
+    b.transaction_traces[0].calls.push(eth::Call {
+        index: 2,
+        parent_index: 1,
+        depth: 1,
+        call_type: eth::CallType::CREATE.into(),
+        address: hex::decode(UNFLAGGED_ROOT).unwrap(),
+        state_reverted: true,
+        begin_ordinal: 6545,
+        end_ordinal: 6546,
+        ..Default::default()
+    });
+    assert_eq!(row_if_any(&b, UNFLAGGED_ROOT), amounts(0, D, 6549, 6549, 1));
+    b.transaction_traces[0].calls[1].state_reverted = false;
+    assert!(refused(&b));
+    // Refused: a refund that does not end the call's frame, a STATICCALL, a
+    // SUICIDE_WITHDRAW in the call, or a second refund.
+    for end in [6549, 0] {
+        let mut b = root(0, D);
+        b.transaction_traces[0].calls[0].end_ordinal = end;
+        assert!(refused(&b), "end ordinal {end}");
+    }
+    let mut b = root(0, D);
+    b.transaction_traces[0].calls[0].call_type = eth::CallType::STATIC.into();
+    assert!(refused(&b));
+    for (reason, new) in [(Reason::SuicideWithdraw, 0), (Reason::SuicideRefund, 1)] {
+        let mut b = root(0, D);
+        b.transaction_traces[0].calls[0].balance_changes.insert(1, record(THIRD, 6548, 0, new, reason));
+        assert!(refused(&b), "{reason:?}");
+    }
+}
+
+/// An unflagged self-destruct in a subtree of a recognized Bor state-sync
+/// transaction, built from block 70,044,000: call 7, a CALL from
+/// `0x553bc791…` to `0x712f0cf3…` at ordinals 3,274 to 3,279 without records,
+/// given a refund of 5 wei to its caller at 3,278. The transaction keeps its
+/// shape, since `bor_state_sync` reads the self-destruct flag, and the debit,
+/// which has no depth-1 position, sorts after the transaction's records. That
+/// is safe because in such a transaction the destroyed account may have no
+/// other record: a later credit of it fails the block.
+#[test]
+fn an_unflagged_selfdestruct_in_a_state_sync_subtree_is_restored() {
+    use eth::balance_change::Reason;
+    const CONTEXT: &str = "712f0cf37bdb8299d0666727f73a5caba7c1c24c";
+    const CALLER: &str = "553bc791d746767166fa3888432038193ceed5e2";
+    let mut b = captured_polygon_state_sync();
+    let before = all_rows(&b);
+    let call = state_sync_call(&mut b, 7);
+    assert_eq!(
+        (hex::encode(&call.caller), hex::encode(&call.address), call.begin_ordinal, call.end_ordinal),
+        (CALLER.to_string(), CONTEXT.to_string(), 3274, 3279)
+    );
+    assert!(call.balance_changes.is_empty() && !call.suicide);
+    call.balance_changes.push(eth::BalanceChange {
+        address: hex::decode(CALLER).unwrap(),
+        old_value: wei(0).into(),
+        new_value: wei(5).into(),
+        ordinal: 3278,
+        reason: Reason::SuicideRefund.into(),
+    });
+    assert!(bor_state_sync(&b).is_some());
+    let mut five = [0; 32];
+    five[31] = 5;
+    let debit = Record {
+        address: hex::decode(CONTEXT).unwrap(),
+        old_value: Some(five.to_vec()),
+        new_value: Some(vec![0; 32]),
+        ordinal: 3278,
+        reason: Reason::SuicideWithdraw as i32,
+        scope: persist::Scope::Tx,
+        state_sync_call: None,
+    };
+    assert_eq!(selfdestruct_debits(&b), [debit]);
+    // The credit has the position of the first depth-1 call, call 2; the
+    // debit has none.
+    let caller = hex::decode(CALLER).unwrap();
+    let placed: Vec<_> = records(&b)
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.address == caller)
+        .map(|r| r.state_sync_call)
+        .collect();
+    assert_eq!(placed, [Some((3250, 0))]);
+    // The five rows of the block are unchanged, and the two accounts gain
+    // theirs.
+    assert_eq!(before.len(), 5);
+    let mut expected = before;
+    expected.extend(expected_rows(&[(CALLER, "0", "5", 3278, 3278, 1), (CONTEXT, "5", "0", 3278, 3278, 1)]));
+    expected.sort();
+    let mut after = all_rows(&b);
+    after.sort();
+    assert_eq!(after, expected);
+    // The subtrees restart the ordinals, so an ordinal does not tell before
+    // from after here. A credit of the account from zero to 5 in a later
+    // subtree (call 63, under call 33) would sort before the debit and chain
+    // to zero, although the account ends at 5. So in this transaction any
+    // other record of the account leaves the debit out and fails the block.
+    let mut later = b.clone();
+    state_sync_call(&mut later, 63).balance_changes.push(eth::BalanceChange {
+        address: hex::decode(CONTEXT).unwrap(),
+        old_value: wei(0).into(),
+        new_value: wei(5).into(),
+        ordinal: 3423,
+        reason: Reason::Transfer.into(),
+    });
+    assert!(bor_state_sync(&later).is_some());
+    assert!(selfdestruct_debits(&later).is_empty());
+    assert!(refused_as_unflagged_selfdestruct(&later));
 }
 
 /// Arbitrum One block 250,005,039 (`Block.ver` 3) as captured from Firehose:
@@ -4671,13 +5481,13 @@ fn an_arbitrum_selfdestruct_to_itself_of_an_existing_account_fails_the_block() {
         ]
     );
     // These records chain and end at zero, while since Cancun (EIP-6780) the
-    // account keeps `d`: without the self-destruct flag the block passes
-    // with the account at zero, and no other self-destruct rule takes them.
+    // account keeps `d`, and no other self-destruct rule takes them. Without
+    // the self-destruct flag they pass the continuity check, and the block
+    // fails only as an unflagged refund outside Polygon's shape (since
+    // v0.7.11), which is checked after the reduction.
     let mut unflagged = b.clone();
     unflagged.transaction_traces[0].calls[0].suicide = false;
-    let rows = changes(&unflagged).unwrap();
-    let row = row_of(&rows, &account);
-    assert_eq!((row.amount.as_str(), row.records), ("0", 4));
+    assert!(refused_as_unflagged_selfdestruct(&unflagged));
     let persisted = records(&b).unwrap();
     assert!(stale_selfdestruct_withdraws(&b, &persisted).is_empty());
     assert!(selfdestruct_to_self_pairs(&b).is_empty());
@@ -4972,10 +5782,12 @@ fn the_arbitrum_selfdestruct_to_itself_repeat_is_exact() {
         ..Default::default()
     });
     assert_eq!(account(&b), ("0".to_string(), 4));
-    // Only of a persisted call of a succeeded transaction.
+    // Only of a self-destructing call. Without the flag the records would
+    // end at zero, but the refund is outside Polygon's unflagged shape, so
+    // the block fails (since v0.7.11).
     let mut b = captured();
     root(&mut b).suicide = false;
-    assert_eq!(account(&b), ("0".to_string(), 4));
+    assert!(refused_as_unflagged_selfdestruct(&b));
     // The same holds for the shape the tests built from block 514,819,388,
     // once it is an Arbitrum block since ArbOS 20.
     let to_itself = || on_arbitrum(arbitrum_selfdestruct_to_itself(), 51);

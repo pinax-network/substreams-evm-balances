@@ -1170,60 +1170,286 @@ fn fee_pool_payouts(block: &eth::Block) -> Vec<Record> {
 /// context: its caller for DELEGATECALL and CALLCODE, its address otherwise.
 /// A producer that records the debit in another shape breaks the continuity
 /// check instead.
+///
+/// Since v0.7.11 the call may also lack the self-destruct flag, in Polygon's
+/// exact shape ([`unflagged_selfdestruct`]). From Napoli (block 54,876,000,
+/// Bor's Cancun, which brings EIP-6780) an account not created in its
+/// transaction that self-destructs to another account keeps its code and ends
+/// at zero, and Polygon's producer of `Block.ver` 3 records only the
+/// beneficiary's `SUICIDE_REFUND`, in a call without the self-destruct flag,
+/// and no record of the account. In block 55,741,124 the root call of
+/// transaction `0x055a91ac…` from `0xd55ffe27…` self-destructs `0xeb0de914…`,
+/// which holds 1,391.161138394424768831 POL, to the sender: the refund at
+/// ordinal 6,549, the call's end at 6,550. In block 55,412,000 a depth-1 call
+/// of transaction `0xe8d9e1d3…` self-destructs `0xeba4fc1a…`, which holds 19.8
+/// POL, to its caller `0xd98be101…`, credited from zero, which then pays the
+/// sender and funds a contract it creates: the refund at ordinal 4,949, the
+/// call's end at 4,950. The RPC-era rows read zero for both accounts at the
+/// block. 58 of the 61 accounts whose balance native v0.7.8 keeps where the
+/// RPC-era rows read zero are located in this shape, each credit equal to
+/// that balance (1,692.965576605578290276 POL in all): 56 in the 61 blocks
+/// first fetched on 2026-10-20, from block 55,412,000 to 71,461,200, and 2
+/// more in blocks 56,042,508 and 58,697,458
+/// ([`validate_unflagged_selfdestructs`]). The last 3 (1.2 POL) lie in
+/// blocks not fetched. The producer flags the self-destruct of an account
+/// created in the transaction (block 70,000,124 above). The restored debit
+/// is the one of a flagged call. It is not gated to a network, a `Block.ver`
+/// or a fork: a self-destruct to another account leaves the account at zero
+/// under the legacy opcode and EIP-6780 alike. Any other `SUICIDE_REFUND` in
+/// a persisted transaction call without the flag fails the block, except the
+/// account's own refund from zero of a self-destruct to itself
+/// ([`validate_unflagged_selfdestructs`]).
 fn selfdestruct_debits(block: &eth::Block) -> Vec<Record> {
-    use eth::balance_change::Reason;
+    let state_sync = bor_state_sync(block).map(|s| s.tx_index);
     let mut debits = Vec::new();
     for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
-        for call in trx.calls.iter().filter(|c| c.suicide && !c.state_reverted) {
+        let ordered = state_sync != Some(trx.index);
+        debits.extend(
+            trx.calls
+                .iter()
+                .filter(|c| !c.state_reverted)
+                .filter_map(|call| selfdestruct_debit(trx, call, ordered)),
+        );
+    }
+    debits
+}
+
+/// The debit that [`selfdestruct_debits`] restores for `call`, a persisted
+/// call of `trx`, if it has one. `ordered` tells whether the ordinals of
+/// `trx` follow its execution, as everywhere except in a recognized Bor
+/// state-sync transaction, whose subtrees restart them ([`bor_state_sync`]).
+fn selfdestruct_debit(trx: &eth::TransactionTrace, call: &eth::Call, ordered: bool) -> Option<Record> {
+    use eth::balance_change::Reason;
+    let destroyed = match call.call_type.as_known() {
+        Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
+        _ => &call.address,
+    };
+    let is = |c: &eth::BalanceChange, reason: Reason| c.reason.as_known() == Some(reason);
+    let refunds: Vec<_> = call.balance_changes.iter().filter(|c| is(c, Reason::SuicideRefund)).collect();
+    let [credit] = refunds.as_slice() else {
+        return None;
+    };
+    // Without the self-destruct flag only in Polygon's exact shape (since
+    // v0.7.11).
+    if !call.suicide && !unflagged_selfdestruct(trx, call, destroyed, credit, ordered) {
+        return None;
+    }
+    let withdrawn = trx
+        .calls
+        .iter()
+        .flat_map(|c| &c.balance_changes)
+        .any(|c| is(c, Reason::SuicideWithdraw) && c.address == *destroyed);
+    if credit.address == *destroyed
+        || withdrawn
+        || call
+            .balance_changes
+            .iter()
+            .any(|c| is(c, Reason::SuicideWithdraw) || (c.address == *destroyed && c.ordinal > credit.ordinal))
+    {
+        return None;
+    }
+    let old = value(credit.old_value.as_option().map(|v| v.bytes.as_slice())).ok()?;
+    let new = value(credit.new_value.as_option().map(|v| v.bytes.as_slice())).ok()?;
+    let [old, new] = [old, new].map(|w| BigInt::from_unsigned_bytes_be(&w));
+    if new <= old {
+        return None;
+    }
+    let moved = word(&(new - old).to_bytes_be().1).ok()?;
+    Some(Record {
+        address: destroyed.clone(),
+        old_value: Some(moved.to_vec()),
+        new_value: Some([0; 32].to_vec()),
+        ordinal: credit.ordinal,
+        reason: Reason::SuicideWithdraw as i32,
+        scope: persist::Scope::Tx,
+        state_sync_call: None,
+    })
+}
+
+/// Whether a call without the self-destruct flag that holds exactly one
+/// `SUICIDE_REFUND`, `credit`, is the self-destruct of `destroyed`, its
+/// execution context, as Polygon's producer of `Block.ver` 3 records it
+/// since Napoli ([`selfdestruct_debits`]): the call is not a STATICCALL,
+/// which cannot self-destruct; no persisted CREATE of the transaction
+/// creates `destroyed`; the transaction holds no persisted balance record of
+/// `destroyed` before the refund; and the refund is the last thing the call
+/// does ([`ends_frame`]). That is, the refund lies after the call's begin ordinal and before
+/// its end ordinal, it is the call's only balance record from its ordinal to
+/// the end ordinal, and every child call of the call ends before it: a
+/// `SELFDESTRUCT` ends its frame, and a refund within a child's ordinals
+/// belongs to the child's execution. A call or a child call without an end
+/// ordinal does not match. In each of the 58 captured calls the refund is at
+/// the call's end ordinal less one, and only one of them has child calls
+/// (block 56,243,453, transaction `0x622c26e6…`: a DELEGATECALL and a CALL
+/// that end at ordinals 5,031 and 5,037, the refund at 5,040). The root
+/// call's records after its end ordinal (the gas refund, the base-fee `BURN`
+/// and the fee) follow the execution and do not matter. Persisted means in a
+/// call that is not reverted, as the shared rules keep it: a reverted call's
+/// records and CREATE do not persist, so they do not count.
+///
+/// Records of `destroyed` after the refund, in later calls of the
+/// transaction, chain from the restored zero, and the continuity check
+/// verifies them, as for a flagged call: an account not created in its
+/// transaction survives an EIP-6780 self-destruct and can be credited again.
+/// None of the 58 captured has one. In a Bor state-sync transaction (not
+/// `ordered`), whose subtrees restart the ordinals, an ordinal does not tell
+/// before from after, and the restored debit sorts after the transaction's
+/// records (`bor_state_sync`), so there the transaction must hold no
+/// persisted record of `destroyed` at all. Without the flag the refund is the only
+/// evidence of the self-destruct, so the rest of the shape is held to what
+/// the captures show. A call without the flag whose `SUICIDE_REFUND` is in
+/// another shape, such as the self-destruct of an account with a record
+/// before it in the transaction (a value credit before the self-destruct) or
+/// created there, fails the block ([`validate_unflagged_selfdestructs`]).
+fn unflagged_selfdestruct(trx: &eth::TransactionTrace, call: &eth::Call, destroyed: &[u8], credit: &eth::BalanceChange, ordered: bool) -> bool {
+    let persisted = || trx.calls.iter().filter(|c| !c.state_reverted);
+    let writable = call.call_type.as_known() != Some(eth::CallType::STATIC);
+    let created = persisted().any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == destroyed);
+    let recorded = persisted()
+        .flat_map(|c| &c.balance_changes)
+        .any(|c| c.address == destroyed && (c.ordinal < credit.ordinal || !ordered));
+    writable && !created && !recorded && ends_frame(trx, call, credit)
+}
+
+/// Whether `record`, a balance record of `call` in `trx`, is the call's last
+/// act, as a `SELFDESTRUCT` ends its frame: it lies after the call's begin
+/// ordinal and before its end ordinal, it is the call's only balance record
+/// from its ordinal to the end ordinal, and every child call of the call
+/// ends before it. A call or a child call without an end ordinal does not
+/// match ([`unflagged_selfdestruct`], [`unflagged_selfdestruct_to_self`]).
+fn ends_frame(trx: &eth::TransactionTrace, call: &eth::Call, record: &eth::BalanceChange) -> bool {
+    let to_end = |ordinal: u64| ordinal >= record.ordinal && ordinal <= call.end_ordinal;
+    call.begin_ordinal < record.ordinal
+        && record.ordinal < call.end_ordinal
+        && call.balance_changes.iter().filter(|c| to_end(c.ordinal)).count() == 1
+        && trx
+            .calls
+            .iter()
+            .filter(|c| c.parent_index == call.index && c.index != call.index)
+            .all(|c| c.end_ordinal != 0 && c.end_ordinal < record.ordinal)
+}
+
+/// Whether `call`, a persisted transaction call of `trx` without the
+/// self-destruct flag, is a self-destruct of `destroyed`, its execution
+/// context, to itself in the one shape whose records keep the right balance
+/// as they are, which [`validate_unflagged_selfdestructs`] therefore does
+/// not refuse. Since Cancun (EIP-6780) an account not created in its
+/// transaction that self-destructs to itself keeps its balance `d`. Judging
+/// by its 58 captured self-destructs, which record only the beneficiary's
+/// refund of the account's whole balance and nothing of the account,
+/// Polygon's producer of `Block.ver` 3 would record one as the account's own
+/// `SUICIDE_REFUND` from zero to `d`, as Ethereum's producer of `Block.ver` 3
+/// records the credit of a flagged one (block 19,481,732, transaction
+/// `0x833a78e6…`, [`selfdestruct_to_self_pairs`]); none is captured. The
+/// records then end at `d`, as up to v0.7.10, and are left as they are: the
+/// call is not a STATICCALL, its only `SUICIDE_REFUND` credits `destroyed`
+/// from zero to a positive balance, the call holds no `SUICIDE_WITHDRAW`, no
+/// persisted CREATE of the transaction creates `destroyed`, the refund is the
+/// only persisted record of `destroyed` in the transaction, and it ends the
+/// call's frame ([`ends_frame`]). The refund's zero old value is checked
+/// against an earlier record of the account in the block, as any record is.
+/// Any other such refund of the account itself fails the block: one from a
+/// positive balance (Arbitrum One's producer records a legacy self-destruct
+/// to itself, which burns the balance, as a refund from `d` to `2d`, block
+/// 161,626,224), one with another record of the account in the transaction,
+/// or one of an account created there, which the self-destruct destroys.
+fn unflagged_selfdestruct_to_self(trx: &eth::TransactionTrace, call: &eth::Call, destroyed: &[u8]) -> bool {
+    use eth::balance_change::Reason;
+    let is = |c: &eth::BalanceChange, reason: Reason| c.reason.as_known() == Some(reason);
+    let refunds: Vec<_> = call.balance_changes.iter().filter(|c| is(c, Reason::SuicideRefund)).collect();
+    let [credit] = refunds.as_slice() else {
+        return false;
+    };
+    let (Ok(old), Ok(new)) = (
+        value(credit.old_value.as_option().map(|v| v.bytes.as_slice())),
+        value(credit.new_value.as_option().map(|v| v.bytes.as_slice())),
+    ) else {
+        return false;
+    };
+    let persisted = || trx.calls.iter().filter(|c| !c.state_reverted);
+    credit.address == destroyed
+        && old == [0; 32]
+        && new != [0; 32]
+        && call.call_type.as_known() != Some(eth::CallType::STATIC)
+        && !call.balance_changes.iter().any(|c| is(c, Reason::SuicideWithdraw))
+        && !persisted().any(|c| c.call_type.as_known() == Some(eth::CallType::CREATE) && c.address == destroyed)
+        && persisted().flat_map(|c| &c.balance_changes).filter(|c| c.address == destroyed).count() == 1
+        && ends_frame(trx, call, credit)
+}
+
+/// Without the self-destruct flag a `SUICIDE_REFUND` is the only trace of a
+/// self-destruct: Polygon's producer of `Block.ver` 3 records no debit of
+/// the account ([`selfdestruct_debits`]). Where the refund is not in the
+/// exact shape whose debit `selfdestruct_debits` restores, nothing debits the
+/// account and no continuity check sees it: the account keeps the balance
+/// that the self-destruct moved away, as up to v0.7.10 for all 58 located
+/// ones. At the owner's direction (2026-10-20) such near-shapes fail the
+/// block instead of keeping a balance that may be wrong: the self-destruct of
+/// an account created in the transaction or with a record there before it (a
+/// value credit before the self-destruct), two refunds in the call, a refund
+/// that moves nothing or debits, a refund of the account itself other than
+/// the one below, a `SUICIDE_WITHDRAW` in the call, a refund that does not
+/// end the call's frame or lies within a child call's ordinals, a refund in a
+/// STATICCALL. Most of them keep the balance that the self-destruct moved
+/// away. One refused shape may chain to the right balance: a debit that the
+/// producer records itself, whose records chain to zero; without the flag no
+/// capture shows what it stands for, so it stops the stream for a capture and
+/// a decision. Not refused: a self-destruct to itself recorded as the
+/// account's own refund from zero to `d`, its only record in the
+/// transaction, in an account not created there, whose records end at `d`,
+/// the balance EIP-6780 leaves it, as up to v0.7.10
+/// ([`unflagged_selfdestruct_to_self`]).
+///
+/// Refused: a persisted transaction call (non-reverted, in a succeeded
+/// transaction) without the self-destruct flag that holds a `SUICIDE_REFUND`,
+/// has no debit in `selfdestruct_debits` ([`selfdestruct_debit`]) and is not
+/// that self-destruct to itself. This refuses no saved block: in the blocks
+/// and fixtures of every supported network saved by 2026-10-20 (the
+/// cross-chain survey's 36,405 transactions of Ethereum, BNB Chain, Polygon,
+/// Arbitrum One, Base, Optimism, Unichain and HyperEVM, with the 61 Polygon
+/// blocks first fetched for v0.7.11, and blocks 56,042,508 and 58,697,458),
+/// every
+/// `SUICIDE_REFUND` of a call without the flag is the credit of one of the
+/// 58 Polygon self-destructs whose debit is restored: 56 in those 61 blocks,
+/// and 2 in root calls that refund the sender, in block 56,042,508
+/// (transaction `0xc1c95e38…`, `0x44819973…`, 1 POL, the refund at ordinal
+/// 6,291, the call's end at 6,292) and block 58,697,458 (`0xd7d59078…`,
+/// `0x086d5f9a…`, 2 POL, at 3,445, the end at 3,446). Every other
+/// `SUICIDE_REFUND` is in a flagged call, which the flagged shapes and the
+/// continuity check handle as before. The refund of a reverted call or a
+/// failed transaction does not persist, so it is not checked. System calls
+/// and block-level records hold no `SUICIDE_REFUND` in the saved data and,
+/// as for every self-destruct rule, are not read. Like the restored debit,
+/// the refusal is not gated to a network, a `Block.ver` or a fork. It is
+/// checked after the reduction (`changes`), so records that already break
+/// continuity keep that error.
+fn validate_unflagged_selfdestructs(block: &eth::Block) -> Result<(), Error> {
+    let refund = |c: &eth::BalanceChange| c.reason.as_known() == Some(eth::balance_change::Reason::SuicideRefund);
+    let state_sync = bor_state_sync(block).map(|s| s.tx_index);
+    for trx in block.transaction_traces.iter().filter(|t| !persist::is_failed(t)) {
+        let ordered = state_sync != Some(trx.index);
+        for call in trx.calls.iter().filter(|c| !c.suicide && !c.state_reverted) {
             let destroyed = match call.call_type.as_known() {
                 Some(eth::CallType::DELEGATE | eth::CallType::CALLCODE) => &call.caller,
                 _ => &call.address,
             };
-            let is = |c: &eth::BalanceChange, reason: Reason| c.reason.as_known() == Some(reason);
-            let refunds: Vec<_> = call.balance_changes.iter().filter(|c| is(c, Reason::SuicideRefund)).collect();
-            let [credit] = refunds.as_slice() else {
-                continue;
-            };
-            let withdrawn = trx
-                .calls
-                .iter()
-                .flat_map(|c| &c.balance_changes)
-                .any(|c| is(c, Reason::SuicideWithdraw) && c.address == *destroyed);
-            if credit.address == *destroyed
-                || withdrawn
-                || call
-                    .balance_changes
-                    .iter()
-                    .any(|c| is(c, Reason::SuicideWithdraw) || (c.address == *destroyed && c.ordinal > credit.ordinal))
+            if call.balance_changes.iter().any(refund)
+                && selfdestruct_debit(trx, call, ordered).is_none()
+                && !unflagged_selfdestruct_to_self(trx, call, destroyed)
             {
-                continue;
+                let hex = |bytes: &[u8]| bytes.iter().map(|b| format!("{b:02x}")).collect::<String>();
+                return Err(Error::msg(format!(
+                    "unrecognized self-destruct without the self-destruct flag: call {} of transaction 0x{} holds a SUICIDE_REFUND \
+                     outside the shape whose debit is restored, so the balance of its execution context 0x{} after the self-destruct \
+                     is unknown",
+                    call.index,
+                    hex(&trx.hash),
+                    hex(destroyed)
+                )));
             }
-            let words = (
-                value(credit.old_value.as_option().map(|v| v.bytes.as_slice())),
-                value(credit.new_value.as_option().map(|v| v.bytes.as_slice())),
-            );
-            let (Ok(old), Ok(new)) = words else {
-                continue;
-            };
-            let [old, new] = [old, new].map(|w| BigInt::from_unsigned_bytes_be(&w));
-            if new <= old {
-                continue;
-            }
-            let Ok(moved) = word(&(new - old).to_bytes_be().1) else {
-                continue;
-            };
-            debits.push(Record {
-                address: destroyed.clone(),
-                old_value: Some(moved.to_vec()),
-                new_value: Some([0; 32].to_vec()),
-                ordinal: credit.ordinal,
-                reason: eth::balance_change::Reason::SuicideWithdraw as i32,
-                scope: persist::Scope::Tx,
-                state_sync_call: None,
-            });
         }
     }
-    debits
+    Ok(())
 }
 
 /// Since Cancun (EIP-6780) a self-destruct to itself of an account not created
@@ -2178,6 +2404,14 @@ struct StateSync {
 /// by depth-1 call and ordinal (`changes`), and the continuity check verifies
 /// them. Any other shape keeps the ordinal order, unless its subtrees' records
 /// do not follow call order (`unrecognized_bor_state_sync`).
+///
+/// The rule that no call self-destructs reads the self-destruct flag. Since
+/// v0.7.11 a call of a subtree without the flag can still be a self-destruct
+/// whose debit `selfdestruct_debits` restores (`unflagged_selfdestruct`). That
+/// debit has no depth-1 position (`state_sync_call` is `None`), so its
+/// ordinal places it after every record of the transaction and before the
+/// next transaction's. The order is safe because in this transaction the
+/// rule requires that the destroyed account have no other persisted record.
 fn bor_state_sync(block: &eth::Block) -> Option<StateSync> {
     let (trx, earlier, span) = match block.transaction_traces.as_slice() {
         [earlier @ .., trx, span] if is_bor_span_commit(span) => (trx, earlier, Some(span)),
@@ -2370,8 +2604,10 @@ fn execution_order(record: &Record) -> Order {
 /// restored from the `n -> n` record the shared rules drop, so the pool must
 /// chain through it. The debit of an account destroyed by an EIP-6780
 /// self-destruct (`selfdestruct_debits`) is restored from its beneficiary's
-/// credit, so the account must chain through it. An OP-stack fee vault's fee
-/// credit after the execution of a transaction that moved value out of or
+/// credit, also where Polygon's producer leaves the self-destructing call
+/// without its flag (since v0.7.11), so the account must chain through it. An
+/// OP-stack fee vault's fee credit after the execution of a transaction that
+/// moved value out of or
 /// into the vault (`fee_vault_credit_rewrites`) is rewritten to start from
 /// the vault's balance after the execution, so the vault's next record must
 /// chain from it plus the fee. The
@@ -2380,7 +2616,12 @@ fn execution_order(record: &Record) -> Order {
 /// refund's doubled balance, so the account must chain through it. A
 /// self-destruct to itself whose records chain to zero although the account
 /// keeps its balance fails the block (`validate_selfdestructs_to_self`),
-/// unless its repeat is dropped.
+/// unless its repeat is dropped. So does a `SUICIDE_REFUND` in a persisted
+/// transaction call without the self-destruct flag whose debit
+/// `selfdestruct_debits` does not restore, other than the account's own
+/// refund from zero of a self-destruct to itself
+/// (`validate_unflagged_selfdestructs`, since v0.7.11), checked after the
+/// reduction, so records that break continuity keep that error.
 pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     let mut records = records(block)?;
     // Returned after the reduction, so a dropped record that breaks continuity
@@ -2391,6 +2632,9 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
     // dropped.
     let to_self_repeats = selfdestruct_to_self_repeats(block, &records, arbos);
     validate_selfdestructs_to_self(block, &to_self_repeats)?;
+    // Returned after the reduction, so a near-shape whose records already
+    // break continuity keeps that error.
+    let unflagged = validate_unflagged_selfdestructs(block);
     let mut pairs = self_transfer_pairs(block);
     pairs.extend(selfdestruct_to_self_pairs(block));
     pairs.extend(stale_selfdestruct_withdraws(block, &records));
@@ -2461,6 +2705,7 @@ pub fn changes(block: &eth::Block) -> Result<Vec<Change>, Error> {
         }
     }
     outside_execution?;
+    unflagged?;
     Ok(rows.into_values().map(|(row, _, _)| row).collect())
 }
 
