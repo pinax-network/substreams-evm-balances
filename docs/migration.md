@@ -15,7 +15,7 @@ and its Rust diagnostic tools. The original directory depth is retained so
 captured fixtures, report links and audit commands keep their paths.
 Unrelated protocol modules, `common`, database-change dependencies, `db_out`
 modules and custom database sinks were not migrated. The workspace has since
-grown to the packages in the [README](../README.md#layout); the tools were
+grown to the packages in the [README](../README.md#whats-included); the tools were
 removed on 2026-10-03. From 2026-10-05 the combined `evm-balances` package was
 its one `db_out`; since v0.7.0 (2026-10-13) each balance package carries its
 own ([ClickHouse](clickhouse.md)).
