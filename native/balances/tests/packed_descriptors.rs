@@ -3,9 +3,10 @@
 use buffa::{UnknownFieldData, UnknownFields};
 use std::collections::{BTreeMap, BTreeSet};
 
-const PACKAGE: &[u8] = include_bytes!("../../../spkg/evm-balances-native-v0.7.10.spkg");
+const PACKAGE: &[u8] = include_bytes!("../../../spkg/evm-balances-native-v0.8.0.spkg");
 const SQL_FILE: &str = "sf/substreams/sink/sql/v1/deprecated.proto";
 const DATABASE_FILE: &str = "sf/substreams/sink/database/v1/database.proto";
+const STORE_FILE: &str = "sf/substreams/foundational-store/model/v2/model.proto";
 
 fn bytes(fields: &UnknownFields, number: u32) -> impl Iterator<Item = &[u8]> {
     fields.iter().filter_map(move |field| match &field.data {
@@ -61,7 +62,10 @@ fn packed_messages_are_unique_and_sql_uses_the_canonical_path() {
     assert!(!paths.contains("sf/substreams/sink/sql/v1/services.proto"));
     assert!(names.contains("sf.substreams.sink.sql.v1.Service"));
     assert!(names.contains("sf.substreams.sink.database.v1.DatabaseChanges"));
-    assert!(names.contains("evm.balances.v1.NativeEvents"));
+    // The hosted-store output at the path the CLI bundles, and its value type.
+    assert!(paths.contains(STORE_FILE));
+    assert!(names.contains("sf.substreams.foundational_store.model.v2.SinkEntries"));
+    assert!(names.contains("evm.balances.v1.NativeBalance"));
 }
 
 #[test]
