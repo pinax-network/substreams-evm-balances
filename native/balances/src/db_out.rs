@@ -1,5 +1,5 @@
-//! `db_out`: the native balances of `map_events` as rows of the substreams-evm
-//! ClickHouse tables `native_balances` and `blocks`, in the row format of the
+//! `db_out`: the native balances of `map_sink_entries` as rows of the
+//! substreams-evm ClickHouse tables `native_balances` and `blocks`, in the row format of the
 //! upstream `db_out` at
 //! [substreams-evm@cb8607f](https://github.com/pinax-network/substreams-evm/tree/cb8607f59a37aa9daf85547162b8871d12568282/db-evm-balances/src),
 //! so a database started from this package can take the RPC-era history by
@@ -7,10 +7,12 @@
 //!
 //! Every row is a CREATE and carries `block_num`, `block_hash` (`0x` + clock
 //! id) and `timestamp` (clock seconds). Addresses are `0x` + lowercase hex and
-//! `balance` is `NativeBalance.amount` verbatim. One `blocks` row is written
+//! `balance` is `NativeBalance.amount` verbatim, read back from the entries by
+//! [`crate::sink_entries::balances`]. One `blocks` row is written
 //! only when the block wrote a balance row. Unlike upstream, a row the SQL sink
-//! would store wrongly fails the block: an address that is not 20 bytes or an
-//! amount that is not a decimal `uint256`. A missing clock timestamp is an
+//! would store wrongly fails the block: an entry `map_sink_entries` would not
+//! have written, an address that is not 20 bytes or an amount that is not a
+//! decimal `uint256`. A missing clock timestamp is an
 //! error, not a panic.
 //!
 //! The changes are encoded by `substreams-database-change` 5.0.0, where every
@@ -18,8 +20,8 @@
 //! has no such field; the SQL sink uses only a CREATE field's name and value,
 //! so the stored rows are the same. `erc20/balances` keeps its own copy of the
 //! row helpers below, so neither package's hashes depend on the other.
-use proto::pb::evm::balances::v1 as pb;
-use substreams::{errors::Error, pb::substreams::Clock, Hex};
+use crate::sink_entries;
+use substreams::{errors::Error, pb::sf::substreams::foundational_store::model::v2::SinkEntries, pb::substreams::Clock, Hex};
 use substreams_database_change::{
     pb::sf::substreams::sink::database::v1::DatabaseChanges,
     tables::{Row, Tables},
@@ -74,11 +76,11 @@ fn amount(amount: &str) -> Result<&str, Error> {
 }
 
 /// The `db_out` body: native rows, then the `blocks` row.
-pub fn database_changes(clock: &Clock, events: &pb::NativeEvents) -> Result<DatabaseChanges, Error> {
+pub fn database_changes(clock: &Clock, entries: &SinkEntries) -> Result<DatabaseChanges, Error> {
     let block = BlockColumns::new(clock)?;
     let mut tables = Tables::new();
 
-    for balance in &events.balances {
+    for balance in &sink_entries::balances(entries)? {
         let address = address(&balance.address, "native account")?;
         let row = tables
             .create_row("native_balances", &address)

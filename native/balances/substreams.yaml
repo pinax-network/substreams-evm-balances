@@ -1,13 +1,13 @@
 specVersion: v0.1.0
 package:
   name: evm_balances_native
-  version: v0.7.10
+  version: v0.8.0
   url: https://github.com/pinax-network/substreams-evm-balances
   image: ../../assets/pinax-icon-gradient-512px.png
-  description: RPC-free native balances from Firehose Extended blocks, with a db_out for the substreams-evm ClickHouse tables.
+  description: RPC-free native balances from Firehose Extended blocks, as SinkEntries for a StreamingFast hosted store, with a db_out for the substreams-evm ClickHouse tables.
 
 imports:
-  sink_types: ../../spkg/evm-balances-sink-protodefs-v0.1.0.spkg
+  sink_types: ../../spkg/evm-balances-sink-protodefs-v0.2.0.spkg
 
 protobuf:
   files: [balances.proto]
@@ -19,18 +19,18 @@ binaries:
     file: ../../target/wasm32-unknown-unknown/release/native_balances.wasm
 
 modules:
-  - name: map_events
+  - name: map_sink_entries
     kind: map
     inputs:
       - source: sf.ethereum.type.v2.Block
     output:
-      type: proto:evm.balances.v1.NativeEvents
+      type: proto:sf.substreams.foundational_store.model.v2.SinkEntries
 
   - name: db_out
     kind: map
     inputs:
       - source: sf.substreams.v1.Clock
-      - map: map_events
+      - map: map_sink_entries
     output:
       type: proto:sf.substreams.sink.database.v1.DatabaseChanges
 

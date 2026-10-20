@@ -19,20 +19,28 @@ tests and fixtures. Host-side diagnostic tools, reference models and harnesses w
 removed on 2026-10-03. They remain in git history at `6dade89`, which the
 dated evidence documents refer to. Do not add new tool crates or CLI harnesses.
 The one exception is `scripts/check-live-balances.ts` (owner, 2026-10-14): a
-Bun script with no dependencies that streams a package's `map_events` over
-recent blocks with `substreams run` and compares every emitted balance with
+Bun script with no dependencies that streams a package's map (`map_events`,
+or native's `map_sink_entries`) over recent blocks with `substreams run` and
+compares every emitted balance with
 `balanceOf` or `eth_getBalance` at the same block. Running it is a live step
 (see Evidence). It reads its endpoints and API key from the environment and
 never prints them.
 
 ## Production boundary
 
-- Keep one RPC-free `map_events` module per map package and the shared
-  `evm.balances.v1` output for balance packages: `Events` for ERC-20 and, at
-  the owner's direction (2026-10-13), `NativeEvents` for native, which is
-  `Events` without the always-absent contract (field 1 reserved, the same
-  bytes). Preserve the canonical balances protobuf field numbers and wire
-  types; do not introduce a custom storage protobuf or map cache. Protocol balance-state packages emit the
+- Keep one RPC-free map module per map package. `erc20/balances`'
+  `map_events` emits the shared `evm.balances.v1` output `Events`. Since
+  v0.8.0 (owner, 2026-10-20), `native/balances`' `map_sink_entries` emits
+  `sf.substreams.foundational_store.model.v2.SinkEntries`, the only shape a
+  StreamingFast hosted store ingests: one entry per changed account, keyed by
+  its 20-byte address, its value an `Any` of `evm.balances.v1.NativeBalance`,
+  `if_not_exist` false. Its `db_out` reads those entries, so the block is
+  reduced once. Before v0.8.0 native's `map_events` emitted `NativeEvents`
+  (owner, 2026-10-13), which is `Events` without the always-absent contract
+  (field 1 reserved, the same bytes); `NativeEvents` remains the reduction the
+  entries are built from. Preserve the canonical balances protobuf field
+  numbers and wire types; do not introduce a custom storage protobuf or map
+  cache. Protocol balance-state packages emit the
   companion `evm.balance_state.v1.Events` instead, never a replacement for
   `Balance.amount`. `erc20/balances` keeps its embedded copy of the
   persistence rules; `common/persist` must not diverge from it.
@@ -81,7 +89,7 @@ never prints them.
   transaction or block past the tracer's cut bounds. A longer input is read as
   `balanceOf(input[16..36])` (owner, 2026-10-17). Each qualification records
   the reader release (client and tracer version), not just `Block.ver`.
-- The two balance packages each ship their `map_events` and a `db_out` in one
+- The two balance packages each ship their map and a `db_out` in one
   spkg (owner, 2026-10-13): `native/balances` is `evm_balances_native`, written
   to `<chain>:evm-balances-native@<version>`, and `erc20/balances` is
   `evm_balances_erc20`, written to `<chain>:evm-balances-erc20@<version>`.
@@ -102,13 +110,15 @@ never prints them.
   section embeds their concatenation. Each package keeps
   its own copy of the row helpers. A `db_out` adds no store, params or RPC. Do
   not add other `db_out` or database-change modules, or custom sinks. The map
-  outputs remain the contract for external native sinks; local sink state
+  outputs remain the contract for external native sinks and, for native, the
+  StreamingFast hosted store (deploying one is a live step); local sink state
   belongs under `out/`. The sinks run with `--undo-buffer-size`, as the Token
   API live sinks do (BSC: 5), not `--final-blocks-only` (owner, 2026-10-13): a
   fork deeper than the buffer stops the sink and leaves the rows it wrote for
   the orphaned blocks, an accepted risk. See `docs/clickhouse.md`.
 - `native/balances` is params-free at the owner's direction (2026-10-06):
-  `map_events(block)` has no producer-version gate or manifest network allowlist.
+  its map (`map_sink_entries(block)` since v0.8.0) has no producer-version
+  gate or manifest network allowlist.
   Keep its complete Extended-block, failed-transaction reason and persisted
   balance continuity checks. Its only continuity exceptions are recognized
   producer shapes with a captured fixture: the self-transfer pair (BSC,
@@ -236,8 +246,9 @@ message of the `proto` crate into its WASM through buffa's `json` feature, so
 `evm.balance_state.v1` sits behind the crate's default `balance-state`
 feature, which the two balance packages turn off: an edit to the balance-state
 messages then cannot change their hashes. The types of the packages that left
-on 2026-10-13 were removed with v0.7.0. The SQL sink's descriptors are the
-committed `spkg/evm-balances-sink-protodefs-v0.1.0.spkg`, built from
+on 2026-10-13 were removed with v0.7.0. The sink descriptors are the
+committed `spkg/evm-balances-sink-protodefs-v0.1.0.spkg` (ERC-20) and
+v0.2.0 (native, which adds the hosted store's `SinkEntries`), built from
 `proto/sink`.
 
 Package Makefiles build WASM with `--locked` and the `RUSTFLAGS` of the
@@ -249,7 +260,7 @@ in every WASM build. Handlers
 decode their input with buffa's default limits
 (32 MiB of repeated elements per block); the measured headroom is in the
 dated [substreams 0.8.0 section](docs/history/handoff-2026-09-21-to-2026-10-06.md#substreams-080-2026-10-05)
-of the 2026-09-21 to 2026-10-06 handoff. The exception is `map_events` in
-`native/balances` (since v0.7.4) and `erc20/balances` (since v0.7.1): it
-decodes its block itself with a 1 GiB element budget (`decode_block`),
+of the 2026-09-21 to 2026-10-06 handoff. The exception is the block-reading
+map of `native/balances` (since v0.7.4, `map_sink_entries` since v0.8.0) and
+`erc20/balances` (`map_events`, since v0.7.1): it decodes its block itself with a 1 GiB element budget (`decode_block`),
 because BSC block 43,772,003 (29.9 MB encoded) failed the default decode.

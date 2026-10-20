@@ -1,20 +1,29 @@
 # native/balances: evm-balances-native
 
-An RPC-free `map_events` reads Firehose Extended blocks and emits
-**`evm.balances.v1.NativeEvents`** for native account balances, and `db_out`
-writes them into the substreams-evm ClickHouse tables (`native_balances`,
-`blocks` and the native history), whose schema the spkg embeds. The package is
-`evm_balances_native`: release tag and spkg `evm-balances-native-v<version>`,
-BSC database `bsc:evm-balances-native@<version>`
-([ClickHouse](../../docs/clickhouse.md)). ERC-20 balances are the separate
+An RPC-free `map_sink_entries` reads Firehose Extended blocks and emits the
+native account balances of each block as
+**`sf.substreams.foundational_store.model.v2.SinkEntries`**, the shape a
+StreamingFast [hosted store](#hosted-store-v080) ingests. `db_out` reads those
+entries and writes them into the substreams-evm ClickHouse tables
+(`native_balances`, `blocks` and the native history), whose schema the spkg
+embeds. The package is `evm_balances_native`: release tag and spkg
+`evm-balances-native-v<version>`, BSC database
+`bsc:evm-balances-native@<version>` ([ClickHouse](../../docs/clickhouse.md)).
+ERC-20 balances are the separate
 [`erc20/balances`](../../erc20/balances/README.md) package with their own database.
 
-`NativeEvents` is the shared [`proto/v1/balances.proto`](../../proto/v1/balances.proto)'s
-`Events` without the contract, which native amounts never have: field 1 is
-reserved and the other numbers are `Events`' and `Balance`'s, so the bytes
-also decode as `Events` with no contract. `NativeBalance.amount` is the
-account's balance after the last persisted change in the block, as an exact
-decimal `uint256` string.
+Each entry's key is the account's 20-byte address and its value an `Any` of
+`evm.balances.v1.NativeBalance`: the address and its balance after the last
+persisted change in the block, as an exact decimal `uint256` string.
+`if_not_exist` is false, so every block overwrites the stored balance. Before
+v0.8.0 (owner, 2026-10-20) the map was `map_events` and emitted the same
+balances as `evm.balances.v1.NativeEvents`, the shared
+[`proto/v1/balances.proto`](../../proto/v1/balances.proto)'s `Events` without
+the contract, which native amounts never have: field 1 is reserved and the
+other numbers are `Events`' and `Balance`'s, so the bytes also decode as
+`Events` with no contract. `native_balances::project` still returns
+`NativeEvents`, the reduction the entries are built from, so the block is
+reduced once for both outputs.
 
 This package ports the reducer of the historical `evm-balances-storage`
 prototype ([source](https://github.com/pinax-network/substreams-evm/blob/311f9005cc8606e9cb1034562b97cf7281f30c99/evm-balances-storage/src/lib.rs))
@@ -807,7 +816,8 @@ balance change.
 
 ## Input and networks
 
-`map_events(block)` takes only an Extended block, with no parameters. At the
+`map_sink_entries(block)` (`map_events` before v0.8.0) takes only an Extended
+block, with no parameters. At the
 owner's direction (2026-10-06), the `producer_versions` parameter and its
 version gate were removed. `Block.ver` does not control acceptance: the map
 checks the block's identity, complete transaction traces, persisted effects,
@@ -1012,6 +1022,50 @@ ERC-20 campaign's block cache, not a native-specific RPC audit: only block
 122260950 has a same-block native RPC oracle. The historical 192-block,
 37,086-check native audit ([legacy qualification](https://github.com/pinax-network/substreams-evm-balances/blob/9b41c7f/erc20/balances/docs/legacy-qualification.md))
 applies to the removed prototype package, not to this one.
+
+## Hosted store (v0.8.0)
+
+`map_sink_entries` feeds a StreamingFast hosted store (owner, 2026-10-20): a
+block-aware key/value store that keeps each account's latest balance and
+answers an address's balance at a block, over gRPC or as a
+`foundational-store` input of another Substreams. StreamingFast hosts it;
+there is no database to provide. Creating or running one is a live step
+([Evidence](../../AGENTS.md#evidence)).
+
+On The Graph Market, under Hosted Services, create a **Hosted Store** with a
+Substreams feed:
+
+| Field | Value |
+| --- | --- |
+| Package | the release's spkg URL |
+| Network | the chain, for example `bsc` |
+| Type URL | `evm.balances.v1.NativeBalance` |
+| Output module | `map_sink_entries` |
+| Start block | `0` for a complete store; where Extended blocks begin later, the first whole segment of them ([start blocks](#input-and-networks)) |
+| Stop block | `0` to follow the head, or a bound for a test |
+
+A hosted **Sink** is the other kind: it runs the SQL sink against a ClickHouse
+you provide, with `db_out` as its module ([ClickHouse](#clickhouse)). A store
+created with any other output module cannot ingest it.
+
+The store serves `sf.substreams.foundational_store.service.v2.Store/Get` at
+`<deployment-id>.hs.streamingfast.io:443` with an `x-api-key` header: one
+result per key at a block number. Check `block_reached` first; before the
+store reaches the block, a missing key proves nothing. At a reached block,
+`NOT_FOUND` means the account had no persisted balance change between the
+store's start block and that block. In a store started at block 0 of a chain
+whose Extended blocks begin at genesis, that is a zero balance; from a later
+start block it is no observation.
+
+To test a deployment: check the entries of recent blocks against
+`eth_getBalance` with
+[`scripts/check-live-balances.ts`](../../scripts/check-live-balances.ts),
+which streams `map_sink_entries`. Then create a store with a recent start
+block and a bounded stop block, and once it has reached the stop block, `Get`
+accounts of that window and compare them with `eth_getBalance` at the same
+block. Such a store holds only the accounts that changed in its window.
+Before a full-history store, run the release's noop over the whole range, as
+before a ClickHouse backfill.
 
 ## ClickHouse
 

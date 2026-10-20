@@ -1,8 +1,9 @@
 # ClickHouse: the `db_out` of each balance package
 
 [`native/balances`](../native/balances/README.md) and
-[`erc20/balances`](../erc20/balances/README.md) each ship their `map_events`
-and a `db_out` in one spkg. Each `db_out` writes its half of the ClickHouse
+[`erc20/balances`](../erc20/balances/README.md) each ship their map
+(native `map_sink_entries` since v0.8.0, ERC-20 `map_events`) and a `db_out`
+in one spkg. Each `db_out` writes its half of the ClickHouse
 tables of substreams-evm `evm-balances` v0.3.4 into its own database. The SQL
 is upstream's and each spkg embeds its half, so `substreams-sink-sql setup`
 needs only the package. The tables and the row format equal the RPC-era
@@ -11,8 +12,9 @@ history state, which the RPC-era database also holds at 1m to 30m, by an
 `INSERT ... SELECT` of the 1h, 4h, 1d and 1w bars).
 
 ```
-Clock ─────────────────────┐
-native/balances map_events ┴─▶ db_out ─▶ DatabaseChanges ─▶ substreams-sink-sql ─▶ <chain>:evm-balances-native@<version>
+Clock ───────────────────────────┐
+native/balances map_sink_entries ┴─▶ db_out ─▶ DatabaseChanges ─▶ substreams-sink-sql ─▶ <chain>:evm-balances-native@<version>
+                └─▶ SinkEntries ─▶ StreamingFast hosted store (native, v0.8.0)
 Clock ─────────────────────┐
 erc20/balances map_events ─┴─▶ db_out ─▶ DatabaseChanges ─▶ substreams-sink-sql ─▶ <chain>:evm-balances-erc20@<version>
 
@@ -52,7 +54,7 @@ the build of `evm-balances-v0.3.4` and `evm-clickhouse-balances-v0.3.4`.
 | `<package>/src/db_out.rs` | [`db-evm-balances/src/`](https://github.com/pinax-network/substreams-evm/tree/cb8607f59a37aa9daf85547162b8871d12568282/db-evm-balances/src) | same rows; changes below |
 | `<package>/substreams.yaml` | [`db-evm-balances/substreams.yaml`](https://github.com/pinax-network/substreams-evm/blob/cb8607f59a37aa9daf85547162b8871d12568282/db-evm-balances/substreams.yaml) and [`db-evm-balances-clickhouse/substreams.yaml`](https://github.com/pinax-network/substreams-evm/blob/cb8607f59a37aa9daf85547162b8871d12568282/db-evm-balances-clickhouse/substreams.yaml) | one manifest per package, with its map |
 | Historical `spkg/substreams-database-change-v2.0.0.spkg`, `spkg/substreams-sink-sql-protodefs-v1.0.7.spkg` | [`spkg/`](https://github.com/pinax-network/substreams-evm/tree/cb8607f59a37aa9daf85547162b8871d12568282/spkg) | byte-identical, retained; no longer imported |
-| `spkg/evm-balances-sink-protodefs-v0.1.0.spkg` | [pinned upstream sources](../proto/sink/SOURCES.md) | current descriptors, rebuilt from `proto/sink` |
+| `spkg/evm-balances-sink-protodefs-v0.1.0.spkg` (ERC-20), `v0.2.0` (native) | [pinned upstream sources](../proto/sink/SOURCES.md) | current descriptors, rebuilt from `proto/sink`; v0.2.0 adds the hosted store's `SinkEntries` |
 | `<package>/clickhouse/examples/backfill-from-rpc-database.sql`, `check-replays-and-completeness.sql`, `compare-final-with-rpc-database.sql`, `repair-replayed-range.sql`, `dedupe-blocks.sql` | none | new ([contract](initialization-and-completeness.md)), split per package |
 
 Not ported: the PostgreSQL variant, `scripts/verify-balances.sh` (a harness
@@ -66,7 +68,8 @@ variant. The sink type is `sf.substreams.sink.sql.v1.Service`, the only one
 concatenated `schema.sql`.
 
 The imported `evm-balances-sink-protodefs` bundle supplies both descriptors
-without network access. Its SQL definitions use the canonical
+without network access (native's v0.2.0 also the hosted store's `SinkEntries`,
+at the path the CLI bundles). Its SQL definitions use the canonical
 `sf/substreams/sink/sql/v1/deprecated.proto` path, which matches the current
 CLI's built-in copy and still supplies the definitions to older SQL sink
 readers; the older `services.proto` path declared the same message names and
@@ -98,7 +101,7 @@ Changes against upstream `db_out`:
 
 | Table | Package | Key | Columns | One row per |
 | --- | --- | --- | --- | --- |
-| `native_balances` | native | `address` | `address`, `balance`, `block_num`, `block_hash`, `timestamp` | `NativeBalance` of `map_events` |
+| `native_balances` | native | `address` | `address`, `balance`, `block_num`, `block_hash`, `timestamp` | `NativeBalance` entry of `map_sink_entries` (`map_events` before v0.8.0) |
 | `erc20_balances` | erc20 | `(contract, address)` | `contract`, `address`, `balance`, `block_num`, `block_hash`, `timestamp` | `Balance` of `map_events` |
 | `blocks` | both | `block_num` | `block_num`, `block_hash`, `timestamp` | block that wrote a balance row of this package |
 

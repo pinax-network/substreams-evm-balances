@@ -1,8 +1,8 @@
 [package]
 name = "native-balances"
-description = "RPC-free native account balances from persisted Extended block state, with a db_out for the substreams-evm ClickHouse tables"
+description = "RPC-free native account balances from persisted Extended block state, as hosted-store SinkEntries, with a db_out for the substreams-evm ClickHouse tables"
 edition = { workspace = true }
-version = "0.7.10"
+version = "0.8.0"
 license = { workspace = true }
 
 [lib]
@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 substreams = { workspace = true }
 substreams-ethereum = { workspace = true }
 buffa = { workspace = true }
+buffa-types = { workspace = true }
 proto = { path = "../../proto", default-features = false }
 evm-persist = { path = "../../common/persist" }
 # 5.0.0 (buffa, substreams 0.8.0). Upstream substreams-evm uses 3.0.0; the rows
@@ -21,5 +22,4 @@ substreams-database-change = "=5.0.0"
 [dev-dependencies]
 serde_json = "1"
 hex = "0.4"
-buffa-types = { workspace = true }
 sha2 = "0.11"

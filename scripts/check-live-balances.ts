@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 /**
- * Live check of a balances package against the chain: streams `map_events`
- * over recent blocks with `substreams run` and compares every emitted balance
- * with the chain's own value at the same block, `balanceOf` for ERC-20 rows
- * (`evm.balances.v1.Events`) and `eth_getBalance` for native rows
- * (`evm.balances.v1.NativeEvents`). Every row is the account's balance after
- * the block, so it must equal the state at that block number.
+ * Live check of a balances package against the chain: streams the package's
+ * map over recent blocks with `substreams run` and compares every emitted
+ * balance with the chain's own value at the same block, `balanceOf` for ERC-20
+ * rows (`map_events`, `evm.balances.v1.Events`) and `eth_getBalance` for
+ * native rows (`map_sink_entries` since native v0.8.0, hosted-store
+ * `SinkEntries` of `evm.balances.v1.NativeBalance`; `map_events`,
+ * `evm.balances.v1.NativeEvents`, before). Every row is the account's balance
+ * after the block, so it must equal the state at that block number.
  *
  * Usage:
  *   bun scripts/check-live-balances.ts --chain eth --package erc20/balances/substreams.yaml
@@ -17,6 +19,7 @@
  *   --blocks <n>        blocks to stream (default 100)
  *   --behind <n>        blocks the range ends behind the head, against reorgs (default 64)
  *   --start <block>     absolute first block instead of head - behind - blocks
+ *   --module <name>     map to stream (default map_sink_entries if the package has it, else map_events)
  *   --batch <n>         RPC calls per JSON-RPC batch (default 100)
  *   --parallel <n>      batches in flight (default 4)
  *   --out <file>        write the full report as JSON
@@ -96,8 +99,22 @@ async function headBlock(): Promise<number> {
     return Number.parseInt(reply.result, 16);
 }
 
-async function stream(start: number): Promise<{ rows: Row[]; type: string }> {
-    const cmd = ['substreams', 'run', pkg as string, 'map_events', '-e', endpoint, '-s', String(start), '-t', `+${blocks}`, '-o', 'jsonl'];
+/** `map_sink_entries` when the package has it (native v0.8.0 and later), else `map_events`. */
+async function moduleName(): Promise<string> {
+    const proc = Bun.spawn(['substreams', 'info', pkg as string], { stdout: 'pipe', stderr: 'pipe' });
+    const info = await new Response(proc.stdout).text();
+    if ((await proc.exited) !== 0) throw new Error(`substreams info exited with ${proc.exitCode}`);
+    return /^Name: map_sink_entries$/m.test(info) ? 'map_sink_entries' : 'map_events';
+}
+
+/** `0x` + lowercase hex of a JSON bytes field, which the CLI renders as hex or base64. */
+function hexBytes(value: string): string {
+    if (value.startsWith('0x')) return value.toLowerCase();
+    return `0x${Buffer.from(value, 'base64').toString('hex')}`;
+}
+
+async function stream(module: string, start: number): Promise<{ rows: Row[]; type: string }> {
+    const cmd = ['substreams', 'run', pkg as string, module, '-e', endpoint, '-s', String(start), '-t', `+${blocks}`, '-o', 'jsonl'];
     const proc = Bun.spawn(cmd, { stdout: 'pipe', stderr: 'pipe' });
     const rows: Row[] = [];
     let type = '';
@@ -115,6 +132,11 @@ async function stream(start: number): Promise<{ rows: Row[]; type: string }> {
             type ||= message['@type'];
             for (const b of message['@data']?.balances ?? []) {
                 rows.push({ block: message['@block'], contract: b.contract, address: b.address, amount: BigInt(b.amount) });
+            }
+            for (const e of message['@data']?.entries ?? []) {
+                const address = hexBytes(e.value.address);
+                if (address !== hexBytes(e.key.bytes)) throw new Error(`entry key ${e.key.bytes} is not its balance's address ${address}`);
+                rows.push({ block: message['@block'], address, amount: BigInt(e.value.amount) });
             }
         }
     }
@@ -177,8 +199,9 @@ async function check(rows: Row[]): Promise<Checked[]> {
 
 const head = await headBlock();
 const start = args.has('start') ? Number(args.get('start')) : head - behind - blocks;
-console.log(`${chain}: streaming ${pkg} map_events over [${start}, ${start + blocks}) (head ${head})`);
-const { rows, type } = await stream(start);
+const mapModule = args.get('module') ?? (await moduleName());
+console.log(`${chain}: streaming ${pkg} ${mapModule} over [${start}, ${start + blocks}) (head ${head})`);
+const { rows, type } = await stream(mapModule, start);
 console.log(`${rows.length} balances (${type}); checking against the chain`);
 const checked = await check(rows);
 
@@ -199,7 +222,7 @@ for (const e of byContract.values()) {
     total.differ += e.differ.length;
     total.errors += e.errors.length;
 }
-const scope = type.endsWith('NativeEvents') ? 'native balances' : `balances of ${byContract.size} contracts`;
+const scope = type.endsWith('NativeEvents') || type.endsWith('SinkEntries') ? 'native balances' : `balances of ${byContract.size} contracts`;
 console.log(`checked ${total.checked} ${scope}: ${total.matched} match, ${total.differ} differ, ${total.errors} RPC errors`);
 const worst = [...byContract.entries()].filter(([, e]) => e.differ.length > 0).sort((a, b) => b[1].differ.length - a[1].differ.length);
 for (const [contract, e] of worst.slice(0, 30)) {

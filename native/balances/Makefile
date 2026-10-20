@@ -2,8 +2,8 @@ ENDPOINT ?= bsc.substreams.pinax.network:443
 START_BLOCK ?= 122288006
 STOP_BLOCK ?= +1000
 PARALLEL_JOBS ?= 500
-# The module that gui and prod stream: map_events or db_out.
-MODULE ?= map_events
+# The module that gui and prod stream: map_sink_entries or db_out.
+MODULE ?= map_sink_entries
 # ClickHouse DSN for the SQL sink, read from the environment and passed quoted,
 # so it is never echoed. setup does not create the database.
 export SUBSTREAMS_SINK_DSN ?= clickhouse://default:@localhost:9000/default

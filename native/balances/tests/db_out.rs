@@ -1,12 +1,17 @@
-//! `db_out` through the crate's public API: the upstream row format, the
-//! fail-closed row guards, captured block 122260950 through `map_events`, the
-//! manifest wiring and the embedded schema.
-use buffa_types::google::protobuf::Timestamp;
-use native_balances::db_out::database_changes;
+//! `map_sink_entries` and `db_out` through the crate's public API: the
+//! entries, the upstream row format, the fail-closed entry and row guards,
+//! captured block 122260950 through both modules, the manifest wiring and the
+//! embedded schema.
+use buffa::Message;
+use buffa_types::google::protobuf::{Any, Timestamp};
+use native_balances::{db_out::database_changes, sink_entries};
 use proto::pb::evm::balances::v1 as pb;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use substreams::{pb::substreams::Clock, Hex};
+use substreams::{
+    pb::{sf::substreams::foundational_store::model::v2::SinkEntries, substreams::Clock},
+    Hex,
+};
 use substreams_database_change::pb::sf::substreams::sink::database::v1::{
     field::UpdateOp,
     table_change::{Operation, PrimaryKey},
@@ -36,8 +41,8 @@ fn balance(address: u8, amount: &str) -> pb::NativeBalance {
     }
 }
 
-fn events(balances: Vec<pb::NativeBalance>) -> pb::NativeEvents {
-    pb::NativeEvents { balances }
+fn entries(balances: Vec<pb::NativeBalance>) -> SinkEntries {
+    sink_entries::entries(&pb::NativeEvents { balances })
 }
 
 fn hex20(byte: u8) -> String {
@@ -58,9 +63,50 @@ fn columns(change: &TableChange) -> BTreeMap<&str, &str> {
         .collect()
 }
 
+/// One entry per balance, in order: the key is the address and the value the
+/// `NativeBalance` itself, overwriting what the store holds.
+#[test]
+fn entries_key_each_balance_by_its_address() {
+    let balances = vec![balance(1, "0"), balance(2, MAX_UINT256)];
+    let out = entries(balances.clone());
+    assert!(!out.if_not_exist);
+    assert_eq!(out.entries.len(), 2);
+    for (entry, balance) in out.entries.iter().zip(&balances) {
+        assert_eq!(entry.key.as_option().unwrap().bytes, balance.address);
+        let value = entry.value.as_option().unwrap();
+        assert_eq!(value.type_url(), "type.googleapis.com/evm.balances.v1.NativeBalance");
+        assert_eq!(&value.unpack_unchecked::<pb::NativeBalance>().unwrap(), balance);
+    }
+    assert_eq!(sink_entries::balances(&out).unwrap(), balances);
+    // A block without balances encodes to no bytes, which the handler skips.
+    assert!(entries(vec![]).encode_to_vec().is_empty());
+}
+
+/// `db_out` fails the block on an entry `map_sink_entries` would not write.
+#[test]
+fn entries_the_module_would_not_write_fail_the_block() {
+    let good = || entries(vec![balance(1, "1")]);
+    let mut overwrite_off = good();
+    overwrite_off.if_not_exist = true;
+    let mut no_key = good();
+    no_key.entries[0].key = buffa::MessageField::none();
+    let mut no_value = good();
+    no_value.entries[0].value = buffa::MessageField::none();
+    let mut other_type = good();
+    other_type.entries[0].value = buffa::MessageField::some(Any::pack(&balance(1, "1"), "type.googleapis.com/evm.balances.v1.Balance"));
+    let mut other_key = good();
+    other_key.entries[0].key.as_option_mut().unwrap().bytes = vec![2; 20];
+    let mut garbage = good();
+    garbage.entries[0].value.as_option_mut().unwrap().value = vec![0xff].into();
+    for bad in [overwrite_off, no_key, no_value, other_type, other_key, garbage] {
+        assert!(sink_entries::balances(&bad).is_err());
+        assert!(database_changes(&clock(), &bad).is_err());
+    }
+}
+
 #[test]
 fn rows_follow_the_upstream_format() {
-    let changes = database_changes(&clock(), &events(vec![balance(1, "0"), balance(2, MAX_UINT256)]))
+    let changes = database_changes(&clock(), &entries(vec![balance(1, "0"), balance(2, MAX_UINT256)]))
         .unwrap()
         .table_changes;
 
@@ -99,7 +145,7 @@ fn rows_follow_the_upstream_format() {
 
 #[test]
 fn a_block_without_balances_writes_nothing() {
-    let changes = database_changes(&clock(), &events(vec![])).unwrap();
+    let changes = database_changes(&clock(), &entries(vec![])).unwrap();
     assert!(changes.table_changes.is_empty());
 }
 
@@ -116,18 +162,18 @@ fn rows_the_sink_would_store_wrongly_fail_the_block() {
         balance(1, too_large),
         short,
     ] {
-        assert!(database_changes(&clock(), &events(vec![bad])).is_err());
+        assert!(database_changes(&clock(), &entries(vec![bad])).is_err());
     }
     let mut no_time = clock();
     no_time.timestamp = buffa::MessageField::none();
-    assert!(database_changes(&no_time, &events(vec![])).is_err());
+    assert!(database_changes(&no_time, &entries(vec![])).is_err());
 }
 
-/// Captured BSC block 122260950 through `map_events`, as the manifest wires
-/// it, and `db_out`: one row per balance, carrying the map's values verbatim.
+/// Captured BSC block 122260950 through `map_sink_entries`, as the manifest
+/// wires it, and `db_out`: one row per balance, carrying the map's values
+/// verbatim.
 #[test]
 fn captured_block_writes_one_row_per_map_balance() {
-    use buffa::Message;
     use substreams_ethereum::pb::eth::v2 as eth;
 
     let block = eth::Block::decode_from_slice(include_bytes!("../../../erc20/balances/tests/fixtures/bsc-122260950.pb")).unwrap();
@@ -137,7 +183,10 @@ fn captured_block_writes_one_row_per_map_balance() {
         timestamp: block.header.as_option().unwrap().timestamp.clone(),
     };
     let native = native_balances::project(&block).unwrap();
-    let changes = database_changes(&clock, &native).unwrap().table_changes;
+    // The bytes `map_sink_entries` outputs, decoded as `db_out` receives them.
+    let output = SinkEntries::decode_from_slice(&sink_entries::entries(&native).encode_to_vec()).unwrap();
+    assert_eq!(sink_entries::balances(&output).unwrap(), native.balances);
+    let changes = database_changes(&clock, &output).unwrap().table_changes;
 
     let block_columns = [
         ("block_num", "122260950".to_string()),
@@ -165,16 +214,17 @@ fn captured_block_writes_one_row_per_map_balance() {
     assert_eq!(actual, expected);
 }
 
-/// The handler takes `(Clock, NativeEvents)`: the manifest must feed the inputs
+/// The handler takes `(Clock, SinkEntries)`: the manifest must feed the inputs
 /// in that order, with no params, and embed the generated schema.
 #[test]
 fn manifest_wires_db_out_and_the_schema() {
     assert!(MANIFEST.contains(
-        "  - name: map_events\n    kind: map\n    inputs:\n      - source: sf.ethereum.type.v2.Block\n    output:\n      type: proto:evm.balances.v1.NativeEvents\n"
+        "  - name: map_sink_entries\n    kind: map\n    inputs:\n      - source: sf.ethereum.type.v2.Block\n    output:\n      type: proto:sf.substreams.foundational_store.model.v2.SinkEntries\n"
     ));
     assert!(MANIFEST.contains(
-        "  - name: db_out\n    kind: map\n    inputs:\n      - source: sf.substreams.v1.Clock\n      - map: map_events\n    output:\n      type: proto:sf.substreams.sink.database.v1.DatabaseChanges\n"
+        "  - name: db_out\n    kind: map\n    inputs:\n      - source: sf.substreams.v1.Clock\n      - map: map_sink_entries\n    output:\n      type: proto:sf.substreams.sink.database.v1.DatabaseChanges\n"
     ));
+    assert!(!MANIFEST.contains("map_events"));
     assert!(MANIFEST.contains("sink:\n  module: db_out\n  type: sf.substreams.sink.sql.v1.Service\n  config:\n    schema: \"./clickhouse/schema.sql\""));
     assert!(!MANIFEST.contains("- params:") && !MANIFEST.contains("\nparams:") && !MANIFEST.contains("\nnetworks:"));
     assert!(MANIFEST.contains("\nnetwork: bsc\n"));

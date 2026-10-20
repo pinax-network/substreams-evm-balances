@@ -1,18 +1,23 @@
-Native account balances from Firehose **Extended** blocks, written to ClickHouse in the native tables of substreams-evm `evm-balances` v0.3.4. No RPC and no params; the default network is BSC. ERC-20 balances are the separate `evm-balances-erc20` package, with their own database.
+Native account balances from Firehose **Extended** blocks, for a StreamingFast hosted store and for ClickHouse, in the native tables of substreams-evm `evm-balances` v0.3.4. No RPC and no params; the default network is BSC. ERC-20 balances are the separate `evm-balances-erc20` package, with their own database.
 
 ## Included
 
 | File | Modules | Contents |
 | --- | --- | --- |
-| [`${SPKG}`](https://github.com/${REPO}/releases/download/${TAG}/${SPKG}) | `map_events`, `db_out` | `map_events`: every account whose balance changed in the block, with its balance after the block, as `evm.balances.v1.NativeEvents`; block 0 carries the genesis allocations. `db_out`: those balances as ClickHouse rows, with the ClickHouse schema embedded. **The sink needs only this file.** |
+| [`${SPKG}`](https://github.com/${REPO}/releases/download/${TAG}/${SPKG}) | `map_sink_entries`, `db_out` | `map_sink_entries`: every account whose balance changed in the block, with its balance after the block, as hosted-store `SinkEntries` (key: the 20-byte address; value: `evm.balances.v1.NativeBalance`); block 0 carries the genesis allocations. `db_out`: those entries as ClickHouse rows, with the ClickHouse schema embedded. **The sink and the hosted store need only this file.** |
 
 ## Changes
 
-v0.7.10 accepts Arbitrum One block 500,689,520, which v0.7.9's full-history noop refused on 2026-10-18, in its captured producer shape, and writes the same rows as v0.7.9 for every block v0.7.9 accepts, on every network:
+v0.8.0 changes the map's output for a StreamingFast hosted store (owner, 2026-10-20). The balances and the ClickHouse rows are v0.7.10's for every block, on every network:
 
-- **Arbitrum One:** an account created in its transaction that self-destructs to itself is recorded as a debit, a refund of the account itself, the burn of the refund and a repeated withdraw. The repeat is dropped, and the account ends at zero (block 500,689,520, ArbOS 61). Like the other repeated self-destruct withdraws, the rule needs no ArbOS version: a destroyed account ends at zero under either opcode.
+- **`map_sink_entries` replaces `map_events`.** It emits `sf.substreams.foundational_store.model.v2.SinkEntries`, the only shape a hosted store ingests: one entry per account whose balance changed in the block, keyed by its 20-byte address, its value an `Any` of `evm.balances.v1.NativeBalance` (the address and its balance after the block), with `if_not_exist` false so every block overwrites the stored balance. `map_events` and its `evm.balances.v1.NativeEvents` are gone: a consumer of them reads the entries' values instead.
+- **`db_out` reads the entries** and writes the same rows. The block is reduced once for both outputs, and a hosted store caches only `map_sink_entries`.
 
-On Arbitrum One this release writes `arbitrum-one:${PACKAGE}@${VERSION}`. Every other network, Base among them, gets the same rows from it as from v0.7.9, so a database can stay on the version it runs: the module hash differs, and the sinks run with `--on-module-hash-mistmatch=error`.
+A database can stay on the version it runs: the rows are the same, the module hashes differ, and the sinks run with `--on-module-hash-mistmatch=error`.
+
+## Hosted store
+
+On The Graph Market, under Hosted Services, create a **Hosted Store** with a Substreams feed: this release's package URL, the network, Type URL `evm.balances.v1.NativeBalance`, output module `map_sink_entries`, and start block `0` for a complete store. StreamingFast hosts the store; it answers `Get` per address at a block number over gRPC. See [hosted store](https://github.com/${REPO}/blob/${TAG}/native/balances/README.md#hosted-store-v080) for reading and testing it.
 
 ## ClickHouse tables
 

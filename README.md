@@ -1,9 +1,9 @@
 # substreams-evm-balances
 
-RPC-free EVM balances from Firehose **Extended** blocks, ready for ClickHouse.
-Two packages, native and ERC-20, each with its own release and database. The
-tables are the substreams-evm ClickHouse tables, so the Token API reads them
-unchanged.
+RPC-free EVM balances from Firehose **Extended** blocks, ready for ClickHouse
+and, for native, a StreamingFast hosted store. Two packages, native and
+ERC-20, each with its own release and database. The tables are the
+substreams-evm ClickHouse tables, so the Token API reads them unchanged.
 
 ## What's included
 
@@ -14,10 +14,14 @@ unchanged.
 
 Each package is one spkg with two modules:
 
-- **`map_events`**: the balances as protobuf (`evm.balances.v1`). The same
-  projection is a plain Rust function (`native_balances::project`,
-  `erc20_balances::run`) for programs that read Extended blocks without the
-  Substreams runtime. ERC-20 v0.7.4 keeps `erc20_balances::run` unchanged
+- **The map**: the balances as protobuf. ERC-20's `map_events` emits
+  `evm.balances.v1.Events`. Since v0.8.0, native's `map_sink_entries` emits
+  `SinkEntries` for a StreamingFast
+  [hosted store](native/balances/README.md#hosted-store-v080): one entry per
+  changed account, keyed by its address, holding its
+  `evm.balances.v1.NativeBalance`. The same projection is a plain Rust function
+  (`native_balances::project`, `erc20_balances::run`) for programs that read
+  Extended blocks without the Substreams runtime. ERC-20 v0.7.4 keeps `erc20_balances::run` unchanged
   and adds `erc20_balances::run_sized`, which also takes the byte length of
   the delivered block (`Any.value`), as `map_events` does.
 - **`db_out`**: the same balances as ClickHouse rows. The spkg embeds the

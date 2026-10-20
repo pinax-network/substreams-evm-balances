@@ -1,10 +1,11 @@
-//! One RPC-free `map_events`: the final persisted native account balance of
-//! every account changed in an Extended block. `db_out` writes them into the
-//! substreams-evm ClickHouse tables (`db_out` module).
+//! One RPC-free `map_sink_entries`: the final persisted native account balance
+//! of every account changed in an Extended block, as the
+//! `sf.substreams.foundational_store.model.v2.SinkEntries` a StreamingFast
+//! hosted store ingests ([`sink_entries`]). `db_out` reads those entries and
+//! writes them into the substreams-evm ClickHouse tables ([`db_out`]).
 //!
-//! Output is `evm.balances.v1.NativeEvents`: `Events` without the contract,
-//! which native amounts never have, with the same field numbers, so the bytes
-//! also decode as `Events` with no contract. `NativeBalance.amount` is the
+//! [`project`] reduces a block to `evm.balances.v1.NativeEvents`, which each
+//! entry's `NativeBalance` value comes from. `NativeBalance.amount` is the
 //! account's balance after the last persisted change in the block, as an exact
 //! decimal `uint256` string. Accounts without a persisted change in the block
 //! are not emitted; absence is no observation, never zero. Block 0 emits the
@@ -20,6 +21,7 @@
 //! mint that some chains apply to a failed transaction too ([`records`]).
 use evm_persist as persist;
 pub mod db_out;
+pub mod sink_entries;
 
 use proto::pb::evm::balances::v1 as balances_pb;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -2489,7 +2491,7 @@ pub fn project(block: &eth::Block) -> Result<balances_pb::NativeEvents, Error> {
 /// budget only keeps its failure an explicit decode error.
 pub const BLOCK_ELEMENT_MEMORY_LIMIT: usize = 1 << 30;
 
-/// Decodes the `map_events` input block with [`BLOCK_ELEMENT_MEMORY_LIMIT`];
+/// Decodes the `map_sink_entries` input block with [`BLOCK_ELEMENT_MEMORY_LIMIT`];
 /// buffa's other decode limits keep their defaults.
 pub fn decode_block(bytes: &[u8]) -> Result<eth::Block, buffa::DecodeError> {
     buffa::DecodeOptions::new()
@@ -2510,7 +2512,7 @@ mod handler {
     // `decode_block`). Otherwise it is the macro's map export: panic hook,
     // empty-output skip, and a panic with the error's debug text.
     #[no_mangle]
-    pub extern "C" fn map_events(block_ptr: *mut u8, block_len: usize) {
+    pub extern "C" fn map_sink_entries(block_ptr: *mut u8, block_len: usize) {
         substreams::register_panic_hook();
         // SAFETY: the runtime passes the block's bytes, valid for this call.
         let bytes = unsafe { std::slice::from_raw_parts(block_ptr, block_len) };
@@ -2518,7 +2520,7 @@ mod handler {
             decode_block(bytes).unwrap_or_else(|error| panic!("Unable to decode Protobuf data ({block_len} bytes) to 'eth::Block' message's struct: {error}"));
         substreams::skip_empty_output();
         match project(&block) {
-            Ok(events) => substreams::output(events),
+            Ok(events) => substreams::output(sink_entries::entries(&events)),
             Err(error) => panic!("{error:?}"),
         }
     }
@@ -2526,9 +2528,9 @@ mod handler {
     #[substreams::handlers::map]
     fn db_out(
         clock: substreams::pb::substreams::Clock,
-        events: balances_pb::NativeEvents,
+        entries: substreams::pb::sf::substreams::foundational_store::model::v2::SinkEntries,
     ) -> Result<substreams_database_change::pb::sf::substreams::sink::database::v1::DatabaseChanges, Error> {
-        db_out::database_changes(&clock, &events)
+        db_out::database_changes(&clock, &entries)
     }
 }
 
