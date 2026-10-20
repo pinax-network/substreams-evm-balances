@@ -79,11 +79,22 @@ explain 1,694.17 POL of it. The other 137.56 POL are not located: a missed
 debit on an account the RPC-era never re-read counts as a match, because
 both databases hold the same wrong value.
 
-v0.7.8 already handles a self-destruct in a call with other records
-([native README](../native/balances/README.md#continuity-exceptions)), so
-these transactions have another shape. All 61 fall in the producer's
-`Block.ver` 3 range. Capturing block 55,741,124 or 71,461,200 as a fixture is
-the next step. That is a Firehose fetch, so it needs the owner's OK.
+The cause was found on 2026-10-20, in the 61 blocks fetched with the
+owner's OK. On Polygon after its Napoli fork (EIP-6780), the producer does
+not mark these self-destructs. In 56 of the 61 blocks, the self-destructing
+call has its `suicide` flag unset: it is the transaction's root call in 50
+and a call one level down in 6. It holds exactly one `SUICIDE_REFUND`, the
+beneficiary's credit of the contract's whole balance, and the transaction
+has no record of the contract at all. v0.7.8 restores the missing debit
+only for a call marked as a self-destruct
+([native README](../native/balances/README.md#continuity-exceptions)), so it
+skips these. In block 55,741,124, for example (transaction
+`0x055a91ac30a82427d6a3c7ad157b53dc549cdd3f2c4b04e8feec61b083f5da05`),
+`0xeb0de914…` sends its 1,391.16 POL to `0xd55ffe27…`. In the other 5 cases
+the self-destruct is in an earlier block, not located yet. A fix, native
+v0.7.11, is in progress
+([Deployment status](deployment-status.md#polygon-native-v0711)), after
+which Polygon would resync.
 
 ### Optimism: balances not changed since Bedrock
 
@@ -424,6 +435,7 @@ reads, which are live steps that need the owner's OK:
 
 - `eth_getBalance` for the unresolved rows above, the Ethereum class E and F
   rows, Base `0xbf1a23…` at 47,913,115, and the BSC same-block rows.
-- Firehose blocks to capture as fixtures: Polygon 55,741,124 and 71,461,200;
-  Ethereum 21,257,833; Unichain 829,577, 1,029,916 and 2,766,940.
+- Firehose blocks to capture as fixtures: Ethereum 21,257,833; Unichain
+  829,577, 1,029,916 and 2,766,940. The Polygon blocks were fetched on
+  2026-10-20 for v0.7.11.
 - The Optimism Bedrock state at block 105,235,999, for the seed.
