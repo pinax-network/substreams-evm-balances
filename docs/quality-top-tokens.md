@@ -345,8 +345,10 @@ day in the RPC-era's backfill, against 23 or 24 in the new database.
 `bsc:evm-balances-erc20@v0.7.4` against `bsc:evm-balances@v0.3.3`, at block
 128,354,999. Holders changed after the cutoff are compared at the cutoff
 hour, 2026-10-18 11:00 UTC, from hourly bars. The RPC-era database is live,
-so its counts drift by a few thousand holders between passes; the figures
-below come from one pass each.
+so its counts drift between passes (USDT's comparable count moved by
+10,341 holders in 15 minutes). The figures below come from passes run within
+the same afternoon, so counts from different passes can differ by that
+drift.
 
 > [!NOTE]
 > On BSC the new database is wrong for **no** USDT or USDC holder. Every
@@ -403,7 +405,8 @@ only new equals the new database's holder count (USDT 251,492,036, USDC
   differing top-100 entries and 24 random-sample differences follow the
   events in the new database. Before 2026, only 38% to 70% of the RPC-era's
   top-100 value sits in exactly matching holders (96.6% on 2026-06-01); the
-  value-weighted error is 0.00003% to 4.4%.
+  value-weighted error is 0.02% to 4.4% before 2026, and 0.00003% on
+  2026-06-01.
 - **Zero rows.** The 129,337,432 RPC-era-only holders are all zero. None of
   1,276 sampled was ever sender or recipient of a non-zero USDT `Transfer`.
 
@@ -431,21 +434,22 @@ only new equals the new database's holder count (USDT 251,492,036, USDC
 
 ### BSC WBNB
 
-| Class | Holders | Amount | Wrong side |
+| Class | Holders | Absolute difference | Wrong side |
 | --- | ---: | ---: | --- |
 | RPC-era stale in its unwritten blocks of 2024-01-18 | 32 new newer, 5 only new | 233.99 + 0.37 WBNB | RPC-era |
-| RPC-era stale in its skipped live blocks, 86.4M to 100.0M | 17 new newer, 1 only new | 16.47 WBNB | RPC-era |
+| RPC-era stale in its skipped live blocks, 86.4M to 100.0M | 17 new newer, 1 only new | 16.47 + 0.005 WBNB | RPC-era |
 | Credited only by a `Deposit`, in a block with no WBNB `Transfer` (2020) | 2 | 5.127 WBNB | new |
 | Zero address | 1 | 73.262380589262592219 WBNB | new, by design |
 
 - **The 2 missing holders** were credited 0.127 WBNB at block 1,180,462 and
   5 WBNB at block 2,415,928, and never moved again: the BSC counterpart of
   the 12 [WETH](#weth) holders. Since v0.7.4 such a `Deposit` counts only
-  when it passes the backed-deposit check, and these evidently fail it.
-  From 2020-10 to 2021-02 the new database skipped at least 532 deposit-only
-  holder-blocks; later writes healed all but these 2. It missed none of the
-  44,836 deposit- or withdrawal-only holder-blocks after 2021-02, and no
-  withdrawal ever.
+  when it passes the backed-deposit check, which these presumably fail
+  (confirming it needs their Extended blocks). From 2020-10 to 2021-02 the
+  new database skipped at least 532 deposit-only holder-blocks; later writes
+  healed all but these 2. A test found no miss among the 44,836 deposit- or
+  withdrawal-only holder-blocks after 2021-02 and no missed withdrawal, but
+  it cannot decide a block that falls inside a holder's hourly bar.
 - **Supply.** WBNB's native balance minus the new holder sum is
   78.389380589262592219 WBNB, the zero address plus the 2 missing deposits,
   with residual 0. It is the same at three points: the native database's
@@ -458,7 +462,8 @@ only new equals the new database's holder count (USDT 251,492,036, USDC
   at the cutoff hour except the zero address.
 - **History.** In ten one-hour windows from 2020 to 2026, the new database's
   hourly change equals the deduplicated event flow for every one of 32,448
-  holders that moved; the RPC-era's matches for 3% to 46% before 2026. The
+  event participants that moved; the RPC-era's matches for 3% to 46% before
+  2026. The
   RPC-era's top 100 matched only 17 to 68 holders at past dates before 2026.
 
 ```mermaid
@@ -516,15 +521,14 @@ compared at the start of the cutoff's hour (H) from hourly bars.
 - **A holder sum cannot exceed the contract's balance**, since every WETH9
   token is backed by native currency. So a negative gap is an RPC-era
   error:
-  - BSC: 73 WBNB holders whose last change fell in the 2,063 blocks the
-    RPC-era never wrote are stale. Their missed changes sum to
-    −250.083920231925075354 WBNB, which leaves +0.00000167 WBNB. For the five
-    largest (72% of the amount), the superseded
-    `bsc:evm-balances-erc20@v0.7.3`, also built from Extended blocks, holds
-    exactly the RPC-era value minus the missed change. The BSC ERC-20
-    comparison of 2026-10-20 accounts for the same 250.083918561925075354
-    WBNB as 49 stale holders and 6 holders the RPC-era never credited
-    ([BSC WBNB](#bsc-wbnb)).
+  - BSC: the excess is the RPC-era's missing blocks. The BSC ERC-20
+    comparison of 2026-10-20 accounts for all 250.083918561925075354 WBNB,
+    with residual 0: 49 holders whose last change fell in the 2,063 blocks
+    the RPC-era never wrote are stale (+250.454312722015743368 WBNB), less
+    6 holders it never credited (0.370394160090668014 WBNB)
+    ([BSC WBNB](#bsc-wbnb)). On 2026-10-19, for the five largest stale
+    holders, the superseded `bsc:evm-balances-erc20@v0.7.3`, also built from
+    Extended blocks, held exactly the RPC-era value minus the missed change.
   - Polygon: the excess is the same to the wei since at least 2026-03-01,
     13 days after the RPC-era's live start. It is not missing blocks, the
     zero address or a holder left stale in the live part. The holders are not

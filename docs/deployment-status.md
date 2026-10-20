@@ -44,7 +44,7 @@ quality comparisons with the RPC-era databases are on separate pages:
   about 3.06 million addresses in February 2026. On BSC it never wrote 1,629
   blocks of 2024-01-18, and on HyperEVM it missed internal transfers.
 - **ERC-20 covers 62% (Ethereum) and 45% (BSC) of the RPC era's non-zero
-  holder pairs, and 99.26% and 99.39% of its own rows are equal.** Ordinary
+  holder pairs, and 99.26% and 99.39% of its own non-zero rows are equal.** Ordinary
   tokens are accurate (99.996% of holders on Ethereum, 99.999% on BSC).
   Airdrop spam, computed balances (stETH, aTokens, reflection) and balances
   kept elsewhere (MiniMe, Synthetix) are not served, and some real tokens
@@ -392,8 +392,8 @@ comparison with the RPC-era database ran on 2026-10-20
 - **Real tokens in the top 100** reproduce 99.999% of the RPC era's
   non-zero holders, with no stale new row.
 - **Coverage:** 44.65% of the RPC era's non-zero pairs (Ethereum 62.08%),
-  because airdrop spam is a larger share on BSC; 99.39% of the new
-  non-zero rows equal the RPC-era row.
+  with more airdrop-like spam among the missing pairs (87.5% against 67.4%
+  on Ethereum); 99.39% of the new non-zero rows equal the RPC-era row.
 
 <details>
 <summary>The 10 backfill ranges and their times</summary>
