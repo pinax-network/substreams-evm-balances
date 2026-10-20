@@ -1,27 +1,29 @@
 # ERC-20 balance quality
 
-How `mainnet:evm-balances-erc20@v0.7.4` compares with the RPC-era
-`mainnet:evm-balances@v0.3.3` that the Token API serves today, at block
-26,214,999 (2026-10-17 21:35 UTC). USDT, USDC and WETH have their own
+How the new ERC-20 databases compare with the RPC-era databases that the
+Token API serves today: `mainnet:evm-balances-erc20@v0.7.4` against
+`mainnet:evm-balances@v0.3.3` at block 26,214,999 (2026-10-17 21:35 UTC), and
+`bsc:evm-balances-erc20@v0.7.4` against `bsc:evm-balances@v0.3.3` at block
+128,354,999. USDT, USDC, WETH and WBNB have their own
 [page](quality-top-tokens.md).
 
 > [!NOTE]
-> Ethereum is the only chain on this page so far. The BSC ERC-20 database
-> completed on 2026-10-20, and its comparison is in progress
-> ([Deployment status](deployment-status.md#bsc-erc-20-comparison)).
+> The sections up to [Open checks](#open-checks) cover Ethereum. BSC, added
+> on 2026-10-20, is in its own section, [BSC](#bsc), with the same
+> structure.
 
 ## Summary
 
 What the new database emits is right, but it covers 62% of the RPC-era's
 holder pairs, and some real tokens are not served or are stale.
 
-| Measure | Result |
-| --- | ---: |
-| New non-zero rows equal to the RPC-era row | 99.26% |
-| The same, among rows that can be compared | 99.49% |
-| RPC-era non-zero (contract, holder) pairs reproduced | 62.08% |
-| Holders reproduced, 37 top-100 contracts with no systematic issue | 99.9956% |
-| Holders reproduced, USDT, USDC and WETH | > 99.99% |
+| Measure | Ethereum | BSC |
+| --- | ---: | ---: |
+| New non-zero rows equal to the RPC-era row | 99.26% | 99.39% |
+| The same, among rows that can be compared | 99.49% | 99.73% |
+| RPC-era non-zero (contract, holder) pairs reproduced | 62.08% | 44.65% |
+| Holders reproduced, top-100 contracts with no systematic issue | 99.9956% (37) | 99.9990% (23) |
+| Holders reproduced, USDT, USDC and WETH or WBNB | > 99.99% | > 99.99% |
 
 - **Ordinary tokens are accurate.** Among the top 100 contracts by holder
   count, the 37 with no systematic issue reproduce 99.9956% of the RPC-era's
@@ -510,3 +512,223 @@ them, so this is unverified.
   for `0x000000000000000000000000000000000002d34f` at 24,560,318.
 - `0xba7435a4b4c747e0101780073eeda872a69bdcd4`, whose missing holders have
   outflows but no recorded inflows.
+
+## BSC
+
+`bsc:evm-balances-erc20@v0.7.4` against `bsc:evm-balances@v0.3.3`, at block
+128,354,999. Holders changed after the cutoff are compared at the cutoff
+hour, 2026-10-18 11:00 UTC. The queries ran on 2026-10-20, read-only, and
+each analysis had the same second pass as Ethereum's.
+
+BSC looks like Ethereum with more spam. Real tokens are reproduced almost
+exactly, and what the new database emits is right (99.39% of its non-zero
+rows equal the RPC-era row, 99.73% of those that can be compared). It covers
+fewer pairs, 44.65%: 87.5% of the pairs in the contracts it misses are in
+tokens where 99% of the holders share one balance, the signature of airdrop
+and address-poisoning tokens.
+
+```mermaid
+pie title BSC: RPC-era non-zero pairs at the cutoff
+  "Equal in new database" : 1108900445
+  "No new row" : 1372436181
+  "New row different" : 1499622
+  "New row zero" : 524627
+```
+
+*The RPC-era's 2,483,360,875 non-zero (contract, holder) pairs at or before
+the cutoff, by what the new database holds for them.*
+
+### BSC coverage of all contracts
+
+| Measure | RPC-era v0.3.3 | New v0.7.4 |
+| --- | ---: | ---: |
+| Contracts with any row | 12,417,682 | 11,725,063 |
+| Contracts in both (RPC-era row at or before the cutoff) | 11,723,189 | 11,723,189 |
+| Contracts only in this database (at or before the cutoff) | 662,808 | 1,874 |
+| (contract, holder) rows | 3,731,188,346 | 1,667,606,356 |
+| Non-zero rows (RPC-era: at or before the cutoff) | 2,483,379,872 | 1,115,715,522 |
+
+| RPC-era non-zero pairs at or before the cutoff | Pairs | Share |
+| --- | ---: | ---: |
+| Equal in the new database | 1,108,900,445 | 44.65% |
+| No new row | 1,372,436,181 | 55.27% |
+| New row zero | 524,627 | 0.02% |
+| New row different and non-zero | 1,499,622 | 0.06% |
+
+The new database's 1,115,715,522 non-zero rows: 1,108,900,445 equal the
+RPC-era row, 1,540,394 are zero in the RPC-era, 1,499,622 differ, 3,751,589
+have an RPC-era row after the cutoff and 23,472 have no RPC-era row.
+
+The missing pairs sit in 936,175 gap contracts (645,182 with no new row,
+290,993 with fewer than half of the RPC-era's non-zero holders), which hold
+1,369,974,042 RPC-era non-zero pairs; in one shard, 99.1% of the missing
+pairs are in gap contracts. By the RPC-era's balance pattern:
+
+| Gap contracts | Contracts | RPC-era non-zero pairs | Share |
+| --- | ---: | ---: | ---: |
+| At least 100 holders, at least 99% of them at one balance | 14,520 | 1,199,346,974 | 87.5% |
+| At least 100 holders, 50% to 99% at one balance | 6,206 | 50,595,026 | 3.7% |
+| At least 100 holders, fewer than 50% at one balance | 36,366 | 111,385,352 | 8.1% |
+| Fewer than 100 holders | 879,083 | 8,646,690 | 0.6% |
+
+- **The 50 largest gap contracts** are 34 constant-amount airdrops sent by
+  the contract or minted from `0x0`, 10 airdrops from one or a few other
+  senders (one of them is the USDT contract, so a spoofed sender), 4 with
+  spoofed senders, one reflection token (SAFEMOON v1) and one whose
+  mechanism is not established (`0x2e058a17…`). 8 of them are EIP-1967
+  proxies whose implementation was not read.
+- **The 50 largest gap contracts with diverse balances** are 31 reflection
+  tokens (SAFEMOON v1, BabyDoge and most 2021 BSC reflection forks), 8 with
+  spoofed senders, 2 single-sender distributions, 2 EIP-1967 proxies and 7
+  with no marker.
+- **The 1,874 contracts only in the new database** hold 14,614 rows. 28 of
+  the 50 largest have no `balanceOf` selector in their code, so the RPC era
+  could not read them. 827 have RPC-era rows only after the cutoff.
+- **The zero address.** 2,764,150 RPC-era rows of `0x0` are non-zero; the
+  package never emits it.
+
+### BSC top 100 contracts by holders
+
+The 100 contracts with the most non-zero RPC-era holders at the cutoff, plus
+CAKE, BTCB, USD1 and FDUSD.
+
+| Measure | Value |
+| --- | ---: |
+| Holder match, all comparable holders | 459,927,871 / 459,952,392 (99.9947%) |
+| RPC-era non-zero holders reproduced | 251,861,706 / 566,791,060 (44.44%) |
+| The 23 contracts with no systematic issue | 251,790,295 / 251,792,696 (99.9990%) |
+| The other 77 (airdrop, dust, reflection, not established) | 71,411 / 314,998,364 (0.0227%) |
+
+```mermaid
+pie title BSC top 100 contracts by result
+  "Airdrop tokens" : 70
+  "No systematic issue" : 23
+  "1-wei dust, spoofed senders" : 5
+  "Reflection (SAFEMOON v1)" : 1
+  "Not established" : 1
+```
+
+*The 70 airdrop tokens hold 286,237,697 RPC-era non-zero holders, of which
+the new database reproduces 0.0140%; for 23 single-mint ones, the RPC-era
+sum is 19 to 9.5 million times the token's only mint, so those balances are
+`balanceOf` defaults, not holdings.*
+
+| Contracts by | ≥ 99.99% | 99.9% to 99.99% | 99% to 99.9% | < 99% | No comparable holder |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Holder match | 25 | 2 | 21 | 38 | 14 |
+| Value match | 28 | 5 | 8 | 45 | 14 |
+| RPC-era non-zero holders reproduced | 23 | 0 | 0 | 63 | 14 |
+
+The real tokens (names are public token names, not from the databases):
+
+| Token | Contract | Comparable | RPC-era non-zero | Reproduced | Value match |
+| --- | --- | ---: | ---: | ---: | ---: |
+| USDT | `0x55d398326f99059ff775485246999027b3197955` | 249,192,169 | 79,446,179 | ≥ 99.9975% | 99.9820% |
+| WBNB | `0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c` | 12,881,203 | 5,162,447 | ≥ 99.9990% | 99.9419% |
+| USDC | `0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d` | 16,023,808 | 4,860,817 | 99.9962% | 99.9823% |
+| BUSD | `0xe9e7cea3dedca5984780bafc599bd69add087d56` | 18,044,135 | 3,779,056 | 99.9979% | 99.9921% |
+| ETH (Binance-Peg) | `0x2170ed0880ac9a755fd29b2688956bd959f933f8` | 7,461,372 | 2,565,709 | 99.9959% | 99.9896% |
+| CAKE | `0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82` | 6,039,162 | 1,897,642 | 99.9962% | 99.9965% |
+| BTCB | `0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c` | 4,981,332 | 1,706,097 | 99.9976% | 99.9982% |
+| USD1 | `0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d` | 4,699,947 | 482,861 | 99.9998% | 100.0000% |
+| FDUSD | `0xc5f0f7b66764f6ec8c8dff7ba683102295e16409` | 243,525 | 23,457 | 99.9744% | 99.9888% |
+
+<details>
+<summary>The other 18 contracts with no systematic issue</summary>
+
+| # | Contract | Comparable | RPC-era non-zero | Reproduced |
+| ---: | --- | ---: | ---: | ---: |
+| 2 | `0xa1ed61902f13e162305f59e1b2475e269e647777` | 64,675,315 | 64,656,168 | 100% |
+| 4 | `0xb0b623959e4339bc4cdeba9dd8b1f0224ea57777` | 19,910,167 | 19,903,247 | 100% |
+| 6 | `0x807a9c56e3b5f796ded8bdd85c4375b9bb45d396` | 12,927,630 | 12,927,602 | 100.0000% |
+| 8 | `0x79efca6bb5d84b0ef7a666e4c87e3794432e7777` | 7,999,220 | 7,995,754 | 100% |
+| 15 | `0xc3e48a10122621d396799d28acbfb473db647777` | 6,713,501 | 6,709,667 | 100% |
+| 16 | `0xd19d52f2b0dc5e237e29aa27cebd2ef789d07777` | 6,162,828 | 6,159,043 | 100% |
+| 26 | `0x963556de0eb8138e97a85f0a86ee0acd159d210b` | 4,833,832 | 4,804,511 | 100% |
+| 31 | `0x8bc9534a9f1b4c87a1f2986f7007ae7e4a6e749e` | 4,107,789 | 4,082,467 | 100% |
+| 33 | `0xecf897960b239c15ef19e0a07b50fd1ae9e37777` | 3,955,346 | 3,949,928 | 100% |
+| 45 | `0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e` | 3,290,394 | 3,268,145 | 100% |
+| 47 | `0x18d0e455b3491e09210292d3953157a4bf104444` | 3,267,031 | 3,246,992 | 100% |
+| 70 | `0x69b14e8d3cebfdd8196bfe530954a0c226e5008e` | 2,840,915 | 2,745,633 | 100.0000% |
+| 72 | `0xba331eff139710dc3c4f397cd0b9da0691c34cf4` | 2,765,990 | 2,738,531 | 100% |
+| 76 | `0xccba7a0fbae70cb435f31ff4ac263af2fcd37777` | 2,705,148 | 2,704,203 | 100% |
+| 82 | `0xd666ae17605ff6ff87c526f9d0da66abb0197777` | 2,609,694 | 2,607,207 | 100% |
+| 91 | `0x0ee5fa4c8fa81bb11aaa922a2759a5f1e33a7777` | 2,511,731 | 2,508,199 | 100% |
+| 92 | `0xc5e35ac8fed1b0128ea8f69d5481e2153e15a07d` | 2,503,206 | 2,503,203 | 100.0000% |
+| 95 | `0x794bad5ea0b8d41be5cfd3f83919a83d3c788888` | 2,475,467 | 2,475,329 | 100.0000% |
+
+</details>
+
+- **No real token has a stale new row**: new older is 0 in all 27 of them.
+  All 905 differences this sweep checked in them (335 new newer, 569
+  non-zero only new, 1 same block) are RPC-era errors, settled by
+  deduplicated `Transfer` flow: 904 holders in blocks the RPC era never
+  wrote and one pre-block read. Examples, new minus RPC-era: BUSD
+  −11,983.77 BUSD, CAKE −8,566.88 CAKE, FDUSD −5,008.88 FDUSD.
+- **Holders changed after the cutoff** carry 0.85% to 97.46% of a real
+  token's value (CAKE's 95.60% is the burn address `0x…dead`). All 66,213
+  that were non-zero at the cutoff hour are equal in both databases.
+- **The 5 dust tokens** (ranks 13, 20, 41, 44 and 66) hold 22,406,376
+  RPC-era holders at 1 wei, from spoofed senders; their 18,481 same-block
+  differences are all new 0 against RPC-era 1 wei. For rank 44
+  (`0x2e058a17…`) the mechanism is not established.
+- **Not served:** the reflection token SAFEMOON v1
+  (`0x8076c74c5e3f5852037f31ff0093eeb8c8add8d3`, 2,885,775 holders), and
+  rank 38 (`0xe68f87e4d841eab808b0420b15c1c618e5fca568`, 3,468,516 holders),
+  whose RPC-era balances are neither stored nor event-backed (needs RPC).
+- **The zero address** has a non-zero RPC-era row in 41 of these contracts,
+  worth at most 4.02% of a contract's value.
+
+### BSC: where the new database is wrong
+
+> [!WARNING]
+> As on Ethereum, the new database is stale where the inference dropped a
+> contract-block, and it does not serve computed balances.
+
+- **Stale rows after a dropped contract-block.** 87.7% of the 3,564,643
+  present-but-different pairs have the new row older. Events confirm the
+  new database stale for at least 14 of 23 checked pairs: the holder's later
+  `Transfer` at the RPC-era row's block was not applied. Examples:
+  `0x12e34cdf6a031a10fe241864c32fb03a4fdad739` (50,640 pairs),
+  `0x385c279445581a186a4182a5503094ebb652ec71` (56,480),
+  `0xee9801669c6138e84bd50deb500827b776777d28` (43,908) and
+  `0x23766cb8a96ff2f46f664bc7d088a6306de73618` (91,992, a reflection-style
+  token).
+- **Computed balances.** Most same-block differences (428,881) are
+  `balanceOf` defaults of spam tokens (about half return 1 for an empty
+  word, such as `0x683e9dcf…`), reward, ratio, lock and rebasing tokens (for
+  example `0x3790715d…`, `0x9879406c…`, `0x3273a291…`, `0x4238e5cc…`). Up to
+  2.8% sit in the RPC-era's stale-read windows. Spam balances that
+  underflow to 2^128 or more are kept at their earlier value by the 2^128
+  guard (51.9% of one shard's RPC-era-non-zero, new-zero pairs).
+- **Deposit-only WBNB credits of 2020**: 2 holders, 5.127 WBNB
+  ([top tokens](quality-top-tokens.md#bsc-wbnb)).
+
+### BSC: where the RPC-era database is wrong
+
+- **Blocks it never wrote.** In the 2,063 blocks the RPC era never wrote
+  (the 1,629 of 2024-01-18 and 434 live-sink blocks), 22,067 pairs have their
+  latest new row: 6,979 RPC-era rows are older and different, 13,474 pairs
+  have no RPC-era row, and 1,594 are equal. In the block range around
+  122,049,723 to 122,049,880, where it kept the blocks but dropped some
+  balance rows, 1,965 of 1,975 latest rows are equal.
+- **Stale reads** at 84,599,556 to 84,599,584 (2026-03-04), as for native.
+- **Sparse history.** Its backfilled hourly closes miss most holders' last
+  changes before the hour; see the [USDT, USDC and WBNB history](quality-top-tokens.md#bsc-usdt-usdc-and-wbnb).
+- **Zero rows.** 228,033,036 RPC-era rows of the top 100 contracts are zero
+  with no new row (USDT 129,337,432, WBNB 68,437,219, USDC 12,449,250, BUSD
+  11,603,088).
+
+### BSC open checks
+
+> [!NOTE]
+> These need RPC or a Firehose read, live steps that need the owner's OK.
+
+- Why the 2020 WBNB deposits fail the backed-deposit check (their Extended
+  blocks, 1,180,462 and 2,415,928).
+- Rank 38 `0xe68f87e4…` and rank 44 `0x2e058a17…`: what their `balanceOf`
+  returns.
+- The implementation code of the EIP-1967 proxies among the gap contracts
+  (8 of the top 50, 63,887,171 holders).
+- 258 of the 2,804 new-older rows in the spam and dust tokens, not checked
+  against events.

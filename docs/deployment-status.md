@@ -5,7 +5,7 @@
 | Chain | Native | ERC-20 | Live sink | Note |
 | --- | --- | --- | --- | --- |
 | Ethereum | ✅ v0.7.8 | ✅ v0.7.4 | ⏳ native proposed | |
-| BSC | ✅ v0.7.8 | ✅ v0.7.4 | ⏳ native proposed | 🔄 [ERC-20 comparison](#bsc-erc-20-comparison) |
+| BSC | ✅ v0.7.8 | ✅ v0.7.4 | ⏳ native proposed | ✅ [ERC-20 compared](#bsc-erc-20-comparison) |
 | Base | ✅ v0.7.9 | ⛔ | not proposed | |
 | Optimism | ✅ v0.7.8 | ⛔ | not proposed | ⚠️ [legacy state](#before-the-cutover) to seed |
 | Polygon | ✅ v0.7.8 | ⛔ | after resync | ⚠️ over-count, 🛠️ [v0.7.11](#polygon-native-v0711) fix and resync |
@@ -19,7 +19,7 @@ Legend: ✅ done (backfilled) · 🔄 running · ⏳ queued or awaiting the owne
 sink of the new database; none runs yet.
 
 > [!NOTE]
-> A snapshot taken on 2026-10-20 at about 14:00 UTC. The rows here change as
+> A snapshot taken on 2026-10-20 at about 19:30 UTC. The rows here change as
 > backfills finish. [Handoff](handoff.md) keeps the current state.
 
 For each chain, this page lists the final package release, the ClickHouse
@@ -28,11 +28,11 @@ quality comparisons with the RPC-era databases are on separate pages:
 
 - [Native balance quality](quality-native.md), for the seven chains whose
   native database is fully backfilled.
-- [ERC-20 balance quality](quality-erc20.md), for Ethereum. The BSC ERC-20
-  database completed on 2026-10-20, and its comparison is
-  [in progress](#bsc-erc-20-comparison).
-- [Top tokens](quality-top-tokens.md): USDT, USDC and WETH on Ethereum, and
-  the wrapped native token of every chain (WETH, WBNB, WPOL, WHYPE).
+- [ERC-20 balance quality](quality-erc20.md), for Ethereum and BSC, the two
+  chains with an ERC-20 database.
+- [Top tokens](quality-top-tokens.md): USDT, USDC and WETH on Ethereum,
+  USDT, USDC and WBNB on BSC, and the wrapped native token of every chain
+  (WETH, WBNB, WPOL, WHYPE).
 - [Methods](quality-methods.md): how the comparisons work, with the SQL to
   rerun them.
 
@@ -43,16 +43,17 @@ quality comparisons with the RPC-era databases are on separate pages:
   RPC-era error: on Ethereum, its live sink stored pre-block balances for
   about 3.06 million addresses in February 2026. On BSC it never wrote 1,629
   blocks of 2024-01-18, and on HyperEVM it missed internal transfers.
-- **ERC-20 on Ethereum covers 62% of the RPC era's non-zero holder pairs,
-  and 99.26% of its own rows are equal.** Ordinary tokens are accurate (99.996%
-  of holders). Airdrop spam, computed balances (stETH, aTokens, reflection)
-  and balances kept elsewhere (MiniMe, Synthetix) are not served, and some
-  real tokens are stale (MKR, HEX, TUSD). See
-  [ERC-20 quality](quality-erc20.md).
-- **USDT, USDC and WETH match the RPC era for more than 99.99% of non-zero
-  holders, and their supplies close.** Apart from the zero address, which the
-  package never emits, each has at most a dozen wrong holders. See
-  [top tokens](quality-top-tokens.md).
+- **ERC-20 covers 62% (Ethereum) and 45% (BSC) of the RPC era's non-zero
+  holder pairs, and 99.26% and 99.39% of its own rows are equal.** Ordinary
+  tokens are accurate (99.996% of holders on Ethereum, 99.999% on BSC).
+  Airdrop spam, computed balances (stETH, aTokens, reflection) and balances
+  kept elsewhere (MiniMe, Synthetix) are not served, and some real tokens
+  are stale (MKR, HEX, TUSD). See [ERC-20 quality](quality-erc20.md).
+- **USDT, USDC and WETH (Ethereum) and USDT, USDC and WBNB (BSC) match the
+  RPC era for more than 99.99% of non-zero holders, and their supplies
+  close.** Apart from the zero address, which the package never emits, each
+  has at most a dozen wrong holders; on BSC, none for USDT and USDC, and 2
+  for WBNB. See [top tokens](quality-top-tokens.md).
 - **The new native databases have four known gaps**, in the table below. See
   [native quality](quality-native.md#gaps-in-the-new-databases).
 
@@ -74,8 +75,8 @@ flowchart TD
   noop["Full-history noop"]
   bf["Backfill<br/>Arbitrum One native v0.7.10"]
   cov["Coverage check"]
-  qual["Quality comparison<br/>BSC ERC-20"]
-  sink["Live sink<br/>proposed: Ethereum, BSC native<br/>not proposed: Base, Optimism,<br/>Unichain, HyperEVM native,<br/>Ethereum ERC-20"]
+  qual["Quality comparison<br/>none waiting"]
+  sink["Live sink<br/>proposed: Ethereum, BSC native<br/>not proposed: Base, Optimism,<br/>Unichain, HyperEVM native,<br/>Ethereum, BSC ERC-20"]
   cut["Token API cutover<br/>none yet"]
   rel --> noop --> bf --> cov --> qual --> sink --> cut
 ```
@@ -303,13 +304,13 @@ gantt
   22.2-70M        :done, 2026-10-19 22:53, 2026-10-20 02:30
   70-120M         :done, 2026-10-20 00:15, 2026-10-20 03:58
   120-170M        :done, 2026-10-20 02:31, 2026-10-20 06:07
-  170-220M, est. end :active, 2026-10-20 11:49, 2026-10-20 15:25
-  220-270M, est. end :active, 2026-10-20 11:49, 2026-10-20 15:25
-  270-320M est.   :2026-10-20 15:25, 2026-10-20 19:00
-  320-370M est.   :2026-10-20 15:25, 2026-10-20 19:00
-  370-420M est.   :2026-10-20 19:00, 2026-10-20 22:40
-  420-470M est.   :2026-10-20 19:00, 2026-10-20 22:40
-  470-515.7M est. :2026-10-20 22:40, 2026-10-21 02:15
+  170-220M        :done, 2026-10-20 11:49, 2026-10-20 15:53
+  220-270M        :done, 2026-10-20 11:49, 2026-10-20 15:51
+  270-320M, est. end :active, 2026-10-20 15:52, 2026-10-20 19:40
+  320-370M, est. end :active, 2026-10-20 15:54, 2026-10-20 19:40
+  370-420M est.   :2026-10-20 19:40, 2026-10-20 23:20
+  420-470M est.   :2026-10-20 19:40, 2026-10-20 23:20
+  470-515.7M est. :2026-10-20 23:20, 2026-10-21 03:00
 ```
 
 Backfill ranges of BSC ERC-20 v0.7.4 (done) and Arbitrum One native v0.7.10
@@ -330,20 +331,25 @@ the producer leaves these self-destructs unmarked (no `suicide` flag) and
 records only the beneficiary's credit, so v0.7.8 never restores the
 contract's debit.
 
-- Fix: native v0.7.11 restores the debit in that exact shape. The patch, with
-  captured fixtures and tests, is being written and reviewed; an offline
-  replay of the 61 blocks checks it.
-- Unlike v0.7.9 and v0.7.10, it changes the output of blocks that v0.7.8
-  accepts. A survey of the saved blocks of the other chains checks whether
-  the shape occurs outside Polygon. If it does not, only Polygon resyncs.
-- Next, each with the owner's OK: the pre-release noop and the release, then
-  Polygon's full-history noop and its resync into
-  `polygon:evm-balances-native@v0.7.11`.
+- **Fix:** native v0.7.11 restores the debit in that exact shape. The patch,
+  with captured fixtures and tests, passed two review rounds. Replayed
+  offline, it debits 58 of the 61 contracts (1,692.97 POL), each by exactly
+  the balance v0.7.8 kept; the other 3 (1.2 POL) self-destructed in blocks not
+  fetched. No other block of any chain in the saved data changes.
+- **Only Polygon is planned to resync.** The survey of every saved block of
+  the other chains found the unmarked shape only on Polygon.
+- **Fail closed (owner, 2026-10-20):** a self-destruct close to that shape
+  but not exactly it will refuse the block instead of keeping a wrong
+  balance. That guard is being added and reviewed.
+- **Next, approved by the owner (2026-10-20):** the PR with the CI-built
+  spkg, the pre-release noop on all eight chains, the merge and tag,
+  Polygon's full-history noop, its resync into
+  `polygon:evm-balances-native@v0.7.11`, and the supply check.
 
 ### Arbitrum One native v0.7.10
 
-Three of the ten backfill ranges are done and two are running. A range takes
-about 3.6 hours, so the database should be complete early on 2026-10-21 UTC
+Five of the ten backfill ranges are done and two are running. A range takes
+about 3.7 hours, so the database should be complete early on 2026-10-21 UTC
 (an estimate).
 
 The full-history noop of native v0.7.9 refused block 500,689,520 on
@@ -351,7 +357,7 @@ The full-history noop of native v0.7.9 refused block 500,689,520 on
 resyncs into `arbitrum-one:evm-balances-native@v0.7.10`. All 10 full-history
 noops over [22,208,000, 515,680,000) passed by 2026-10-20 01:25 UTC, with no
 refusal (they ran from 2026-10-19 11:22 UTC). The backfills run in ascending
-ranges of 50M blocks, two at a time; five ranges, [270,000,000,
+ranges of 50M blocks, two at a time; three ranges, [370,000,000,
 515,680,000), are queued.
 
 | Range | State | Start (UTC) | End (UTC) |
@@ -359,27 +365,35 @@ ranges of 50M blocks, two at a time; five ranges, [270,000,000,
 | [22,208,000, 70,000,000) | ✅ done | 2026-10-19 22:53 | 2026-10-20 02:30 |
 | [70,000,000, 120,000,000) | ✅ done | 2026-10-20 00:15 | 2026-10-20 03:58 |
 | [120,000,000, 170,000,000) | ✅ done | 2026-10-20 02:31 | 2026-10-20 06:07 |
-| [170,000,000, 220,000,000) | 🔄 running | 2026-10-20 11:49 | 15:25, est. |
-| [220,000,000, 270,000,000) | 🔄 running | 2026-10-20 11:49 | 15:25, est. |
-| [270,000,000, 320,000,000) | ⏳ queued | 15:25, est. | 19:00, est. |
-| [320,000,000, 370,000,000) | ⏳ queued | 15:25, est. | 19:00, est. |
-| [370,000,000, 420,000,000) | ⏳ queued | 19:00, est. | 22:40, est. |
-| [420,000,000, 470,000,000) | ⏳ queued | 19:00, est. | 22:40, est. |
-| [470,000,000, 515,680,000) | ⏳ queued | 22:40, est. | 2026-10-21 02:15, est. |
+| [170,000,000, 220,000,000) | ✅ done | 2026-10-20 11:49 | 2026-10-20 15:53 |
+| [220,000,000, 270,000,000) | ✅ done | 2026-10-20 11:49 | 2026-10-20 15:51 |
+| [270,000,000, 320,000,000) | 🔄 running | 2026-10-20 15:52 | 19:40, est. |
+| [320,000,000, 370,000,000) | 🔄 running | 2026-10-20 15:54 | 19:40, est. |
+| [370,000,000, 420,000,000) | ⏳ queued | 19:40, est. | 23:20, est. |
+| [420,000,000, 470,000,000) | ⏳ queued | 19:40, est. | 23:20, est. |
+| [470,000,000, 515,680,000) | ⏳ queued | 23:20, est. | 2026-10-21 03:00, est. |
 
 The partial `arbitrum-one:evm-balances-native@v0.7.9`, [22,208,000,
 220,000,000), is superseded. Dropping it needs the owner's OK.
 
 ### BSC ERC-20 comparison
 
-The BSC ERC-20 v0.7.4 database is complete, and its comparison is running.
-The backfill completed on 2026-10-20 at 07:29 UTC: all 10 full-history noops
-passed, and the 10 backfills cover [0, 128,355,000) in 1,286 contiguous
-ranges. Its comparison with the RPC-era database (USDT, USDC, WBNB, the 100
-most-held contracts and the overall coverage) started at about 13:20 UTC.
-The results will go on the [ERC-20](quality-erc20.md) and
-[top-token](quality-top-tokens.md) pages. The top-token page already checks
-WBNB against the native database.
+The BSC ERC-20 v0.7.4 database is complete and compared. The backfill
+completed on 2026-10-20 at 07:29 UTC: all 10 full-history noops passed, and
+the 10 backfills cover [0, 128,355,000) in 1,286 contiguous ranges. The
+comparison with the RPC-era database ran on 2026-10-20
+([ERC-20 quality](quality-erc20.md#bsc), [top tokens](quality-top-tokens.md#bsc-usdt-usdc-and-wbnb)):
+
+- **USDT and USDC:** no wrong new balance; every difference is a block the
+  RPC era never wrote or one of its stale reads. Their new totals equal the
+  supply from mint and burn events, to the wei.
+- **WBNB:** 2 holders credited only by a 2020 `Deposit` are missing (5.127
+  WBNB), and the zero address by design. The supply closes with residual 0.
+- **Real tokens in the top 100** reproduce 99.999% of the RPC era's
+  non-zero holders, with no stale new row.
+- **Coverage:** 44.65% of the RPC era's non-zero pairs (Ethereum 62.08%),
+  because airdrop spam is a larger share on BSC; 99.39% of the new
+  non-zero rows equal the RPC-era row.
 
 <details>
 <summary>The 10 backfill ranges and their times</summary>

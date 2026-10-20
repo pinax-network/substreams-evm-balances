@@ -1,22 +1,22 @@
 # Top tokens
 
-USDT, USDC and WETH on Ethereum can be served from the new database, top
-holders included. Every chain's wrapped native contract has the same native
-balance in both databases, to the wei.
+USDT, USDC and WETH on Ethereum, and USDT, USDC and WBNB on BSC, can be
+served from the new databases, top holders included. Every chain's wrapped
+native contract has the same native balance in both databases, to the wei.
 
-This page takes a closer look at USDT, USDC and WETH on Ethereum, and at the
-wrapped native token of every chain with a backfilled native database: WETH,
-WBNB, WPOL and WHYPE. BSC's USDT, USDC and WBNB ERC-20 balances follow from
-the BSC ERC-20 comparison, in progress since the backfill completed on
-2026-10-20 ([Deployment status](deployment-status.md#bsc-erc-20-comparison)).
+This page takes a closer look at USDT, USDC and WETH on Ethereum, at USDT,
+USDC and WBNB on BSC, and at the wrapped native token of every chain with a
+backfilled native database: WETH, WBNB, WPOL and WHYPE.
 
 - **New databases:** `mainnet:evm-balances-erc20@v0.7.4` (cutoff
-  26,214,999, 2026-10-17 21:35 UTC) and the native databases of the
-  [native page](quality-native.md).
+  26,214,999, 2026-10-17 21:35 UTC), `bsc:evm-balances-erc20@v0.7.4` (cutoff
+  128,354,999, compared at the cutoff hour 2026-10-18 11:00 UTC where
+  needed) and the native databases of the [native page](quality-native.md).
 - **Reference:** the RPC-era `<chain>:evm-balances@v0.3.3`.
-- **Queries:** run on 2026-10-19, read-only, with no RPC or Firehose call.
-  Each analysis was rechecked by a second pass, and this page gives the
-  corrected results. [Methods](quality-methods.md) has the SQL.
+- **Queries:** run on 2026-10-19 (Ethereum and wrapped native) and
+  2026-10-20 (BSC), read-only, with no RPC or Firehose call. Each analysis
+  was rechecked by a second pass, and this page gives the corrected
+  results. [Methods](quality-methods.md) has the SQL.
 
 ## Summary
 
@@ -26,7 +26,9 @@ the BSC ERC-20 comparison, in progress since the backfill completed on
 | USDC | ✅ Serve from the new database | 1 holder, 0.2 USDC |
 | WETH | ✅ Serve from the new database | Zero address (by design), 12 holders, 0.488 WETH |
 | Wrapped native, 7 chains | ✅ Contract's native balance equal in both databases | None found; the RPC-era holder sums are wrong on BSC and Polygon ([below](#wrapped-native-tokens-on-every-chain)) |
-| BSC USDT, USDC, WBNB | ⏳ Comparison in progress | ERC-20 balances not on this page yet |
+| BSC USDT | ✅ Serve from the new database | None found |
+| BSC USDC | ✅ Serve from the new database | None found |
+| BSC WBNB | ✅ Serve from the new database | Zero address (by design), 2 holders, 5.127 WBNB |
 
 Legend: ✅ checked and agrees, ⚠️ error found (the cell says where),
 🔍 open check, ⏳ waiting.
@@ -44,17 +46,26 @@ At the cutoff:
 | USDT | 78,272,145 | 99.990763% | 99.997905% | 1,000 |
 | USDC | 36,888,869 | 99.990900% | 99.992018% | 1,000 |
 | WETH | 6,648,512 | 99.9919% | 99.99981% | 999 |
+| BSC USDT | 249,192,169 | 99.997514% | 99.981871% | 1,000 |
+| BSC USDC | 16,023,705 | 99.995803% | 99.982262% | 1,000 |
+| BSC WBNB | 12,881,203 | 99.999051% | 99.942989% | 1,000 |
 
 - **USDT, USDC and WETH can be served from the new database**, top holders
   included. Each has at most a dozen wrong holders, and those have small
-  balances. Almost every other difference is an RPC-era error.
+  balances. Almost every other difference is an RPC-era error. On BSC the
+  new database is wrong for no USDT or USDC holder and for 2 WBNB holders.
 - **The supplies close.** The sum of the new balances equals each token's
   independent supply, less the zero address and the listed errors. The
-  RPC-era's sum over-counts USDT by 901,603.62 USDT.
+  RPC-era's sum over-counts USDT by 901,603.62 USDT on Ethereum and by
+  927,691.48 USDT on BSC.
   - USDT: new total = supply minus the zero address, to the unit.
   - USDC: new total = event-log supply + 0.2 USDC.
   - WETH: contract's ETH − holders = zero address + 0.488 WETH + about
     0.001.
+  - BSC USDT and BSC USDC: new total = supply from mint and burn events,
+    to the wei.
+  - BSC WBNB: contract's BNB − holders = zero address + 5.127 WBNB, residual
+    0.
 
 > [!NOTE]
 > **History is better in the new database.** The RPC-era backfill kept 0.1%
@@ -329,6 +340,143 @@ earlier than the new database's. Where both last changes are at the same
 block, the values are equal. Very active holders have 3 to 5 hourly bars a
 day in the RPC-era's backfill, against 23 or 24 in the new database.
 
+## BSC USDT, USDC and WBNB
+
+`bsc:evm-balances-erc20@v0.7.4` against `bsc:evm-balances@v0.3.3`, at block
+128,354,999. Holders changed after the cutoff are compared at the cutoff
+hour, 2026-10-18 11:00 UTC, from hourly bars. The RPC-era database is live,
+so its counts drift by a few thousand holders between passes; the figures
+below come from one pass each.
+
+> [!NOTE]
+> On BSC the new database is wrong for **no** USDT or USDC holder. Every
+> difference is a block the RPC-era never wrote (the 1,629 blocks of
+> 2024-01-18 and 434 live-sink blocks, see
+> [native quality](quality-native.md#errors-in-the-rpc-era-databases)) or
+> one of its stale reads. For WBNB, 2 holders whose only credit is a 2020
+> `Deposit` are missing (5.127 WBNB).
+
+| | BSC USDT | BSC USDC | BSC WBNB |
+| --- | ---: | ---: | ---: |
+| Contract | `0x55d39832…` | `0x8ac76a51…` | `0xbb4cdb9c…` |
+| Comparable holders | 249,192,169 | 16,023,705 | 12,881,203 |
+| Holder match | 99.999207% | 99.998727% | 99.999620% |
+| Non-zero match | 99.997514% | 99.995803% | 99.999051% |
+| Mismatch: new older / same block / new newer | 0 / 32 / 1,943 | 0 / 2 / 202 | 0 / 0 / 49 |
+| Only RPC-era, non-zero | 0 | 0 | 2 (5.127 WBNB) |
+| Only new, non-zero | 283 | 32 | 6 |
+| Top 10 / 100 / 1,000 | 10 / 100 / 1,000 | 10 / 100 / 1,000 | 10 / 100 / 1,000 |
+| Wrong in the new database | none found | none found | 2 holders + zero address |
+
+The contracts are BSC-USD `0x55d398326f99059ff775485246999027b3197955`,
+Binance-Peg USDC `0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d` (both 18
+decimals) and WBNB `0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c`. No new
+holder top list has a phantom holder. For each token, comparable + after +
+only new equals the new database's holder count (USDT 251,492,036, USDC
+16,454,260, WBNB 12,986,087).
+
+### BSC USDT
+
+| Class | Holders | Absolute difference | Wrong side |
+| --- | ---: | ---: | --- |
+| New row in the RPC-era's unwritten blocks of 2024-01-18 (new newer) | 1,343 | 780,911.88 USDT | RPC-era |
+| New row in the RPC-era's skipped live blocks, 81.8M to 100.9M | 600 | 150,690.70 USDT | RPC-era |
+| Only in the new database, funded in those blocks | 283 non-zero, 770 zero | 4,079.47 USDT | RPC-era |
+| Same block, stale RPC-era read (84,599,556 to 84,599,582) | 32 | 1,739.08 USDT | RPC-era |
+| Changed after the hour, earlier change in the 2024-01-18 blocks | 2 | 516.00 USDT | RPC-era |
+
+- **Every difference is settled by events.** For all 3,028 differences at
+  the cutoff, new minus RPC-era equals the deduplicated `Transfer` flow. 30
+  of the 32 same-block rows hold the balance from before the block; the
+  other 2 are reads at least 80 blocks stale.
+- **Value.** The comparable holders match 99.981871% of their RPC-era value
+  (5,144,773,338.20 of 5,145,706,221.81 USDT). They hold only about 56% of
+  the supply: holders changed after the cutoff hold 4,040,212,813.20 USDT.
+  Across all 381,769,798 holders at the cutoff hour, 2,260 differ, all
+  RPC-era errors, and 99.98984% of the value matches.
+- **Supply.** 58 mints (10,984,999,340.73 USDT) less 638 burns
+  (1,800,007,481.209740225883276351 USDT) give 9,184,991,859.520259774116723649
+  USDT, exactly the new database's sum. The RPC-era sum at the hour is that
+  plus 927,691.484429712169278150 USDT, which the classes above account for
+  exactly.
+- **History.** At 10 past hours from 2020-12-01 to 2026-06-01, all 395
+  differing top-100 entries and 24 random-sample differences follow the
+  events in the new database. Before 2026, only 38% to 70% of the RPC-era's
+  top-100 value sits in exactly matching holders (96.6% on 2026-06-01); the
+  value-weighted error is 0.00003% to 4.4%.
+- **Zero rows.** The 129,337,432 RPC-era-only holders are all zero. None of
+  1,276 sampled was ever sender or recipient of a non-zero USDT `Transfer`.
+
+### BSC USDC
+
+| Class | Holders | Absolute difference | Wrong side |
+| --- | ---: | ---: | --- |
+| New row in the RPC-era's unwritten blocks of 2024-01-18 (new newer) | 169 | 93,095.01 USDC | RPC-era |
+| New row in the RPC-era's skipped live blocks, 83.66M to 100.40M | 33 | 10,593.19 USDC | RPC-era |
+| Only in the new database, funded in those blocks | 32 non-zero, 49 zero | 2,287.72 USDC | RPC-era |
+| Same block, stale RPC-era read (84,599,556 to 84,599,557) | 2 | 0.000128 USDC | RPC-era |
+
+- **Value.** The comparable holders match 99.982262% of their value and hold
+  36.78% of the new total. All 512,344 holders changed after the cutoff are
+  equal at the cutoff hour, so with them 99.993499% of the value matches.
+- **Supply.** 50 mints (3,039,000,000 USDC) less 26 burns
+  (1,450,000,122.560196 USDC) give 1,588,999,877.439804 USDC, the new
+  database's total to the wei. The RPC-era total is 101,232.794738 USDC
+  higher: the sum of its 285 per-holder errors, to the wei.
+- **History.** At 8 past dates from 2021-06-01 to 2026-06-01, 14 to 30 of
+  the RPC-era's top 100 differ before 2026 and none on 2026-06-01. All 244
+  differences tested against events show the RPC-era stale.
+- **Completeness.** In one shard of eight, every one of 2,054,097 recipients
+  and 1,919,448 senders of a USDC `Transfer` has a new row.
+
+### BSC WBNB
+
+| Class | Holders | Amount | Wrong side |
+| --- | ---: | ---: | --- |
+| RPC-era stale in its unwritten blocks of 2024-01-18 | 32 new newer, 5 only new | 233.99 + 0.37 WBNB | RPC-era |
+| RPC-era stale in its skipped live blocks, 86.4M to 100.0M | 17 new newer, 1 only new | 16.47 WBNB | RPC-era |
+| Credited only by a `Deposit`, in a block with no WBNB `Transfer` (2020) | 2 | 5.127 WBNB | new |
+| Zero address | 1 | 73.262380589262592219 WBNB | new, by design |
+
+- **The 2 missing holders** were credited 0.127 WBNB at block 1,180,462 and
+  5 WBNB at block 2,415,928, and never moved again: the BSC counterpart of
+  the 12 [WETH](#weth) holders. Since v0.7.4 such a `Deposit` counts only
+  when it passes the backed-deposit check, and these evidently fail it.
+  From 2020-10 to 2021-02 the new database skipped at least 532 deposit-only
+  holder-blocks; later writes healed all but these 2. It missed none of the
+  44,836 deposit- or withdrawal-only holder-blocks after 2021-02, and no
+  withdrawal ever.
+- **Supply.** WBNB's native balance minus the new holder sum is
+  78.389380589262592219 WBNB, the zero address plus the 2 missing deposits,
+  with residual 0. It is the same at three points: the native database's
+  cutoff hour, its cutoff block and the ERC-20 cutoff hour. The RPC-era
+  holder sum is 250.083918561925075354 WBNB above the native balance: 49
+  stale holders (+250.454312722015743368) less 6 never credited
+  (0.370394160090668014), [below](#wrapped-native-tokens-on-every-chain).
+- **Value.** The comparable holders match 99.942989% of their value. Holders
+  changed after the cutoff hold 71.75% of the new total, and all are equal
+  at the cutoff hour except the zero address.
+- **History.** In ten one-hour windows from 2020 to 2026, the new database's
+  hourly change equals the deduplicated event flow for every one of 32,448
+  holders that moved; the RPC-era's matches for 3% to 46% before 2026. The
+  RPC-era's top 100 matched only 17 to 68 holders at past dates before 2026.
+
+```mermaid
+xychart-beta
+  title "BSC: RPC-era top 100 matched by the new database, by date"
+  x-axis ["2021-06", "2022-06", "2023-06", "2024-01-18", "2024-06", "2025-06", "2026-06"]
+  y-axis "Holders matched (of 100)" 0 --> 100
+  line [86, 74, 75, 71, 84, 70, 100]
+  line [60, 53, 65, 57, 72, 61, 96]
+  line [19, 33, 40, 35, 68, 50, 99]
+```
+
+*RPC-era top 100 holders that the new database matches, at 00:00 UTC on
+the first of each month shown (18:00 UTC on 2024-01-18): top line USDC,
+middle line USDT, bottom line WBNB (all three near 100 in 2026). As on
+Ethereum, the shortfall is the RPC-era backfill's sparse history; the live
+part (2026-06) nearly matches.*
+
 ## Wrapped native tokens on every chain
 
 On all seven chains the contract's native balance is the same to the wei in
@@ -340,7 +488,7 @@ compared at the start of the cutoff's hour (H) from hourly bars.
 | Chain | Token | Contract | RPC-era holder sum |
 | --- | --- | --- | --- |
 | Ethereum | WETH | `0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2` | ✅ small positive gap |
-| BSC | WBNB | `0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c` | ⚠️ 73 stale holders |
+| BSC | WBNB | `0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c` | ⚠️ stale holders |
 | Base | WETH | `0x4200000000000000000000000000000000000006` | ✅ equal |
 | Optimism | WETH | `0x4200000000000000000000000000000000000006` | ✅ equal to 1 wei |
 | Unichain | WETH | `0x4200000000000000000000000000000000000006` | ✅ equal |
@@ -373,7 +521,10 @@ compared at the start of the cutoff's hour (H) from hourly bars.
     −250.083920231925075354 WBNB, which leaves +0.00000167 WBNB. For the five
     largest (72% of the amount), the superseded
     `bsc:evm-balances-erc20@v0.7.3`, also built from Extended blocks, holds
-    exactly the RPC-era value minus the missed change.
+    exactly the RPC-era value minus the missed change. The BSC ERC-20
+    comparison of 2026-10-20 accounts for the same 250.083918561925075354
+    WBNB as 49 stale holders and 6 holders the RPC-era never credited
+    ([BSC WBNB](#bsc-wbnb)).
   - Polygon: the excess is the same to the wei since at least 2026-03-01,
     13 days after the RPC-era's live start. It is not missing blocks, the
     zero address or a holder left stale in the live part. The holders are not
