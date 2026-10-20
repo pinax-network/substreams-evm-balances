@@ -1,6 +1,8 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-18, for whoever picks it up next. Keep
+Where the repository stands on 2026-10-20, for whoever picks it up next. The
+deployment of each chain, and the quality of its databases against the
+RPC-era ones, are in [Deployment status](deployment-status.md). Keep
 this page short and current: when a package's version, hashes or
 qualification change, update its row here, and put the dated evidence in the
 pull request and the package's evidence files. The rules are in
@@ -96,6 +98,18 @@ v0.7.9 does
 pre-release noop passed 345 windows on the eight networks. Its same-block
 spot checks matched 815,859 of 816,963 balances; the 134 that differ are
 computed balances, in 14 contracts, that v0.7.3 writes with the same values.
+
+**In progress: native v0.7.11 (Polygon).** The quality comparison of
+2026-10-19 found `polygon:evm-balances-native@v0.7.8` over-counting at least
+1,831.73 POL against Polygon's fixed genesis supply. On 2026-10-20 the blocks
+of the 61 contracts it found (1,694.17 POL) showed the cause. After Napoli
+(EIP-6780), Polygon's producer leaves a self-destruct unmarked (no `suicide`
+flag on the call) and records only the beneficiary's `SUICIDE_REFUND`, and
+`selfdestruct_debits` restores the debit only for a marked call
+([native quality](quality-native.md#polygon-missed-self-destruct-debits)).
+v0.7.11 restores it in that exact shape. Unlike v0.7.9 and v0.7.10, it
+changes the output of blocks that v0.7.8 accepts, so Polygon would resync
+into `polygon:evm-balances-native@v0.7.11` (owner's OK needed).
 
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
@@ -298,11 +312,12 @@ package's noop over that range passes (owner, 2026-10-13).
    package, then the backfill from genesis of the ranges it passed and the
    live sink ([Token API live sinks](clickhouse.md#token-api-live-sinks-bsc)).
    Native v0.7.8 is backfilled on Ethereum, BSC, Polygon, Optimism, Unichain
-   and HyperEVM (`<chain>:evm-balances-native@v0.7.8`), and ERC-20 v0.7.4 on
-   Ethereum (`mainnet:evm-balances-erc20@v0.7.4`). Next are ERC-20 v0.7.4 on
-   BSC (`bsc:evm-balances-erc20@v0.7.4`), native v0.7.9 on Base
-   (`base:evm-balances-native@v0.7.9`) and native v0.7.10 on Arbitrum One
-   (`arbitrum-one:evm-balances-native@v0.7.10`).
+   and HyperEVM (`<chain>:evm-balances-native@v0.7.8`), native v0.7.9 on
+   Base (`base:evm-balances-native@v0.7.9`, 2026-10-19), and ERC-20 v0.7.4 on
+   Ethereum and BSC (`<chain>:evm-balances-erc20@v0.7.4`, BSC on
+   2026-10-20). Native v0.7.10 on Arbitrum One
+   (`arbitrum-one:evm-balances-native@v0.7.10`) is backfilling, and Polygon
+   waits for native v0.7.11 (above).
 2. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),
