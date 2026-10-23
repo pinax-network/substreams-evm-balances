@@ -1,6 +1,7 @@
 # Handoff: current state
 
-Where the repository stands on 2026-10-20, for whoever picks it up next. The
+Ethereum/BSC live rollout updated on 2026-10-23; other package and backfill
+status retains the 2026-10-20 snapshot. The
 deployment of each chain, and the quality of its databases against the
 RPC-era ones, are in [Deployment status](deployment-status.md). Keep
 this page short and current: when a package's version, hashes or
@@ -34,7 +35,12 @@ noops pass, and wants one release for every supported chain, each
 spot-checked and nooped before the tag. Ethereum native passed its full-history noop
 at v0.7.7 but was never backfilled; v0.7.7 keeps a wrong balance for an
 account created and self-destructed in one transaction (Ethereum `Block.ver` 3
-after Cancun), which v0.7.8 fixes. No live sink of these packages runs yet.
+after Cancun), which v0.7.8 fixes. Since 2026-10-23, native v0.7.8 live
+sinks run on BSC and Ethereum. Ethereum is at head for comparison only;
+BSC is catching up. Legacy ERC-20 remains enabled, and ingestion remains
+`db_out` until all networks migrate. Ethereum API reads remain on legacy
+while its known deletion defect is handled separately. See the
+[dated rollout and checks](deployment-status.md#native-live-rollout-on-2026-10-23).
 The BSC shadow of the retired v0.6.1 was stopped on 2026-10-15 at the owner's
 request, and its database was dropped.
 
@@ -120,7 +126,9 @@ Both are on the [Releases](https://github.com/pinax-network/substreams-evm-balan
 its module, WASM and schema hashes. The committed spkgs are CI's canonical
 Linux builds (Rust 1.99.0, substreams CLI v1.22.0), taken from the "Package
 hashes" job's `packages` artifact. Identify a build by its module hash
-(`substreams info`), never by the spkg sha256. None is live-qualified.
+(`substreams info`), never by the spkg sha256. Native v0.7.8 has the
+[bounded live checks](deployment-status.md#native-live-rollout-on-2026-10-23);
+they do not qualify every account or historical producer shape.
 
 - **`native/balances`** v0.7.0 adds `db_out` and emits `NativeEvents`,
   `Events` without the contract, which native amounts never have (field 1
@@ -229,8 +237,9 @@ Its first FINAL comparison with the RPC-era database
 over blocks 127,000,000–127,460,000, found native exact and 1,592 wrong ERC-20
 balances among 10,223,501 same-block pairs (precision 0.999844)
 ([#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)).
-That is shadow evidence for v0.6.1, not live qualification. The live sinks of
-native v0.7.8 and ERC-20 v0.7.4 start after their backfills.
+That is shadow evidence for v0.6.1, not live qualification. Native v0.7.8
+live sinks started after their backfills on 2026-10-23. ERC-20 v0.7.4 remains
+backfilled only; the API and live ERC-20 processing stay on legacy.
 
 A noop of v0.6.1 over the full BSC history (2026-10-13) failed in every range
 below block 38.1M; the ranges from 38.1M to 127M ran clean as far as they had

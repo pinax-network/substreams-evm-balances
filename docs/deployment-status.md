@@ -4,8 +4,8 @@
 
 | Chain | Native | ERC-20 | Live sink | Note |
 | --- | --- | --- | --- | --- |
-| Ethereum | ✅ v0.7.8 | ✅ v0.7.4 | ⏳ native proposed | |
-| BSC | ✅ v0.7.8 | ✅ v0.7.4 | ⏳ native proposed | ✅ [ERC-20 compared](#bsc-erc-20-comparison) |
+| Ethereum | ✅ v0.7.8 | ✅ v0.7.4 | ✅ native comparison | API stays on legacy; known deletion defect |
+| BSC | ✅ v0.7.8 | ✅ v0.7.4 | 🔄 native catching up | API cutover waits for head; legacy ERC-20 retained |
 | Base | ✅ v0.7.9 | ⛔ | not proposed | |
 | Optimism | ✅ v0.7.8 | ⛔ | not proposed | ⚠️ [legacy state](#before-the-cutover) to seed |
 | Polygon | ✅ v0.7.8 | ⛔ | after resync | ⚠️ over-count, 🛠️ [v0.7.11](#polygon-native-v0711) fix and resync |
@@ -16,11 +16,12 @@
 
 Legend: ✅ done (backfilled) · 🔄 running · ⏳ queued or awaiting the owner ·
 ⚠️ issue · 🛠️ fix in progress · ⛔ not scheduled. "Live sink" is the live
-sink of the new database; none runs yet.
+sink of the new database. Ethereum and BSC native sinks started on 2026-10-23.
 
 > [!NOTE]
-> A snapshot taken on 2026-10-20 at about 19:30 UTC. The rows here change as
-> backfills finish. [Handoff](handoff.md) keeps the current state.
+> Ethereum/BSC live status updated on 2026-10-23. Other chains and the
+> historical comparison counts retain the 2026-10-20 snapshot.
+> [Handoff](handoff.md) keeps the current state.
 
 For each chain, this page lists the final package release, the ClickHouse
 database it writes, what is backfilled, and what is still running. The
@@ -35,6 +36,57 @@ quality comparisons with the RPC-era databases are on separate pages:
   (WETH, WBNB, WPOL, WHYPE).
 - [Methods](quality-methods.md): how the comparisons work, with the SQL to
   rerun them.
+
+## Native live rollout on 2026-10-23
+
+[k8s-token-api-services#45](https://github.com/pinax-network/k8s-token-api-services/pull/45)
+enabled native v0.7.8 `db_out` sinks in `riv-prod-pinax-api-a`, namespace
+`token-api-services`, continuing at the backfills' exclusive ends:
+BSC 127,810,000 (undo buffer 5) and Ethereum 26,198,000 (undo buffer 2).
+Both cursors carry `db_out` hash `40f294cb126dae6dbbd874f9e291e85b634d04d1`.
+The 21 blocks spanning each boundary have one row per block, without a gap
+or duplicate. Ethereum reached head; BSC is catching up.
+
+The owner chose to keep legacy ERC-20 running and to retain `db_out` until
+all networks migrate. Ethereum's native sink stays on for comparison,
+while its API reads stay on legacy: the known deletion defect is a separate
+fix. BSC's API change is prepared in
+[k8s-token-api-rest#71](https://github.com/pinax-network/k8s-token-api-rest/pull/71),
+with its cutover held until the native sink reaches head and the remaining
+[#124](https://github.com/pinax-network/substreams-evm-balances/issues/124)
+reader-history/freeze and rows-per-block alert gates are settled. Existing
+alerts cover head lag, crashes and stopped flushes.
+
+[Recorded live evidence](history/native-live-2026-10-23.json):
+
+- Replay noops passed BSC [127,810,000, 129,344,000) and Ethereum
+  [26,198,000, 26,256,000), respectively 1,534,000 and 58,000 blocks.
+- Every emitted row matched same-block RPC in BSC
+  [129,344,828, 129,344,928), 13,605 rows, and Ethereum
+  [26,256,106, 26,256,126), 8,424 rows.
+- All 150 current same-block differences between BSC's native and legacy
+  tables in blocks 74,000,000 through 94,000,000 matched the new table
+  against RPC. This is a fresh bounded comparison, not the exact holder
+  set of the older comparison below.
+- Ethereum block 21,257,833 reproduced 59 accounts at 1 wei in the package
+  and zero in RPC (262 other emitted rows matched). A captured transaction
+  creates and self-destructs accounts, then credits them again before their
+  transaction-end deletion. This remains unresolved.
+- Replay completeness over BSC [127,810,000, 127,826,000): all 15,996
+  output-bearing block rows and hashes matched ClickHouse, with no missing,
+  unexpected or repeated block rows. The one fully covered hour held
+  953,881 history transactions, exactly the emitted native rows for that
+  hour. Four blocks emitted no balance row.
+- Both first live-sink block hashes matched their network's RPC.
+- An isolated API canary passed native balance, holder, token metadata and
+  1h/4h/1d/1w historical routes, plus legacy ERC-20 fallback controls.
+  Cold native-token metadata scans took 12.7s on BSC and 8.9s on Ethereum;
+  the split routing does not change their SQL.
+
+These checks cover the emitted rows and intervals above. Successful noops
+and samples do not establish correctness for all accounts or history. The
+record includes the observed reader/client releases; those releases do not
+identify the producer of every historical block.
 
 ## Quality at a glance
 
@@ -68,7 +120,7 @@ quality comparisons with the RPC-era databases are on separate pages:
 
 ```mermaid
 ---
-title: Path to cutover on 2026-10-20
+title: Historical cutover snapshot on 2026-10-20
 ---
 flowchart TD
   rel["Release<br/>Polygon native v0.7.11 (in progress)"]
@@ -86,7 +138,9 @@ the chains at that stage.
 
 ## Final releases
 
-**No release is live-qualified yet** (see [Handoff](handoff.md)).
+Native v0.7.8 has the bounded live checks recorded above. Ethereum remains
+a comparison deployment because of its known defect; other releases retain
+their earlier qualification status (see [Handoff](handoff.md)).
 
 ```mermaid
 timeline
@@ -243,16 +297,16 @@ blocks, so both new packages refuse every block there.
 
 ## Live sinks
 
-None of the new databases has a live sink yet. Each one stops at its
-backfill's end block, which is the start block of its future live sink. When
-a sink starts, it catches up from that block to the head. The
+BSC and Ethereum native sinks started on 2026-10-23 at their backfills'
+exclusive end blocks. Other databases retain their recorded backfill
+endpoints. Each new sink catches up from that boundary to the head. The
 [cutover](clickhouse.md) then points the Token API's `balances-native` and
 `balances-erc20` keys at the new databases, one chain and one side at a time.
 
 | Chain | Native live sink start | ERC-20 live sink start | Live sink deployment |
 | --- | ---: | ---: | --- |
-| Ethereum | 26,198,000 | 26,215,000 | ⏳ native proposed (awaiting the owner); ERC-20 not proposed yet |
-| BSC | 127,810,000 | 128,355,000 | ⏳ native proposed (awaiting the owner); ERC-20 not proposed yet |
+| Ethereum | 26,198,000 | 26,215,000 | ✅ native comparison at head; ERC-20 stays legacy |
+| BSC | 127,810,000 | 128,355,000 | 🔄 native catching up; ERC-20 stays legacy |
 | Base | 52,720,000 | | not proposed yet |
 | Optimism | 158,320,000 | | not proposed yet |
 | Polygon | 95,690,000 | | after the v0.7.11 resync ([below](#polygon-native-v0711)) |
@@ -263,7 +317,7 @@ a sink starts, it catches up from that block to the head. The
 ### Before the cutover
 
 > [!IMPORTANT]
-> Settle these four points before the cutover:
+> Resolve the points applicable to each network and balance type before its cutover:
 >
 > - **Seed the legacy state on Optimism and Arbitrum One.** Their databases
 >   start at Bedrock and Nitro, so balances unchanged since then have no row
@@ -271,12 +325,12 @@ a sink starts, it catches up from that block to the head. The
 > - **Polygon's missed self-destruct debits** need the v0.7.11 fix and a resync
 >   ([below](#polygon-native-v0711),
 >   [native quality](quality-native.md#polygon-missed-self-destruct-debits)).
-> - **The new schema creates fewer objects than the RPC-era databases have.**
->   Those also hold 1, 5, 10 and 30-minute bars (the new history keeps 1h, 4h,
->   1d and 1w), the `native_balances_holders` and `erc20_balances_holders`
->   views (top 1,000 holders, per contract for ERC-20), and
->   `native_balances_is_deleted` and `native_balances_year_is_deleted`. Check
->   which of them the Token API reads.
+> - **Ethereum's account-deletion defect** remains a separate fix. Its new
+>   native sink is for comparison; the API keeps legacy reads.
+> - **Schema compatibility was checked for EVM native routes on 2026-10-23.**
+>   The API uses the retained 1h, 4h, 1d and 1w history intervals and does not
+>   read the omitted EVM holder or deletion views. The isolated canary passed
+>   balance, holder, token metadata and history routes.
 > - **ERC-20 holders the package never emits.** The zero address, and the token
 >   kinds listed in [ERC-20 quality](quality-erc20.md#tokens-the-new-database-does-not-serve).
 
