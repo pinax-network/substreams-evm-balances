@@ -1,0 +1,2077 @@
+{
+  "observed_on": "2026-10-23",
+  "scope": "BSC native migration; Ethereum native comparison only; legacy ERC-20 retained; db_out retained until all networks migrate",
+  "package": {
+    "release": "evm-balances-native-v0.7.8",
+    "map_events": "6ed2464534915064dd4f475e80d453b709fd7727",
+    "db_out": "40f294cb126dae6dbbd874f9e291e85b634d04d1",
+    "source_commit": "3e69653"
+  },
+  "sink_image": "ghcr.io/pinax-network/substreams-sink-sql:v4.13.0@sha256:b2bf19f8829be4f5a95d4ec797be9279863a413b711ae53e240fe62209de30e8",
+  "sink_deployment": {
+    "pull_request": "https://github.com/pinax-network/k8s-token-api-services/pull/45",
+    "commit": "a9f4f5d1d446279c1c3a46164f8e862b4e86cb50",
+    "cluster": "riv-prod-pinax-api-a",
+    "namespace": "token-api-services",
+    "start_blocks": {
+      "bsc": 127810000,
+      "mainnet": 26198000
+    },
+    "undo_buffer": {
+      "bsc": 5,
+      "mainnet": 2
+    }
+  },
+  "noops": [
+    {
+      "network": "bsc",
+      "range": [
+        127810000,
+        129344000
+      ],
+      "processed": 1534000,
+      "result": "pass",
+      "trace_id": "023e3f940b8a8967dc70c33eba751e12"
+    },
+    {
+      "network": "mainnet",
+      "range": [
+        26198000,
+        26256000
+      ],
+      "processed": 58000,
+      "result": "pass"
+    }
+  ],
+  "recent_rpc": [
+    {
+      "chain": "bsc",
+      "package": "spkg/evm-balances-native-v0.7.8.spkg",
+      "type": "evm.balances.v1.NativeEvents",
+      "range": [
+        129344828,
+        129344928
+      ],
+      "head": 129345028,
+      "total": {
+        "checked": 13605,
+        "matched": 13605,
+        "differ": 0,
+        "errors": 0
+      },
+      "contracts": {
+        "native": {
+          "checked": 13605,
+          "matched": 13605,
+          "differ": [],
+          "errors": []
+        }
+      }
+    },
+    {
+      "chain": "eth",
+      "package": "spkg/evm-balances-native-v0.7.8.spkg",
+      "type": "evm.balances.v1.NativeEvents",
+      "range": [
+        26256106,
+        26256126
+      ],
+      "head": 26256190,
+      "total": {
+        "checked": 8424,
+        "matched": 8424,
+        "differ": 0,
+        "errors": 0
+      },
+      "contracts": {
+        "native": {
+          "checked": 8424,
+          "matched": 8424,
+          "differ": [],
+          "errors": []
+        }
+      }
+    }
+  ],
+  "bsc_historical_rpc": {
+    "observed_at": "2026-10-23T15:46:59.671735+00:00",
+    "scope": "Current same-block differences, native and legacy FINAL tables; block_num 74000000..94000000, all four address quarters; not all historical states",
+    "counts": {
+      "rows": 150,
+      "native_matches": 150,
+      "legacy_matches": 0,
+      "errors": 0
+    },
+    "rows": [
+      {
+        "address": "0x00ff09316b316ef407ebfcfa5c18ca4839b50641",
+        "new_balance": "592111305788567",
+        "legacy_balance": "616680055077691",
+        "block_num": 74741071,
+        "rpc": "592111305788567",
+        "error": null
+      },
+      {
+        "address": "0x02259366cb4891d915bfa76d011c3d1d40d44241",
+        "new_balance": "609636000000",
+        "legacy_balance": "2351431500000",
+        "block_num": 74734499,
+        "rpc": "609636000000",
+        "error": null
+      },
+      {
+        "address": "0x061522641b5f9f788a0f1dc0da6876e3e687fdb0",
+        "new_balance": "0",
+        "legacy_balance": "37128870000000000",
+        "block_num": 88722135,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x068c98226863a5b55687d8b94617fb0eb4659b28",
+        "new_balance": "762045000000",
+        "legacy_balance": "2503840500000",
+        "block_num": 74734499,
+        "rpc": "762045000000",
+        "error": null
+      },
+      {
+        "address": "0x070c1c310ac4c7208017da57ce964de58a508f81",
+        "new_balance": "50000000000",
+        "legacy_balance": "39420000000000",
+        "block_num": 74948104,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x0a7bf4d261a0b764fbd68d46ce75bd3131685f39",
+        "new_balance": "1078350000000",
+        "legacy_balance": "4725600500172730",
+        "block_num": 89318154,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0x0c7180508da5075392d09fb544cee4a4065bb231",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0x0c7fb5c22f92be6dc5fc9ce0af545a76d0875887",
+        "new_balance": "1808740708817942",
+        "legacy_balance": "0",
+        "block_num": 84599583,
+        "rpc": "1808740708817942",
+        "error": null
+      },
+      {
+        "address": "0x0fd8e077599004ec759814a336e6d4acd61645df",
+        "new_balance": "19994854000000",
+        "legacy_balance": "32055914000000",
+        "block_num": 89278710,
+        "rpc": "19994854000000",
+        "error": null
+      },
+      {
+        "address": "0x0ff8bb06b78ab146575c84dffe6e3ec674216ff4",
+        "new_balance": "1092000000000",
+        "legacy_balance": "17480457887733",
+        "block_num": 84599557,
+        "rpc": "1092000000000",
+        "error": null
+      },
+      {
+        "address": "0x1be2572e2c5679262c1b8978da1a1c5d490d0f45",
+        "new_balance": "0",
+        "legacy_balance": "6025130623859436",
+        "block_num": 74734499,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x1c00d6e40ae46d8c36e483931d1b114145a4e67e",
+        "new_balance": "152409000000",
+        "legacy_balance": "1894204500000",
+        "block_num": 74734499,
+        "rpc": "152409000000",
+        "error": null
+      },
+      {
+        "address": "0x1c2e99246464ff8092ced47a024126dc2e4ded96",
+        "new_balance": "1881140000000000",
+        "legacy_balance": "1940570000000000",
+        "block_num": 90066935,
+        "rpc": "1881140000000000",
+        "error": null
+      },
+      {
+        "address": "0x1c84c226f3c01417dc214301f51dd686dfbd8fa4",
+        "new_balance": "1092000000000",
+        "legacy_balance": "0",
+        "block_num": 84599573,
+        "rpc": "1092000000000",
+        "error": null
+      },
+      {
+        "address": "0x2265f4ba6d021e577a981fe23532ab66c222b24c",
+        "new_balance": "482791259575",
+        "legacy_balance": "481791259575",
+        "block_num": 84599575,
+        "rpc": "482791259575",
+        "error": null
+      },
+      {
+        "address": "0x22c445afab75587c28ec1858b9d7266540bd0131",
+        "new_balance": "477600000000",
+        "legacy_balance": "5000000000000",
+        "block_num": 88388792,
+        "rpc": "477600000000",
+        "error": null
+      },
+      {
+        "address": "0x22ddd729a4970670ea673040b110a2d862ae7a2e",
+        "new_balance": "0",
+        "legacy_balance": "84990550000000000",
+        "block_num": 90066935,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x24943c3ccb978979173e4881acab3da0be96a16e",
+        "new_balance": "0",
+        "legacy_balance": "12866516010019496",
+        "block_num": 74746212,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x25b2711e42715a14b9cc300ccdd1d1783a3b22b2",
+        "new_balance": "0",
+        "legacy_balance": "4580650000000",
+        "block_num": 84599569,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x26965666804e25136854e4b66cda44952e1abda9",
+        "new_balance": "50000000000",
+        "legacy_balance": "12210000000000",
+        "block_num": 74734577,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x2aa0a6263b8062fee6300f2a74a4bff963b09bb9",
+        "new_balance": "1078350000000",
+        "legacy_balance": "12900992237863",
+        "block_num": 84599574,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0x2bd23dcb3da487988327c7bc40b9324553b55cd9",
+        "new_balance": "8853400000000",
+        "legacy_balance": "29172200000000",
+        "block_num": 74970325,
+        "rpc": "8853400000000",
+        "error": null
+      },
+      {
+        "address": "0x2f1b7828f3e2f6e805eb357359d26ad6a2d0a423",
+        "new_balance": "0",
+        "legacy_balance": "84134706750000",
+        "block_num": 84599563,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x304e43d8ba1bf69ae3cfe39f39884056eaa444c7",
+        "new_balance": "50000000000",
+        "legacy_balance": "12930000000000",
+        "block_num": 74863826,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x3301c77732761d88f466743b92643a3d8a684c4f",
+        "new_balance": "1482016550000",
+        "legacy_balance": "1445000000000000",
+        "block_num": 84599568,
+        "rpc": "1482016550000",
+        "error": null
+      },
+      {
+        "address": "0x3461b655cffa38cc84bc1425b2ae162a9961fd22",
+        "new_balance": "408450000000",
+        "legacy_balance": "1558450000000",
+        "block_num": 89855647,
+        "rpc": "408450000000",
+        "error": null
+      },
+      {
+        "address": "0x3634f7747937c6190c235fddc20d55edf5eb9732",
+        "new_balance": "12771375000000",
+        "legacy_balance": "15000000000000",
+        "block_num": 84599569,
+        "rpc": "12771375000000",
+        "error": null
+      },
+      {
+        "address": "0x3718619dd46bf6eef0b6dc426d3134b0a37e45c5",
+        "new_balance": "1078350000000",
+        "legacy_balance": "30475730857164",
+        "block_num": 84599559,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0x3774fbaee2556dfeac447ea981d9b1720dd619b1",
+        "new_balance": "9638561761",
+        "legacy_balance": "432215588561761",
+        "block_num": 87033480,
+        "rpc": "9638561761",
+        "error": null
+      },
+      {
+        "address": "0x3959dc0725c6556fa37b80c9a0273e12da145542",
+        "new_balance": "7977680050000000",
+        "legacy_balance": "5992570050000000",
+        "block_num": 86999104,
+        "rpc": "7977680050000000",
+        "error": null
+      },
+      {
+        "address": "0x39b77083fcfea0c94f772b4ebc6337c145074cd4",
+        "new_balance": "1078350000000",
+        "legacy_balance": "83036723595188",
+        "block_num": 84599575,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0x3b1329367d19b8dc29cf3a79288dcd6348eb6f5f",
+        "new_balance": "12771375000000",
+        "legacy_balance": "15000000000000",
+        "block_num": 84599576,
+        "rpc": "12771375000000",
+        "error": null
+      },
+      {
+        "address": "0x3b7828823d7b116874f8f561e1fc0dd42bcc14e3",
+        "new_balance": "304818000000",
+        "legacy_balance": "2046613500000",
+        "block_num": 74734499,
+        "rpc": "304818000000",
+        "error": null
+      },
+      {
+        "address": "0x3d4d6c6badfa6ed1505a58595d4c6aea62ff2a10",
+        "new_balance": "412050000000",
+        "legacy_balance": "0",
+        "block_num": 84599557,
+        "rpc": "412050000000",
+        "error": null
+      },
+      {
+        "address": "0x3df406bd9bdf025517d3be39841a8ae59ad93132",
+        "new_balance": "0",
+        "legacy_balance": "180273000000000",
+        "block_num": 74746212,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x3eb854cbc366291bd8bdea18c20951b6c9ab38e2",
+        "new_balance": "590610000000",
+        "legacy_balance": "2075160000000",
+        "block_num": 74948104,
+        "rpc": "590610000000",
+        "error": null
+      },
+      {
+        "address": "0x3fac2e211b1be6fe837339a1b69c5ec666d98fc5",
+        "new_balance": "1075395750000",
+        "legacy_balance": "2002058000000000",
+        "block_num": 86999104,
+        "rpc": "1075395750000",
+        "error": null
+      },
+      {
+        "address": "0x4076fcbfa83549fa4b4518483bd0a64b35b505c9",
+        "new_balance": "291150743600000",
+        "legacy_balance": "300290077050000",
+        "block_num": 84599578,
+        "rpc": "291150743600000",
+        "error": null
+      },
+      {
+        "address": "0x40e6ef914d856123377b039709569a5f0223f709",
+        "new_balance": "310600000000",
+        "legacy_balance": "3250000000000",
+        "block_num": 74948104,
+        "rpc": "310600000000",
+        "error": null
+      },
+      {
+        "address": "0x436d68a0902fb1e2499680d231e1fe5de3beab24",
+        "new_balance": "395785576287749",
+        "legacy_balance": "397468350561584",
+        "block_num": 74734499,
+        "rpc": "395785576287749",
+        "error": null
+      },
+      {
+        "address": "0x464981c3a91c14aae4d3980a85752f85c3834500",
+        "new_balance": "2793000000000",
+        "legacy_balance": "3896500000000",
+        "block_num": 84599579,
+        "rpc": "2793000000000",
+        "error": null
+      },
+      {
+        "address": "0x4670180236a08d51f7aa71e0d17bc9a708f0836b",
+        "new_balance": "0",
+        "legacy_balance": "16186254983158966",
+        "block_num": 89855647,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x471f69e5f05f814e33eb28e03e267140473d88b4",
+        "new_balance": "668850000000",
+        "legacy_balance": "336040116686683",
+        "block_num": 86999104,
+        "rpc": "668850000000",
+        "error": null
+      },
+      {
+        "address": "0x4833327e572da958decd8f2a6fae31ce9d535eff",
+        "new_balance": "1851614900000",
+        "legacy_balance": "4350000000000000",
+        "block_num": 84599559,
+        "rpc": "1851614900000",
+        "error": null
+      },
+      {
+        "address": "0x496181b9aec6439fa49e30e09b2b70efcf39aad2",
+        "new_balance": "50000000000",
+        "legacy_balance": "38810000000000",
+        "block_num": 74831144,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x4c1434c73e3abd933c1b009887808b8442f554b7",
+        "new_balance": "351362200000000",
+        "legacy_balance": "0",
+        "block_num": 84599565,
+        "rpc": "351362200000000",
+        "error": null
+      },
+      {
+        "address": "0x4df0702854e2f2e2e646810ec07b6db6a1e3084c",
+        "new_balance": "0",
+        "legacy_balance": "4580650000000",
+        "block_num": 84599562,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x4f5550f5e02612714f4470b24e9d6959a7ae85b0",
+        "new_balance": "12771375000000",
+        "legacy_balance": "15000000000000",
+        "block_num": 84599561,
+        "rpc": "12771375000000",
+        "error": null
+      },
+      {
+        "address": "0x522926dc7c7f97fa9a94a7f0c782e8fb35b3a6df",
+        "new_balance": "152409000000",
+        "legacy_balance": "1894204500000",
+        "block_num": 74734499,
+        "rpc": "152409000000",
+        "error": null
+      },
+      {
+        "address": "0x529eba924b68fd0c426379b863cac32f4ecbdad1",
+        "new_balance": "1580450000000",
+        "legacy_balance": "1575450000000",
+        "block_num": 84599569,
+        "rpc": "1580450000000",
+        "error": null
+      },
+      {
+        "address": "0x52a5e6af2e512b7dd30bc5ae7a247049e78b9444",
+        "new_balance": "1092000000000",
+        "legacy_balance": "440975511900000",
+        "block_num": 84599568,
+        "rpc": "1092000000000",
+        "error": null
+      },
+      {
+        "address": "0x53e4d6dfe853aab43238a67c691a193a930eb34f",
+        "new_balance": "152409000000",
+        "legacy_balance": "1894204500000",
+        "block_num": 86905947,
+        "rpc": "152409000000",
+        "error": null
+      },
+      {
+        "address": "0x54747e94c6be978584f7b8c0178de3f87abafaed",
+        "new_balance": "29450000000",
+        "legacy_balance": "0",
+        "block_num": 84599565,
+        "rpc": "29450000000",
+        "error": null
+      },
+      {
+        "address": "0x55b080ba8e5bf84f9146aedf6ccb41b9b920806c",
+        "new_balance": "91285000000000",
+        "legacy_balance": "121000000000000",
+        "block_num": 92726411,
+        "rpc": "91285000000000",
+        "error": null
+      },
+      {
+        "address": "0x55b919754f5bc0871469c3995ef3818338d7c6ce",
+        "new_balance": "1575450000000",
+        "legacy_balance": "0",
+        "block_num": 84599568,
+        "rpc": "1575450000000",
+        "error": null
+      },
+      {
+        "address": "0x55e1ec5f5173b9cfc36d2dd4b7086d0ba380938c",
+        "new_balance": "50000000000",
+        "legacy_balance": "39720000000000",
+        "block_num": 74863826,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x565b580c915fb333a111331f2d9b2ef78205f5c8",
+        "new_balance": "0",
+        "legacy_balance": "84256584865792",
+        "block_num": 84599571,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x57b44d66ef0fa2bc8f759c86873fd08849abe347",
+        "new_balance": "0",
+        "legacy_balance": "4581250000000",
+        "block_num": 84599556,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x58f0db1a43dd986f83cb13a76237a4e476164a67",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0x5dee3448aa2d725d6ddd0807988a951e1581b383",
+        "new_balance": "3216995000000",
+        "legacy_balance": "5000000000000",
+        "block_num": 86905947,
+        "rpc": "3216995000000",
+        "error": null
+      },
+      {
+        "address": "0x5e4a82682006418b36c566908f6fc3f20d11c856",
+        "new_balance": "0",
+        "legacy_balance": "223990550000000000",
+        "block_num": 84599575,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x5fcd0ce5462c712d52053d1f3c637a1c797e7fa8",
+        "new_balance": "34833330000000",
+        "legacy_balance": "37953405000000",
+        "block_num": 74948104,
+        "rpc": "34833330000000",
+        "error": null
+      },
+      {
+        "address": "0x60853055997e7a1b86affe2071be51925a325176",
+        "new_balance": "5000000000",
+        "legacy_balance": "0",
+        "block_num": 84599574,
+        "rpc": "5000000000",
+        "error": null
+      },
+      {
+        "address": "0x6126545880bf9cc36a8b57746615d01320e924e6",
+        "new_balance": "150950000000",
+        "legacy_balance": "3500000000000",
+        "block_num": 86905947,
+        "rpc": "150950000000",
+        "error": null
+      },
+      {
+        "address": "0x6130c952c9cbc66c634e4b0df6da267e5e5a62d0",
+        "new_balance": "1584250000000",
+        "legacy_balance": "3070000000000",
+        "block_num": 92724292,
+        "rpc": "1584250000000",
+        "error": null
+      },
+      {
+        "address": "0x66430c070cfb12ba2ac740cb1b9657bc976fd0c6",
+        "new_balance": "7060080000000",
+        "legacy_balance": "28928500000000",
+        "block_num": 74734577,
+        "rpc": "7060080000000",
+        "error": null
+      },
+      {
+        "address": "0x66bd9d858a20aca01f8f23faf9f3acdadac1a6a6",
+        "new_balance": "12771375000000",
+        "legacy_balance": "15000000000000",
+        "block_num": 84599571,
+        "rpc": "12771375000000",
+        "error": null
+      },
+      {
+        "address": "0x685605b283d8d7d075dd9d57240324101f359982",
+        "new_balance": "5000000000",
+        "legacy_balance": "0",
+        "block_num": 84599572,
+        "rpc": "5000000000",
+        "error": null
+      },
+      {
+        "address": "0x6abd02a5a98559b82fe62765159aef673e0f1cb7",
+        "new_balance": "50000000000",
+        "legacy_balance": "113540000000000",
+        "block_num": 76215195,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x6c0ee9d28c40a0c6b3a2f5dff1edc7a0a30ab7dd",
+        "new_balance": "53025842956578886",
+        "legacy_balance": "53055556456578886",
+        "block_num": 84599574,
+        "rpc": "53025842956578886",
+        "error": null
+      },
+      {
+        "address": "0x6c187dc959fc8a970070ec46447c75713767ad62",
+        "new_balance": "9893722376850000",
+        "legacy_balance": "9895672378800000",
+        "block_num": 87033480,
+        "rpc": "9893722376850000",
+        "error": null
+      },
+      {
+        "address": "0x6d08c06e838159de3ecc1ca14ef9a3a1ccad17d4",
+        "new_balance": "1000000000",
+        "legacy_balance": "140754625000000",
+        "block_num": 86905947,
+        "rpc": "1000000000",
+        "error": null
+      },
+      {
+        "address": "0x7147145715452d2985c0b9694a9f6ab1e1c7c538",
+        "new_balance": "1705450000000",
+        "legacy_balance": "0",
+        "block_num": 84599564,
+        "rpc": "1705450000000",
+        "error": null
+      },
+      {
+        "address": "0x72936d006df8a2b05639d9bead05925d5ab9a0b7",
+        "new_balance": "1078350000000",
+        "legacy_balance": "6940000000000",
+        "block_num": 74787483,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0x72b938866c98ce94fa54b481cd647b658d38a407",
+        "new_balance": "50000000000",
+        "legacy_balance": "27400000000000",
+        "block_num": 76221143,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x748fb7e20957cc6f2ff79ec45fcbb796f077c919",
+        "new_balance": "50000000000",
+        "legacy_balance": "39930000000000",
+        "block_num": 74946104,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x7f3a615159fbfd2fd8dcc8b2d5d2d9bdf5dd6dda",
+        "new_balance": "1015826000000",
+        "legacy_balance": "4504265000000",
+        "block_num": 74622843,
+        "rpc": "1015826000000",
+        "error": null
+      },
+      {
+        "address": "0x806b3336717e8daa278de1ed7f648f867db1806b",
+        "new_balance": "682500000000",
+        "legacy_balance": "4994631715000000",
+        "block_num": 84599572,
+        "rpc": "682500000000",
+        "error": null
+      },
+      {
+        "address": "0x82906c9ad93de5c2a27ce6faf64f663059b2a67a",
+        "new_balance": "6036779234988983",
+        "legacy_balance": "96064499090478465",
+        "block_num": 91286960,
+        "rpc": "6036779234988983",
+        "error": null
+      },
+      {
+        "address": "0x82e590939a3563cfec62673e90d802c5f446aaf9",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0x87f13bd57096fd54fa433d817cec1150e3822b86",
+        "new_balance": "50000000000",
+        "legacy_balance": "39360000000000",
+        "block_num": 74787483,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x89cb472d32dfaadc79fd430d06d48c1921cf9365",
+        "new_balance": "5000000000",
+        "legacy_balance": "0",
+        "block_num": 84599572,
+        "rpc": "5000000000",
+        "error": null
+      },
+      {
+        "address": "0x8b1491dbf36fd0146beca873172b968de2810df3",
+        "new_balance": "50000000000",
+        "legacy_balance": "27400000000000",
+        "block_num": 76215195,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x920371e3df9809bddd77d6c9f4f6aa0cb386e6f7",
+        "new_balance": "0",
+        "legacy_balance": "4581250000000",
+        "block_num": 84599579,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x9559758c58e566c81f0c3645782c7d7e1cbad949",
+        "new_balance": "3896500000000",
+        "legacy_balance": "0",
+        "block_num": 84599572,
+        "rpc": "3896500000000",
+        "error": null
+      },
+      {
+        "address": "0x96603d35cc701f4221a8996f9d004c9754a67f75",
+        "new_balance": "0",
+        "legacy_balance": "4580650000000",
+        "block_num": 84599575,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0x97fa18075dec9f96f5a3c29256b1d59dfb5c6d1d",
+        "new_balance": "50000000000",
+        "legacy_balance": "39330000000000",
+        "block_num": 74739575,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0x97fc6810a149c96a4d97c7a84f44fd7a9b50021a",
+        "new_balance": "1092000000000",
+        "legacy_balance": "10000682500000000",
+        "block_num": 84599578,
+        "rpc": "1092000000000",
+        "error": null
+      },
+      {
+        "address": "0x985a5019c09d6f9805bfdb2573ceacff638b34c4",
+        "new_balance": "198950000000000",
+        "legacy_balance": "1906274264155381317",
+        "block_num": 84599580,
+        "rpc": "198950000000000",
+        "error": null
+      },
+      {
+        "address": "0x9b80da3f8f71d12b3799f95c6bc4866c9ea2dc3e",
+        "new_balance": "1281000000000",
+        "legacy_balance": "575668131000000",
+        "block_num": 74622843,
+        "rpc": "1281000000000",
+        "error": null
+      },
+      {
+        "address": "0x9e0ce1a550b7784e1708469965d8e5c86bf5e29b",
+        "new_balance": "966465609",
+        "legacy_balance": "1986160966465609",
+        "block_num": 86999104,
+        "rpc": "966465609",
+        "error": null
+      },
+      {
+        "address": "0x9e6a1abff3bfd51c00a87514d44745ad2ea6d7a5",
+        "new_balance": "668850000000",
+        "legacy_balance": "34010625249203944",
+        "block_num": 84599583,
+        "rpc": "668850000000",
+        "error": null
+      },
+      {
+        "address": "0xa084c802a12f1a9d5ae917be07fb8c7ff6c592dc",
+        "new_balance": "3216995000000",
+        "legacy_balance": "1433990000000",
+        "block_num": 84599561,
+        "rpc": "3216995000000",
+        "error": null
+      },
+      {
+        "address": "0xa23d95d41b65835ae5e76ba8f02eadd719d577d7",
+        "new_balance": "1575450000000",
+        "legacy_balance": "0",
+        "block_num": 84599574,
+        "rpc": "1575450000000",
+        "error": null
+      },
+      {
+        "address": "0xa330d3dfcfab13b5346a2634c978a7443e014412",
+        "new_balance": "477600000000",
+        "legacy_balance": "5000000000000",
+        "block_num": 88388792,
+        "rpc": "477600000000",
+        "error": null
+      },
+      {
+        "address": "0xa63284e063ff5e77e33563a85d5cb2a34b3e4c80",
+        "new_balance": "10000000000",
+        "legacy_balance": "5000000000",
+        "block_num": 84599574,
+        "rpc": "10000000000",
+        "error": null
+      },
+      {
+        "address": "0xa6f3157d62fc57fea7bbe1360852f57c23eabcb9",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0xa79e9356010795f085bfbd17a43ca2dc581c1827",
+        "new_balance": "60570000000000",
+        "legacy_balance": "120000000000000",
+        "block_num": 86905947,
+        "rpc": "60570000000000",
+        "error": null
+      },
+      {
+        "address": "0xa7feaacb16c3764d00bd6f7e68d085aadc2c1510",
+        "new_balance": "100000000000",
+        "legacy_balance": "160143500393474000",
+        "block_num": 89278710,
+        "rpc": "100000000000",
+        "error": null
+      },
+      {
+        "address": "0xaadc2cb5d3ade7948013479b8fb31b74e709fca9",
+        "new_balance": "1050000001000",
+        "legacy_balance": "70054539781826860",
+        "block_num": 74734499,
+        "rpc": "1050000001000",
+        "error": null
+      },
+      {
+        "address": "0xacad25d60b8114c43dd0e98e1c33c2465e7f8099",
+        "new_balance": "8351364874056248",
+        "legacy_balance": "8353315663806248",
+        "block_num": 86999104,
+        "rpc": "8351364874056248",
+        "error": null
+      },
+      {
+        "address": "0xad7f9a8a477d77898ae10988ba5bba59f699534a",
+        "new_balance": "1075395750000",
+        "legacy_balance": "30460056379562",
+        "block_num": 84599566,
+        "rpc": "1075395750000",
+        "error": null
+      },
+      {
+        "address": "0xae5a30ebafdeefb13e589d6701a133b20fbc52c0",
+        "new_balance": "0",
+        "legacy_balance": "84684216147400",
+        "block_num": 84599558,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xaf32758bc3da4a93fa915b539ab8577777629e35",
+        "new_balance": "408450000000",
+        "legacy_balance": "1558450000000",
+        "block_num": 89855647,
+        "rpc": "408450000000",
+        "error": null
+      },
+      {
+        "address": "0xaffbe749cdc0eb1f766d4129a7a0adbfe8859228",
+        "new_balance": "271043395290056",
+        "legacy_balance": "270355141041766",
+        "block_num": 88192012,
+        "rpc": "271043395290056",
+        "error": null
+      },
+      {
+        "address": "0xb183202e2602a634cd7f5b633960ab703afb8bc6",
+        "new_balance": "563000000000",
+        "legacy_balance": "562000000000",
+        "block_num": 84599574,
+        "rpc": "563000000000",
+        "error": null
+      },
+      {
+        "address": "0xb5dc7a598ce9b6afb73aaaf14af52052722ebb13",
+        "new_balance": "1015826000000",
+        "legacy_balance": "4504265000000",
+        "block_num": 74622843,
+        "rpc": "1015826000000",
+        "error": null
+      },
+      {
+        "address": "0xb622093b6ab2b00c268831da1396376a751b2752",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0xb86eb917b0e82686e2fcaafa1930e21c2c2479d5",
+        "new_balance": "0",
+        "legacy_balance": "84111800737500",
+        "block_num": 84599575,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xb89ae59a6fa993a170cd583e1d178c3dddd94444",
+        "new_balance": "5000000000",
+        "legacy_balance": "0",
+        "block_num": 84599574,
+        "rpc": "5000000000",
+        "error": null
+      },
+      {
+        "address": "0xb8e00e0eaf5e5b00817c2f2ecf84062d74ffff52",
+        "new_balance": "1295184618000",
+        "legacy_balance": "2872384212350000",
+        "block_num": 74807371,
+        "rpc": "1295184618000",
+        "error": null
+      },
+      {
+        "address": "0xb97371b2865fe6d8c421113b881055f53ffb0cd5",
+        "new_balance": "1600022000000",
+        "legacy_balance": "4600025000000",
+        "block_num": 74622843,
+        "rpc": "1600022000000",
+        "error": null
+      },
+      {
+        "address": "0xbac11a16cfbaa0bddcd559062c940a0accf0f06d",
+        "new_balance": "412050000000",
+        "legacy_balance": "0",
+        "block_num": 84599556,
+        "rpc": "412050000000",
+        "error": null
+      },
+      {
+        "address": "0xbb31f680a20c835e0572433f5c1c67069ca35407",
+        "new_balance": "0",
+        "legacy_balance": "3513050000000",
+        "block_num": 84599558,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xbb7b525dea122a3a00dee5a1e884e7e1711f80d3",
+        "new_balance": "198274250000000",
+        "legacy_balance": "200000000000000",
+        "block_num": 84599567,
+        "rpc": "198274250000000",
+        "error": null
+      },
+      {
+        "address": "0xbdbd6157f2ebc2c810fb7f7243fe1b54bba22ada",
+        "new_balance": "102000250000",
+        "legacy_balance": "101000250000",
+        "block_num": 84599569,
+        "rpc": "102000250000",
+        "error": null
+      },
+      {
+        "address": "0xbf0dcfec02decf14e14202711ff333f00d204352",
+        "new_balance": "224743278744545",
+        "legacy_balance": "228611750000000",
+        "block_num": 91286960,
+        "rpc": "224743278744545",
+        "error": null
+      },
+      {
+        "address": "0xc07925b05c1c81c5b0e444b62403082164751b02",
+        "new_balance": "1078350000000",
+        "legacy_balance": "167354605217932",
+        "block_num": 84599558,
+        "rpc": "1078350000000",
+        "error": null
+      },
+      {
+        "address": "0xc0a628ff9632f48f430365457cf847555063e968",
+        "new_balance": "50000000000",
+        "legacy_balance": "12720000000000",
+        "block_num": 74787483,
+        "rpc": "50000000000",
+        "error": null
+      },
+      {
+        "address": "0xc129f4fc52e3f579f354a3f4e67c4027eea2f87c",
+        "new_balance": "0",
+        "legacy_balance": "591231697200000000",
+        "block_num": 74787483,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xc2e06df3e7ae6fb6dd8b1478c39681ab6a26264f",
+        "new_balance": "3216995000000",
+        "legacy_balance": "5000000000000",
+        "block_num": 90061128,
+        "rpc": "3216995000000",
+        "error": null
+      },
+      {
+        "address": "0xc31b41f0eedf74047532cfb22bca3daee2a66aee",
+        "new_balance": "264250000000",
+        "legacy_balance": "1750000000000",
+        "block_num": 74734499,
+        "rpc": "264250000000",
+        "error": null
+      },
+      {
+        "address": "0xc5e8122e36ddbff85c33f897fa53a0fcd972fc0b",
+        "new_balance": "481100000000",
+        "legacy_balance": "0",
+        "block_num": 84599556,
+        "rpc": "481100000000",
+        "error": null
+      },
+      {
+        "address": "0xc6221c322c11a6f4b5420127c6e280625a25877c",
+        "new_balance": "3478893000000",
+        "legacy_balance": "5113218000000",
+        "block_num": 86452289,
+        "rpc": "3478893000000",
+        "error": null
+      },
+      {
+        "address": "0xc75571ad6e3eb7e9c456b0166d0d9995d1a54339",
+        "new_balance": "72171000000000",
+        "legacy_balance": "81085500000000",
+        "block_num": 84599573,
+        "rpc": "72171000000000",
+        "error": null
+      },
+      {
+        "address": "0xc9d4117ffa674aeca8786798e42166ef8fdac6cf",
+        "new_balance": "0",
+        "legacy_balance": "4789735871242826",
+        "block_num": 84599572,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xca900c7647549aa8c4547bdb9193ef3ae9a14201",
+        "new_balance": "1000000000",
+        "legacy_balance": "767846544632001",
+        "block_num": 86905947,
+        "rpc": "1000000000",
+        "error": null
+      },
+      {
+        "address": "0xcb3f5db9d204b6e87f476fe859f786012f9c9358",
+        "new_balance": "1580450000000",
+        "legacy_balance": "1575450000000",
+        "block_num": 84599574,
+        "rpc": "1580450000000",
+        "error": null
+      },
+      {
+        "address": "0xd08beb37e5eb84a92ae7b4138b930e4461e1bc92",
+        "new_balance": "720450000000",
+        "legacy_balance": "0",
+        "block_num": 84599582,
+        "rpc": "720450000000",
+        "error": null
+      },
+      {
+        "address": "0xd5df3c9c49521a0c67a9e0448d40e8a4a8e30b58",
+        "new_balance": "20000000000",
+        "legacy_balance": "15000000000",
+        "block_num": 84599575,
+        "rpc": "20000000000",
+        "error": null
+      },
+      {
+        "address": "0xdb64c6647f3d5ef00997320d117e0ce1fca75c41",
+        "new_balance": "0",
+        "legacy_balance": "2991529938000000",
+        "block_num": 74787483,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xdba13907ae0804ad95a4ea0539a604b92ba29db4",
+        "new_balance": "244241368425083",
+        "legacy_balance": "247464991535583",
+        "block_num": 91286960,
+        "rpc": "244241368425083",
+        "error": null
+      },
+      {
+        "address": "0xdc276f8b243e1935354f8049338a015c4a4d6d43",
+        "new_balance": "0",
+        "legacy_balance": "101994330000000000",
+        "block_num": 90066935,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xddc8f3ead750efff9449c930a34e0b55e0ae6d82",
+        "new_balance": "104228300000000",
+        "legacy_balance": "106569650000000",
+        "block_num": 74863826,
+        "rpc": "104228300000000",
+        "error": null
+      },
+      {
+        "address": "0xe2210b9a680e7ae0b2c852a49e6d23b276bb532e",
+        "new_balance": "408450000000",
+        "legacy_balance": "1558450000000",
+        "block_num": 89855647,
+        "rpc": "408450000000",
+        "error": null
+      },
+      {
+        "address": "0xe30465b095476909f8b039d3fce4699f6c10b262",
+        "new_balance": "0",
+        "legacy_balance": "17990550000000000",
+        "block_num": 90066935,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xe72fa1f8b40deff8d6eb0a88267cd09930c7b349",
+        "new_balance": "1575450000000",
+        "legacy_balance": "0",
+        "block_num": 84599581,
+        "rpc": "1575450000000",
+        "error": null
+      },
+      {
+        "address": "0xe74559ca021dae69177ccb0dbc06b20b02fae10e",
+        "new_balance": "25000000000",
+        "legacy_balance": "1175000000000",
+        "block_num": 93251566,
+        "rpc": "25000000000",
+        "error": null
+      },
+      {
+        "address": "0xe74c770d8db3e84b526b4826b9a04050c617311c",
+        "new_balance": "1056176875576683",
+        "legacy_balance": "56176875576683",
+        "block_num": 88722135,
+        "rpc": "1056176875576683",
+        "error": null
+      },
+      {
+        "address": "0xe98aec9adda3451d7c5e90b107d2036ec1a113fc",
+        "new_balance": "192574250000000",
+        "legacy_balance": "194059400000000",
+        "block_num": 89278710,
+        "rpc": "192574250000000",
+        "error": null
+      },
+      {
+        "address": "0xea0bec86cbb098265c0b1f2df54d00c6d49fba54",
+        "new_balance": "0",
+        "legacy_balance": "214599393644602998",
+        "block_num": 88721708,
+        "rpc": "0",
+        "error": null
+      },
+      {
+        "address": "0xed664536023d8e4b1640c394777d34abaff1df8f",
+        "new_balance": "600000000000000",
+        "legacy_balance": "0",
+        "block_num": 84599563,
+        "rpc": "600000000000000",
+        "error": null
+      },
+      {
+        "address": "0xedba3054804140dc2b2ebff86fd96a0c7a694ab5",
+        "new_balance": "408450000000",
+        "legacy_balance": "1558450000000",
+        "block_num": 89855647,
+        "rpc": "408450000000",
+        "error": null
+      },
+      {
+        "address": "0xeedab83da323a07755974c5b4d1c113b35218f37",
+        "new_balance": "310600000000",
+        "legacy_balance": "3250000000000",
+        "block_num": 74946104,
+        "rpc": "310600000000",
+        "error": null
+      },
+      {
+        "address": "0xf0dc9480cda12fcddcfd3069370f58c0e8a1a519",
+        "new_balance": "100000000000000",
+        "legacy_balance": "0",
+        "block_num": 74946104,
+        "rpc": "100000000000000",
+        "error": null
+      },
+      {
+        "address": "0xf7effc07b6a001af0d0b9ebf2ced8649dd6e5cc2",
+        "new_balance": "590610000000",
+        "legacy_balance": "2075160000000",
+        "block_num": 74622843,
+        "rpc": "590610000000",
+        "error": null
+      },
+      {
+        "address": "0xfa954cf207907be341208317ca415acf653a7e3a",
+        "new_balance": "55485237500000",
+        "legacy_balance": "60450880000000",
+        "block_num": 89855647,
+        "rpc": "55485237500000",
+        "error": null
+      },
+      {
+        "address": "0xfe1f987ff3cb695aa24c505810c5573bc66b1518",
+        "new_balance": "1580450000000",
+        "legacy_balance": "1575450000000",
+        "block_num": 84599569,
+        "rpc": "1580450000000",
+        "error": null
+      },
+      {
+        "address": "0xff4e7ebef1b41d4b5d1a5bc631294b40f3ba7042",
+        "new_balance": "1193000000000",
+        "legacy_balance": "1192000000000",
+        "block_num": 84599569,
+        "rpc": "1193000000000",
+        "error": null
+      },
+      {
+        "address": "0xffdeb0f8d8ada88cf4ae6ae6163d24916da5dec1",
+        "new_balance": "50000000000",
+        "legacy_balance": "40710000000000",
+        "block_num": 74970325,
+        "rpc": "50000000000",
+        "error": null
+      }
+    ]
+  },
+  "ethereum_known_gap": {
+    "chain": "eth",
+    "package": "spkg/evm-balances-native-v0.7.8.spkg",
+    "type": "evm.balances.v1.NativeEvents",
+    "range": [
+      21257833,
+      21257834
+    ],
+    "head": 26256190,
+    "total": {
+      "checked": 321,
+      "matched": 262,
+      "differ": 59,
+      "errors": 0
+    },
+    "contracts": {
+      "native": {
+        "checked": 321,
+        "matched": 262,
+        "differ": [
+          {
+            "address": "0x06eff9c148428e745e177474b215d61dc12f865e",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x178498c6efc020a37153f20e01d6daf2939bdea1",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x1964b61af07f444fe279e22ba412a7d5127d618f",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x257a12cda5caf6fc3190026f639e48560e989332",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x282c2821fcbe13fcb4c68cab5a0eeae345630088",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x28d5599a61ce8714c038c3580f9dca09cb91f499",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x2a45ef5898df178e64968190457fb70cc8ef3a94",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x2d44c9c256a5499ae78d535d953dc7dc8d6e93be",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x33d051ac9dcdae794a8181d5e9ba98c7cf9b6261",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x37d3f5d90adacb14f7b9f1a3d53ad562a68a93ee",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x3dde5971a9ef4298b420afee739278d50307dc23",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x3e21842b3acfc4784a8646acfe3632b11fea7eac",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x4060a4d212e0f9bcbdafd32e20257fdecb8ad1cd",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x440270e9e631ab0a28cd457388dcafecd1e43752",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x4579d048a18689d06127e3f8c478882009d3dd1c",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x48c6bc2df686300460aaf50901a413f3e1e824b9",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x4bcc294be6fb2bf36abc3cc3b4473d6080abb3d2",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x4f05be55a208534d1cd1a13c2f95205a88d75a5a",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x4f64e4e90ab2098c8a0b60be5bf5f045186d1a5d",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x5dc7a60bce81d5399aaf2dfd80fb60333ce667ff",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x62c7a650b4fe3df5e7caea4def348d06251bbed2",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x63b732af60b6157923946800641008b8b13ade2c",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x6462c76905c81ee3843207af2ae97c4b84aab3cc",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x6f2e6449a640aed7157596d2a6d046c87e4ea73e",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x75c0edc4fdd2f8a217c7d82e7e36a2ef17ed174a",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x7af8cd196a0c891b03849901158297cc7858ac4a",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x7b376df9740830a2c8de02417fc287e82385f2d1",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x7be0631cfa869a934581a4bd0c88e5146968049b",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x7c33ffd168dbae9e2b1460f132da4e5f7a813d92",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x7de9c62932f77a754040800c7862e1e8ce3bbcc7",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x846f44139a6b45a168c2a2fef7f75e55a2d6f3cd",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x8ab20c497b575fc0d4f663dc2ef5d6f23a6c582d",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x91b6ce3c4bb6e3264189645dd3593c875c7dd27b",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x93c58ac5dce8b3fd2a657d8dd71b95861bb5212f",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x99d23a6c445be9172172a057689ae092335ff044",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x9e9a95450eeaeda5e5e0d1440b1ea65ed95226af",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0x9f89a99d949629855cdbcb74a455ce2954790ec0",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xae0c779044cfc2d18ae4868fe24484ef6d079e48",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xb36c3f453e42df604584be3c1a18f0608d7e84d7",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xb3841666a6834335e43f5bcc83430e0f7f51d0b0",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xbe54edd77e352e5739f87082b63781f98a7eec98",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xc074168dfc3703114321adfdcffc6193a6bc5870",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xd23e0e3534a476cdd158c8573ae51a10d8b2f907",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xd3386779bbc1eda85b5e651d008a5c2a61d0e27a",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xd8d5b4c2eebc2b667588844bc857d44365eb4f5c",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xd95243fa309a3fc2fdea7547baac7cc827c81996",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xdab06fc45c326c3cba9033719a0979f41cb494f0",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xdf97263d1128c47dee4f72b5d6b6cf22a3917017",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe0f0ff029d15c2504276a43cd7dd5db16837cb30",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe1258cf7b8685b5b4c48c4fff71d8423161204c6",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe13b40fcb2ee13d168ea3d5cd1bfa7072b013e66",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe49dd9ad7c1c856aaf1be736399ba7b0c5575546",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe5dfe8088f3139a0788b45ed54928b7d29f73f89",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe79b4dd61d98806f5522f7dc97086107dc27bff6",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe8361f6fff2930898244d6cfc6495cc5173b3a57",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xe9768913c5c22d3e7e5954e5bae3df2b453aa399",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xebedb55ba3f67a8b59c2a91b470af5f342db84d4",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xee3209f2ebf60a7a5dc5b43beffc2aee5a631283",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          },
+          {
+            "address": "0xf31063988283c1209b8419e8ee4e9ffa56b8ba5c",
+            "block": 21257833,
+            "package": "1",
+            "chain": "0"
+          }
+        ],
+        "errors": []
+      }
+    }
+  },
+  "rpc_bindings": {
+    "bsc": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x38"
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": "reth-bsc/v0.1.3-f0b444f/linux"
+      }
+    ],
+    "eth": [
+      {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": "0x1"
+      },
+      {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": "reth/v2.8.0-05ba481/x86_64-unknown-linux-gnu"
+      }
+    ]
+  },
+  "limits": [
+    "Recent checks cover only emitted rows in the stated intervals.",
+    "Historical BSC comparison covers current same-block differences in blocks 74000000..94000000, not every historical state.",
+    "Successful noops do not establish correctness.",
+    "Ethereum remains on legacy API reads; its native comparison database has a known defect, to be fixed separately."
+  ],
+  "producer_reader_bindings": [
+    {
+      "id": "eth-sfdm904-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "eth-sfdm853-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "eth-sfdm904",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth/v2.8.0-e50b20c/x86_64-unknown-linux-gnu",
+        "software": "reth",
+        "semver": {
+          "major": 2,
+          "minor": 8,
+          "prerelease": "e50b20c"
+        },
+        "commit": "e50b20c",
+        "platform": "x86_64-unknown-linux-gnu"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "eth-sfdm853",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth/v2.8.0-e50b20c/x86_64-unknown-linux-gnu",
+        "software": "reth",
+        "semver": {
+          "major": 2,
+          "minor": 8,
+          "prerelease": "e50b20c"
+        },
+        "commit": "e50b20c",
+        "platform": "x86_64-unknown-linux-gnu"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "eth-sfdm44-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "eth-sfdm44",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth/v2.8.0-e50b20c/x86_64-unknown-linux-gnu",
+        "software": "reth",
+        "semver": {
+          "major": 2,
+          "minor": 8,
+          "prerelease": "e50b20c"
+        },
+        "commit": "e50b20c",
+        "platform": "x86_64-unknown-linux-gnu"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm822",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth-bsc/v0.1.3-fh3.1-1-d4269db/linux",
+        "software": "reth-bsc",
+        "semver": {
+          "minor": 1,
+          "patch": 3,
+          "prerelease": "fh3.1-1-d4269db"
+        },
+        "commit": "d4269db",
+        "platform": "linux"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm827-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm91-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm169-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm827",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth-bsc/v0.1.3-fh3.1-1-d4269db/linux",
+        "software": "reth-bsc",
+        "semver": {
+          "minor": 1,
+          "patch": 3,
+          "prerelease": "fh3.1-1-d4269db"
+        },
+        "commit": "d4269db",
+        "platform": "linux"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm169",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth-bsc/v0.1.3-fh3.1-1-d4269db/linux",
+        "software": "reth-bsc",
+        "semver": {
+          "minor": 1,
+          "patch": 3,
+          "prerelease": "fh3.1-1-d4269db"
+        },
+        "commit": "d4269db",
+        "platform": "linux"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm822-sf",
+      "component": "NETWORK_COMPONENT_SF_READER",
+      "version": {
+        "version": "fireeth v2.23.0 (Commit a7baf9c, Commit Date 2026-09-23T11:56:08Z)",
+        "software": "fireeth",
+        "semver": {
+          "major": 2,
+          "minor": 23
+        },
+        "commit": "a7baf9c5ab1a9a5c59769422fda5c77e8165bc38",
+        "platform": "linux-amd64",
+        "extra": [
+          "2026-09-23T11:56:08Z",
+          "go1.27.3"
+        ]
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    },
+    {
+      "id": "bsc-sfdm91",
+      "component": "NETWORK_COMPONENT_SF_RPC",
+      "version": {
+        "version": "reth-bsc/v0.1.3-fh3.1-1-d4269db/linux",
+        "software": "reth-bsc",
+        "semver": {
+          "minor": 1,
+          "patch": 3,
+          "prerelease": "fh3.1-1-d4269db"
+        },
+        "commit": "d4269db",
+        "platform": "linux"
+      },
+      "status": "NODE_STATUS_HEALTHY"
+    }
+  ],
+  "producer_binding_limit": "Observed current reader/client releases; these do not identify the producer of every historical block.",
+  "start_block_identity": [
+    {
+      "network": "bsc",
+      "block_num": 127810000,
+      "database_hash": "0x37db7837fd6d2e4eb0b74bec656e81ce27011f21f4c79070340eb108e639b0e4",
+      "rpc_hash": "0x37db7837fd6d2e4eb0b74bec656e81ce27011f21f4c79070340eb108e639b0e4",
+      "match": true
+    },
+    {
+      "network": "mainnet",
+      "block_num": 26198000,
+      "database_hash": "0x16f670d4ad27cede162bd91bc8605df1e254357059786f155cfca418fee65f2d",
+      "rpc_hash": "0x16f670d4ad27cede162bd91bc8605df1e254357059786f155cfca418fee65f2d",
+      "match": true
+    }
+  ],
+  "bsc_replay_completeness": {
+    "observed_at": "2026-10-23T15:59:17.712180+00:00",
+    "range": [
+      127810000,
+      127826000
+    ],
+    "stream_blocks_with_rows": 15996,
+    "stored_blocks": 15996,
+    "missing_blocks": [],
+    "unexpected_blocks": [],
+    "duplicate_stored_rows": 0,
+    "hash_mismatches": [],
+    "total_emitted_native_rows": 1907520,
+    "complete_hours": [
+      {
+        "unix_hour": 1792080000,
+        "expected_rows": 953881,
+        "stored_rows": 953881,
+        "match": true
+      }
+    ]
+  },
+  "live_progress": [
+    {
+      "pod": "live-sink-bsc-balances-native-775d994dc7-8mxgf",
+      "latest": [
+        {
+          "timestamp": "2026-10-23T16:00:09.003651296Z",
+          "message": "substreams stream stats",
+          "last_block": "#128313176 (23ec946c12863d7c2629ad4c265999eb8c9002a44deeae1947ed57ed770ad43f)",
+          "live": false,
+          "data_msg_rate": "370.167 msg/s (503126 total)"
+        },
+        {
+          "timestamp": "2026-10-23T16:00:09.003652269Z",
+          "message": "postgres sink stats",
+          "last_block": "#128312662 (7e43f498e4eb776c6487c926276d79bd4dde33a159d56a7e4f7a690707ab9c6c)",
+          "drift": 467052.003645401,
+          "db_flushed_rows_rate": "35031.767 flushed rows/s (49405445 total)",
+          "running_from_tier1": false
+        }
+      ]
+    },
+    {
+      "pod": "live-sink-eth-balances-native-74bcf759cb-c7fjg",
+      "latest": [
+        {
+          "timestamp": "2026-10-23T16:00:09.006528957Z",
+          "message": "substreams stream stats",
+          "last_block": "#26256380 (93298734019e943d2bd930c44e1af0345057db1830cd0ed798da549a0ad57230)",
+          "live": true,
+          "drift": 10.006525042,
+          "data_msg_rate": "0.067 msg/s (58381 total)"
+        },
+        {
+          "timestamp": "2026-10-23T16:00:09.006614585Z",
+          "message": "postgres sink stats",
+          "last_block": "#26256378 (435a8b92f660e252339bf914f2a855f07a9272c28acfaa791a34781a136b5470)",
+          "drift": 34.006607169,
+          "db_flushed_rows_rate": "27.367 flushed rows/s (20403132 total)",
+          "running_from_tier1": true
+        }
+      ]
+    },
+    {
+      "pod": "live-sink-bsc-balances-7cfc945984-scst5",
+      "latest": [
+        {
+          "timestamp": "2026-10-23T16:00:03.185534576Z",
+          "message": "postgres sink stats",
+          "last_block": "#129345940 (73ec39723ce7dd03a84c91010ab0124fdd4c020619283e4abe34876e588008b8)",
+          "drift": 1882.585527393,
+          "db_flushed_rows_rate": "0.000 flushed rows/s (12228231 total)",
+          "running_from_tier1": false
+        },
+        {
+          "timestamp": "2026-10-23T16:00:03.185596949Z",
+          "message": "substreams stream stats",
+          "last_block": "#129345999 (eb1cadcd21c9d6d459746de9b9881951a64efa0a54563c0ab8369fd03b3948de)",
+          "live": false,
+          "data_msg_rate": "0.000 msg/s (13982 total)"
+        }
+      ]
+    }
+  ],
+  "cutover_gates": {
+    "bsc": "Draft PR 71: native catch-up and issue 124 reader-history/freeze and native rows-per-block alert prerequisites remain open.",
+    "ethereum": "Owner explicitly chose comparison only and a separate fix.",
+    "existing_alerts": [
+      "LiveSinkDrift",
+      "LiveSinkCrashing",
+      "LiveSinkNoFlushes"
+    ]
+  }
+}
