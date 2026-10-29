@@ -2,50 +2,404 @@
 
 ## Status board
 
-| Chain | Native | ERC-20 | Live sink | Note |
-| --- | --- | --- | --- | --- |
-| Ethereum | ✅ v0.7.8 | ✅ v0.7.4 | ✅ native comparison | API stays on legacy; known deletion defect |
-| BSC | ✅ v0.7.8 | ✅ v0.7.4 | 🔄 native catching up | API cutover waits for head; legacy ERC-20 retained |
-| Base | ✅ v0.7.9 | ⛔ | not proposed | |
-| Optimism | ✅ v0.7.8 | ⛔ | not proposed | ⚠️ [legacy state](#before-the-cutover) to seed |
-| Polygon | ✅ v0.7.8 | ⛔ | after resync | ⚠️ over-count, 🛠️ [v0.7.11](#polygon-native-v0711) fix and resync |
-| Unichain | ✅ v0.7.8 | ⛔ | not proposed | |
-| HyperEVM | ✅ v0.7.8 | ⛔ | not proposed | |
-| Arbitrum One | 🔄 v0.7.10 | ⛔ | after backfill | 🔄 [backfilling](#arbitrum-one-native-v0710), ⚠️ legacy state to seed |
-| Avalanche | ⛔ | ⛔ | | [no Extended blocks](#what-the-token-api-serves-today) |
+The Token API's new balances databases are in ClickHouse cluster A. Every
+chain resyncs there with native v0.7.10 and ERC-20 v0.7.4. No live sink
+writes cluster A yet.
 
-Legend: ✅ done (backfilled) · 🔄 running · ⏳ queued or awaiting the owner ·
-⚠️ issue · 🛠️ fix in progress · ⛔ not scheduled. "Live sink" is the live
-sink of the new database. Ethereum and BSC native sinks started on 2026-10-23.
+| Chain | Native v0.7.10 | ERC-20 v0.7.4 | Note |
+| --- | --- | --- | --- |
+| Ethereum | ✅ | ✅ | ⚠️ [known deletion defect](#before-the-cutover) |
+| BSC | ✅ | 🔄 5.6% | |
+| Base | ✅ | 🔄 32.5% | |
+| Optimism | 🔄 99.7% | 🔄 78.5% | ✅ [pre-Bedrock state seeded](#legacy-state-below-the-extended-start) |
+| Polygon | 🔄 24.9% | 🔄 25.4% | ⚠️ [over-count](#polygon-native-v0711), v0.7.11 fix not released |
+| Unichain | 🔄 86.5% | 🔄 57.3% | |
+| HyperEVM | 🔄 44.1% | 🔄 44.7% | |
+| Arbitrum One | 🔄 38.1% | 🔄 24.5% | ✅ [pre-Nitro state seeded](#legacy-state-below-the-extended-start) |
+| Avalanche | ⛔ | ⛔ | [no Extended blocks](#what-the-token-api-serves-today), stays on the RPC era in cluster C |
+
+Legend: ✅ backfilled and coverage-checked · 🔄 backfilling, with the share
+of the range done · ⚠️ issue · ⛔ not scheduled.
 
 > [!NOTE]
-> Ethereum/BSC live status updated on 2026-10-23. Other chains and the
-> historical comparison counts retain the 2026-10-20 snapshot.
-> [Handoff](handoff.md) keeps the current state.
+> Cluster A snapshot of 2026-10-29 03:54 UTC. The quality comparisons and
+> the [cluster C](#cluster-c) sections keep their own dates. This page before
+> cluster A is at
+> [`5622fdb`](https://github.com/pinax-network/substreams-evm-balances/blob/5622fdb/docs/deployment-status.md).
 
-For each chain, this page lists the final package release, the ClickHouse
-database it writes, what is backfilled, and what is still running. The
-quality comparisons with the RPC-era databases are on separate pages:
+For each chain, this page lists the package release, the ClickHouse database
+it writes, what is backfilled, and what is still running. The quality
+comparisons with the RPC-era databases are on separate pages:
 
 - [Native balance quality](quality-native.md), for the seven chains whose
-  native database is fully backfilled.
-- [ERC-20 balance quality](quality-erc20.md), for Ethereum and BSC, the two
-  chains with an ERC-20 database.
+  native database was fully backfilled in cluster C.
+- [ERC-20 balance quality](quality-erc20.md), for Ethereum and BSC.
 - [Top tokens](quality-top-tokens.md): USDT, USDC and WETH on Ethereum,
   USDT, USDC and WBNB on BSC, and the wrapped native token of every chain
   (WETH, WBNB, WPOL, WHYPE).
 - [Methods](quality-methods.md): how the comparisons work, with the SQL to
   rerun them.
 
-## Native live rollout on 2026-10-23
+## Clusters
+
+Two ClickHouse clusters hold the balances databases. Each has one shard
+and two replicas.
+
+| Cluster | ClickHouse cluster | Databases | Live sinks |
+| --- | --- | --- | --- |
+| A | `tokenapis-a` | The new databases the Token API will read: native v0.7.10 and ERC-20 v0.7.4 on all eight chains | none yet |
+| C | `tokenapis-c` | The RPC-era databases the Token API serves today, and the first new databases, which the quality pages compared | RPC-era sinks of every chain; Ethereum and BSC native v0.7.8 since 2026-10-23 |
+
+Argo workflows from the `token-backfill-prod-a` template backfill cluster A.
+They run on `riv-dev1`, in namespace `token-api-workflows`, with
+substreams-sink-sql v4.13.0. Each workflow splits its range into jobs of a
+fixed size and runs ten at a time. A job keeps its cursor in its own
+`backfill_<start>` table, which is dropped when the job finishes. The
+finished ranges are kept in `backfill_processed_ranges`. Every workflow runs
+with `deploy-live-sink=false`, so the live sinks are started separately.
+
+## Quality at a glance
+
+The comparisons ran on the cluster C databases on 2026-10-20. Native v0.7.10
+gives v0.7.8's output for every block that v0.7.8 accepts, and ERC-20 is
+the same v0.7.4. So the findings hold for cluster A over the same blocks,
+apart from the Optimism gap that the seed closes ([below](#known-gaps)). The
+ERC-20 databases of Base, Optimism, Polygon, Unichain, HyperEVM and Arbitrum
+One have not been compared yet.
+
+- **Native balances agree with the RPC era for 99.1% (Ethereum) to 100%
+  (Unichain) of the addresses compared.** Nearly every difference is an
+  RPC-era error. On Ethereum, its live sink stored pre-block balances for
+  about 3.06 million addresses in February 2026. On BSC it never wrote 1,629
+  blocks of 2024-01-18, and on HyperEVM it missed internal transfers.
+- **ERC-20 covers 62% (Ethereum) and 45% (BSC) of the RPC era's non-zero
+  holder pairs, and 99.26% and 99.39% of its own non-zero rows are equal.**
+  Ordinary tokens are accurate (99.996% of holders on Ethereum, 99.999% on
+  BSC). Airdrop spam, computed balances (stETH, aTokens, reflection) and
+  balances kept elsewhere (MiniMe, Synthetix) are not served, and some real
+  tokens are stale (MKR, HEX, TUSD). See [ERC-20 quality](quality-erc20.md).
+- **USDT, USDC and WETH (Ethereum) and USDT, USDC and WBNB (BSC) match the
+  RPC era for more than 99.99% of non-zero holders, and their supplies
+  close.** Apart from the zero address, which the package never emits, each
+  has at most a dozen wrong holders. On BSC, USDT and USDC have none and
+  WBNB has 2. See [top tokens](quality-top-tokens.md).
+- **The native databases have four known gaps**, in the table below. See
+  [native quality](quality-native.md#gaps-in-the-new-databases).
+
+### Known gaps
+
+| Chain | Known gap in the cluster C native database | Extent | In cluster A |
+| --- | --- | --- | --- |
+| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix v0.7.11 [not released](#polygon-native-v0711) | at least 1,831.73 POL over-counted | the same, v0.7.10 |
+| Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH | [seeded](#legacy-state-below-the-extended-start) from the RPC era |
+| Ethereum | [72 contracts keep ETH](quality-native.md#ethereum-credits-of-contracts-created-in-the-transaction) | 0.00153 ETH | the same |
+| Unichain | [Three early credits are missing from the history](quality-native.md#unichain-three-early-credits-missing-from-the-history) | three credits | the same |
+
+## Path to cutover
+
+```mermaid
+---
+title: Cluster A on 2026-10-29
+---
+flowchart TD
+  noop["Full-history noop<br/>running: Optimism ERC-20, Polygon ERC-20,<br/>Arbitrum One native and ERC-20"]
+  seed["Seed the legacy state<br/>done: Optimism, Arbitrum One"]
+  bf["Backfill<br/>running: 12 databases"]
+  cov["Coverage check<br/>passed: Ethereum native and ERC-20,<br/>BSC native, Base native"]
+  qual["Quality comparison<br/>from cluster C: native on seven chains,<br/>ERC-20 on Ethereum and BSC"]
+  sink["Live sink<br/>none deployed"]
+  cut["Token API cutover<br/>none yet"]
+  noop --> bf --> cov --> qual --> sink --> cut
+  seed --> cov
+```
+
+Each database passes these stages in order. The second line of a box names
+the chains at that stage. Optimism and Arbitrum One also take the RPC-era
+state below their start blocks.
+
+## Final releases
+
+The native package is `evm_balances_native` and the ERC-20 package
+`evm_balances_erc20`. The table shows the first 8 characters of each module
+hash. The full hashes are right below it.
+
+| Release tag | `map_events` | `db_out` | Cluster A | Cluster C |
+| --- | --- | --- | --- | --- |
+| [`evm-balances-native-v0.7.8`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.8) | `6ed24645` | `40f294cb` | | Ethereum, BSC, Polygon, Optimism, Unichain, HyperEVM |
+| [`evm-balances-native-v0.7.9`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.9) | `424ce160` | `9cf8c500` | | Base |
+| [`evm-balances-native-v0.7.10`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.10) | `ee871813` | `5feb4830` | all eight chains | Arbitrum One (partial) |
+| [`evm-balances-erc20-v0.7.4`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-erc20-v0.7.4) | `e611c63a` | `0786f2df` | all eight chains | Ethereum, BSC |
+
+```mermaid
+timeline
+  title Releases since 2026-10-15
+  2026-10-15 : native v0.7.8 : ERC-20 v0.7.3
+  2026-10-18 : native v0.7.9 : ERC-20 v0.7.4
+  2026-10-19 : native v0.7.10
+```
+
+Release dates of the native and ERC-20 packages since 2026-10-15. ERC-20
+v0.7.4 replaced v0.7.3 ([superseded databases](#superseded-databases)).
+
+<details>
+<summary>Full module hashes</summary>
+
+| Package | Module | Hash |
+| --- | --- | --- |
+| `evm_balances_native` v0.7.8 | `map_events` | `6ed2464534915064dd4f475e80d453b709fd7727` |
+| | `db_out` | `40f294cb126dae6dbbd874f9e291e85b634d04d1` |
+| `evm_balances_native` v0.7.9 | `map_events` | `424ce160682cf8c429d18322fbc23bf91fdd8a5c` |
+| | `db_out` | `9cf8c500a73dd95f91112d1c71fe4fe7e964334f` |
+| `evm_balances_native` v0.7.10 | `map_events` | `ee871813ce0ebe99dc94d57d3975cb0b45e75095` |
+| | `db_out` | `5feb4830c806c568cc9df46b8f280b618cc2b51b` |
+| `evm_balances_erc20` v0.7.4 | `map_events` | `e611c63aab92c691fbb32550fa008faab113f194` |
+| | `db_out` | `0786f2dffd4c82b9fa011988e6b9b6a18ca4b51b` |
+
+</details>
+
+Each spkg is the release asset
+`https://github.com/pinax-network/substreams-evm-balances/releases/download/<tag>/<tag>.spkg`.
+The hashes above were read with `substreams info` from the published assets.
+The cluster A workflows stream these assets.
+
+The native versions differ only in which producer shapes they accept.
+v0.7.9 and v0.7.10 accept blocks that v0.7.8 refused on Arbitrum One and
+Base, and give v0.7.8's output for every block v0.7.8 accepts. So cluster A
+runs v0.7.10 on every chain. v0.7.11, not released yet, is the first to
+change the output of blocks that earlier versions accept: it adds the debits
+of unmarked Polygon self-destructs ([below](#polygon-native-v0711)).
+
+## Cluster A databases
+
+Each database is backfilled to a fixed end block, which is the start block
+of its live sink. Optimism and Arbitrum One start at the first whole
+1,000-block segment of Extended blocks; every other chain starts at genesis
+([start blocks](../native/balances/README.md#input-and-networks)). "Done" is
+the share of the range in finished jobs. Jobs finish out of order, so a
+running backfill's finished ranges can have gaps.
+
+| Chain | Native database | Backfill range | Done | Started (UTC) | Finished (UTC) |
+| --- | --- | --- | ---: | --- | --- |
+| Ethereum | `mainnet:evm-balances-native@v0.7.10` | [0, 26,290,000) | ✅ 100% | 2026-10-28 02:35 | 2026-10-28 08:39 |
+| BSC | `bsc:evm-balances-native@v0.7.10` | [0, 130,390,000) | ✅ 100% | 2026-10-28 02:16 | 2026-10-29 02:09 |
+| Base | `base:evm-balances-native@v0.7.10` | [0, 53,220,000) | ✅ 100% | 2026-10-28 02:32 | 2026-10-28 23:26 |
+| Optimism | `optimism:evm-balances-native@v0.7.10` | [105,236,000, 158,860,000) | 🔄 99.7% | 2026-10-29 00:47 | |
+| Polygon | `polygon:evm-balances-native@v0.7.10` | [0, 96,380,000) | 🔄 24.9% | 2026-10-29 01:56 | |
+| Unichain | `unichain:evm-balances-native@v0.7.10` | [0, 62,540,000) | 🔄 86.5% | 2026-10-29 01:54 | |
+| HyperEVM | `hyperevm:evm-balances-native@v0.7.10` | [0, 49,840,000) | 🔄 44.1% | 2026-10-29 02:26 | |
+| Arbitrum One | `arbitrum-one:evm-balances-native@v0.7.10` | [22,208,000, 519,550,000) | 🔄 38.1% | 2026-10-29 01:26 | |
+
+| Chain | ERC-20 database | Backfill range | Done | Started (UTC) | Finished (UTC) |
+| --- | --- | --- | ---: | --- | --- |
+| Ethereum | `mainnet:evm-balances-erc20@v0.7.4` | [0, 26,290,000) | ✅ 100% | 2026-10-28 02:35 | 2026-10-28 08:52 |
+| BSC | `bsc:evm-balances-erc20@v0.7.4` | [0, 130,450,000) | 🔄 5.6% | 2026-10-29 01:52 | |
+| Base | `base:evm-balances-erc20@v0.7.4` | [0, 53,240,000) | 🔄 32.5% | 2026-10-29 01:52 | |
+| Optimism | `optimism:evm-balances-erc20@v0.7.4` | [105,236,000, 158,860,000) | 🔄 78.5% | 2026-10-29 00:47 | |
+| Polygon | `polygon:evm-balances-erc20@v0.7.4` | [0, 96,380,000) | 🔄 25.4% | 2026-10-29 01:57 | |
+| Unichain | `unichain:evm-balances-erc20@v0.7.4` | [0, 62,540,000) | 🔄 57.3% | 2026-10-29 01:54 | |
+| HyperEVM | `hyperevm:evm-balances-erc20@v0.7.4` | [0, 49,830,000) | 🔄 44.7% | 2026-10-29 02:27 | |
+| Arbitrum One | `arbitrum-one:evm-balances-erc20@v0.7.4` | [22,208,000, 519,550,000) | 🔄 24.5% | 2026-10-29 01:27 | |
+
+### Coverage checks
+
+The four finished databases were checked on 2026-10-29, and every check
+passed. Their `backfill_processed_ranges` cover the range with no break and
+no duplicate, and their `blocks` table has one row per block. A block has no
+row when nothing in it changed a balance. Below the end of the matching
+cluster C database, each `blocks` table has exactly the cluster C count:
+Ethereum native 26,195,986, BSC native 127,199,156, Base native 50,867,566
+and Ethereum ERC-20 22,268,024.
+
+| Database | Ranges | Blocks in range | Blocks without a row | Holders |
+| --- | ---: | ---: | ---: | ---: |
+| `mainnet:evm-balances-native@v0.7.10` | 188 | 26,290,000 | 2,014 | 347,723,009 |
+| `bsc:evm-balances-native@v0.7.10` | 198 | 130,390,000 | 611,076 | 533,471,919 |
+| `base:evm-balances-native@v0.7.10` | 198 | 53,220,000 | 1,852,447 | 312,829,067 |
+| `mainnet:evm-balances-erc20@v0.7.4` | 188 | 26,290,000 | 3,946,986 | 445,630,993 pairs |
+
+"Holders" counts distinct addresses for native and distinct (contract,
+holder) pairs for ERC-20, including rows whose balance is now zero. Of
+Ethereum's ERC-20 pairs, 203,929,605 hold a non-zero balance, in 1,434,473
+contracts. As in cluster C, Base's first row is block 4,877.
+
+### Legacy state below the Extended start
+
+The new packages start Optimism at Bedrock and Arbitrum One at Nitro. The
+legacy chains' balances appear in no block's records, so an account that has
+not changed since then would have no row
+([native quality](quality-native.md#optimism-balances-not-changed-since-bedrock)).
+On 2026-10-29, both cluster A databases of each chain took the RPC-era state
+below the start block S from cluster C's `<chain>:evm-balances@v0.3.3`. The
+partitions were attached at 01:21 UTC for Optimism and 01:34 UTC for
+Arbitrum One.
+
+| | Optimism | Arbitrum One |
+| --- | ---: | ---: |
+| S | 105,236,000 | 22,208,000 |
+| `blocks` rows below S | 105,235,998 | 22,204,652 |
+| Native holders | 3,399,722 | 1,168,247 |
+| Native history bars | 64,075,314 | 17,947,073 |
+| ERC-20 pairs | 13,676,887 | 3,303,225 |
+| ERC-20 history bars | 143,971,438 | 35,783,606 |
+
+- **Method.** The RPC-era live sinks had already run past S, so their
+  balance tables no longer hold the state at S. Each holder's balance is
+  the close of its last 1-minute history bar below S, with that bar's last
+  block. The 1h, 4h, 1d and 1w bars were rebuilt from the 1-minute bars
+  below S. No 1-minute bar spans S. The data went into non-replicated
+  staging tables created `ON CLUSTER`, then each partition was attached on
+  one replica and fetched by the other. Attaching does not fire the
+  materialized view, so `transactions` is not counted twice. The staging
+  tables were then dropped.
+- **Checks.** Where the RPC-era balance row is still below S, the seeded row
+  is identical: Optimism 1,328,874 of 1,328,874 native and 10,610,549 of
+  10,610,549 ERC-20 rows, Arbitrum One 334,055 and 1,777,126. Each history
+  interval's checksums equal the source's, and both replicas hold the same
+  rows.
+- **What it carries.** Below S these databases hold the RPC-era package's
+  output, with its errors, not the new packages'. On Optimism, the last
+  seeded change is at block 105,235,059 for native and 105,235,061 for
+  ERC-20.
+
+## Live sinks
+
+No live sink writes cluster A yet. Each starts at its backfill's exclusive
+end, once `backfill_processed_ranges` covers the whole range with no break.
+The [cutover](clickhouse.md) then points the Token API's `balances-native`
+and `balances-erc20` keys at the new databases, one chain and one side at a
+time.
+
+| Chain | Native live sink start | ERC-20 live sink start |
+| --- | ---: | ---: |
+| Ethereum | 26,290,000 | 26,290,000 |
+| BSC | 130,390,000 | 130,450,000 |
+| Base | 53,220,000 | 53,240,000 |
+| Optimism | 158,860,000 | 158,860,000 |
+| Polygon | 96,380,000 | 96,380,000 |
+| Unichain | 62,540,000 | 62,540,000 |
+| HyperEVM | 49,840,000 | 49,830,000 |
+| Arbitrum One | 519,550,000 | 519,550,000 |
+
+### Before the cutover
+
+> [!IMPORTANT]
+> Resolve the points applicable to each network and balance type before its cutover:
+>
+> - **Polygon's missed self-destruct debits.** Cluster A's Polygon runs
+>   v0.7.10 and has them. They need the v0.7.11 fix and a resync
+>   ([below](#polygon-native-v0711),
+>   [native quality](quality-native.md#polygon-missed-self-destruct-debits)).
+> - **Ethereum's account-deletion defect** remains a separate fix. The API
+>   keeps legacy reads for Ethereum native.
+> - **ERC-20 on Base, Optimism, Polygon, Unichain, HyperEVM and Arbitrum
+>   One** has no quality comparison with the RPC era yet.
+> - **Schema compatibility was checked for EVM native routes on 2026-10-23.**
+>   The API uses the retained 1h, 4h, 1d and 1w history intervals and does not
+>   read the omitted EVM holder or deletion views. The isolated canary passed
+>   balance, holder, token metadata and history routes.
+> - **ERC-20 holders the package never emits.** The zero address, and the token
+>   kinds listed in [ERC-20 quality](quality-erc20.md#tokens-the-new-database-does-not-serve).
+> - ✅ **The legacy state of Optimism and Arbitrum One** is seeded in cluster A
+>   ([above](#legacy-state-below-the-extended-start)).
+
+## In progress
+
+```mermaid
+gantt
+  title Cluster A backfills, 2026-10-28 to 2026-10-29 (UTC)
+  dateFormat YYYY-MM-DD HH:mm
+  axisFormat %m-%d %H:%M
+  todayMarker off
+  section Native v0.7.10
+  Ethereum      :done, 2026-10-28 02:35, 2026-10-28 08:39
+  BSC           :done, 2026-10-28 02:16, 2026-10-29 02:09
+  Base          :done, 2026-10-28 02:32, 2026-10-28 23:26
+  Optimism      :active, 2026-10-29 00:47, 2026-10-29 03:54
+  Arbitrum One  :active, 2026-10-29 01:26, 2026-10-29 03:54
+  Unichain      :active, 2026-10-29 01:54, 2026-10-29 03:54
+  Polygon       :active, 2026-10-29 01:56, 2026-10-29 03:54
+  HyperEVM      :active, 2026-10-29 02:26, 2026-10-29 03:54
+  section ERC-20 v0.7.4
+  Ethereum      :done, 2026-10-28 02:35, 2026-10-28 08:52
+  Optimism      :active, 2026-10-29 00:47, 2026-10-29 03:54
+  Arbitrum One  :active, 2026-10-29 01:27, 2026-10-29 03:54
+  BSC           :active, 2026-10-29 01:52, 2026-10-29 03:54
+  Base          :active, 2026-10-29 01:52, 2026-10-29 03:54
+  Unichain      :active, 2026-10-29 01:54, 2026-10-29 03:54
+  Polygon       :active, 2026-10-29 01:57, 2026-10-29 03:54
+  HyperEVM      :active, 2026-10-29 02:27, 2026-10-29 03:54
+```
+
+Start and end times of the cluster A backfill workflows. Running bars end at
+the snapshot, 2026-10-29 03:54 UTC. The share done is in the
+[tables above](#cluster-a-databases).
+
+- **Failed jobs on one node.** On 2026-10-29, until about 02:15 UTC, sink
+  jobs scheduled on node `dom976` failed at startup: they could not
+  download the spkg from GitHub (`no route to host`). They failed before
+  writing to ClickHouse. The node was cordoned, and the workflows' retries
+  run those ranges on other nodes.
+
+### Full-history noops
+
+The noops still listed on `riv-dev1`, of the same release assets:
+
+| Package | Chain | Blocks | State (UTC) |
+| --- | --- | --- | --- |
+| native v0.7.10 | Unichain | 0 to 62,323,170 | ✅ passed 2026-10-27 04:41 |
+| native v0.7.10 | Base | 0 to 53,182,015 | ✅ passed 2026-10-28 05:56 |
+| native v0.7.10 | Polygon | 0 to 96,298,718 | ✅ passed 2026-10-28 07:50 |
+| native v0.7.10 | Optimism | 105,236,000 to 158,818,060 | ✅ passed 2026-10-29 03:40 |
+| native v0.7.10 | Arbitrum One | 22,208,000 to 519,220,799 | 🔄 since 2026-10-29 01:25 |
+| ERC-20 v0.7.4 | Optimism | 105,236,000 to 158,818,060 | 🔄 since 2026-10-29 00:48 |
+| ERC-20 v0.7.4 | Arbitrum One | 22,208,000 to 519,220,887 | 🔄 since 2026-10-29 01:26 |
+| ERC-20 v0.7.4 | Polygon | 0 to 96,355,722 | 🔄 since 2026-10-29 01:56 |
+
+### Polygon native v0.7.11
+
+> [!WARNING]
+> The [native quality page](quality-native.md#polygon-missed-self-destruct-debits)
+> found that `polygon:evm-balances-native@v0.7.8` keeps the balance of
+> contracts that self-destructed: 61 contracts and 1,694.17 POL found by the
+> comparison, and at least 1,831.73 POL over-counted by the supply check.
+> Cluster A's `polygon:evm-balances-native@v0.7.10` gives the same output.
+
+On 2026-10-20 the 61 blocks showed the cause. After Polygon's Napoli fork,
+the producer leaves these self-destructs unmarked (no `suicide` flag) and
+records only the beneficiary's credit, so v0.7.8 never restores the
+contract's debit.
+
+- **Fix:** native v0.7.11 restores the debit in that exact shape. The patch,
+  with captured fixtures and tests, passed two review rounds. Replayed
+  offline, it debits 58 of the 61 contracts (1,692.97 POL), each by exactly
+  the balance v0.7.8 kept; the other 3 (1.2 POL) self-destructed in blocks not
+  fetched. No other block of any chain in the saved data changes.
+- **Only Polygon is planned to resync.** The survey of every saved block of
+  the other chains found the unmarked shape only on Polygon.
+- **Fail closed (owner, 2026-10-20):** a self-destruct close to that shape
+  but not exactly it will refuse the block instead of keeping a wrong
+  balance. That guard is being added and reviewed.
+- **Next, approved by the owner (2026-10-20):** the PR with the CI-built
+  spkg, the pre-release noop on all eight chains, the merge and tag,
+  Polygon's full-history noop, its resync, and the supply check. v0.7.11 was
+  not released by 2026-10-29.
+
+## Cluster C
+
+Cluster C holds the RPC-era databases that the Token API serves, and the
+first new databases. The quality pages compared these new databases with the
+RPC era. Cluster A's databases replace them for the cutover.
+
+### Native live rollout on 2026-10-23
 
 [k8s-token-api-services#45](https://github.com/pinax-network/k8s-token-api-services/pull/45)
 enabled native v0.7.8 `db_out` sinks in `riv-prod-pinax-api-a`, namespace
 `token-api-services`, continuing at the backfills' exclusive ends:
 BSC 127,810,000 (undo buffer 5) and Ethereum 26,198,000 (undo buffer 2).
-Both cursors carry `db_out` hash `40f294cb126dae6dbbd874f9e291e85b634d04d1`.
-The 21 blocks spanning each boundary have one row per block, without a gap
-or duplicate. Ethereum reached head; BSC is catching up.
+They write cluster C. Both cursors carry `db_out` hash
+`40f294cb126dae6dbbd874f9e291e85b634d04d1`. The 21 blocks spanning each
+boundary have one row per block, without a gap or duplicate. On 2026-10-29
+both were at the head (Ethereum 26,295,804, BSC 130,403,797).
 
 The owner chose to keep legacy ERC-20 running and to retain `db_out` until
 all networks migrate. Ethereum's native sink stays on for comparison,
@@ -88,121 +442,12 @@ and samples do not establish correctness for all accounts or history. The
 record includes the observed reader/client releases; those releases do not
 identify the producer of every historical block.
 
-## Quality at a glance
+### Cluster C native databases
 
-- **Native balances agree with the RPC era for 99.1% (Ethereum) to 100%
-  (Unichain) of the addresses compared.** Nearly every difference is an
-  RPC-era error: on Ethereum, its live sink stored pre-block balances for
-  about 3.06 million addresses in February 2026. On BSC it never wrote 1,629
-  blocks of 2024-01-18, and on HyperEVM it missed internal transfers.
-- **ERC-20 covers 62% (Ethereum) and 45% (BSC) of the RPC era's non-zero
-  holder pairs, and 99.26% and 99.39% of its own non-zero rows are equal.** Ordinary
-  tokens are accurate (99.996% of holders on Ethereum, 99.999% on BSC).
-  Airdrop spam, computed balances (stETH, aTokens, reflection) and balances
-  kept elsewhere (MiniMe, Synthetix) are not served, and some real tokens
-  are stale (MKR, HEX, TUSD). See [ERC-20 quality](quality-erc20.md).
-- **USDT, USDC and WETH (Ethereum) and USDT, USDC and WBNB (BSC) match the
-  RPC era for more than 99.99% of non-zero holders, and their supplies
-  close.** Apart from the zero address, which the package never emits, each
-  has at most a dozen wrong holders; on BSC, none for USDT and USDC, and 2
-  for WBNB. See [top tokens](quality-top-tokens.md).
-- **The new native databases have four known gaps**, in the table below. See
-  [native quality](quality-native.md#gaps-in-the-new-databases).
-
-| Chain | Known gap in the new native database | Extent |
-| --- | --- | --- |
-| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix v0.7.11 [in progress](#polygon-native-v0711) | at least 1,831.73 POL over-counted |
-| Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH |
-| Ethereum | [72 contracts keep ETH](quality-native.md#ethereum-credits-of-contracts-created-in-the-transaction) | 0.00153 ETH |
-| Unichain | [Three early credits are missing from the history](quality-native.md#unichain-three-early-credits-missing-from-the-history) | three credits |
-
-## Path to cutover
-
-```mermaid
----
-title: Historical cutover snapshot on 2026-10-20
----
-flowchart TD
-  rel["Release<br/>Polygon native v0.7.11 (in progress)"]
-  noop["Full-history noop"]
-  bf["Backfill<br/>Arbitrum One native v0.7.10"]
-  cov["Coverage check"]
-  qual["Quality comparison<br/>none waiting"]
-  sink["Live sink<br/>proposed: Ethereum, BSC native<br/>not proposed: Base, Optimism,<br/>Unichain, HyperEVM native,<br/>Ethereum, BSC ERC-20"]
-  cut["Token API cutover<br/>none yet"]
-  rel --> noop --> bf --> cov --> qual --> sink --> cut
-```
-
-Each database passes these stages in order; the second line of a box names
-the chains at that stage.
-
-## Final releases
-
-Native v0.7.8 has the bounded live checks recorded above. Ethereum remains
-a comparison deployment because of its known defect; other releases retain
-their earlier qualification status (see [Handoff](handoff.md)).
-
-```mermaid
-timeline
-  title Releases since 2026-10-15
-  2026-10-15 : native v0.7.8 : ERC-20 v0.7.3
-  2026-10-18 : native v0.7.9 : ERC-20 v0.7.4
-  2026-10-19 : native v0.7.10
-  2026-10-20 : native v0.7.11 in progress
-```
-
-Release dates of the native and ERC-20 packages since 2026-10-15. ERC-20
-v0.7.4 replaced v0.7.3 ([superseded databases](#superseded-databases)).
-
-The native package is `evm_balances_native` and the ERC-20 package
-`evm_balances_erc20`. The table shows the first 8 characters of each module
-hash; the full hashes are right below it.
-
-| Release tag | `map_events` | `db_out` | Chains |
-| --- | --- | --- | --- |
-| [`evm-balances-native-v0.7.8`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.8) | `6ed24645` | `40f294cb` | Ethereum, BSC, Polygon, Optimism, Unichain, HyperEVM |
-| [`evm-balances-native-v0.7.9`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.9) | `424ce160` | `9cf8c500` | Base |
-| [`evm-balances-native-v0.7.10`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.10) | `ee871813` | `5feb4830` | Arbitrum One |
-| [`evm-balances-erc20-v0.7.4`](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-erc20-v0.7.4) | `e611c63a` | `0786f2df` | Ethereum, BSC |
-
-<details>
-<summary>Full module hashes</summary>
-
-| Package | Module | Hash |
-| --- | --- | --- |
-| `evm_balances_native` v0.7.8 | `map_events` | `6ed2464534915064dd4f475e80d453b709fd7727` |
-| | `db_out` | `40f294cb126dae6dbbd874f9e291e85b634d04d1` |
-| `evm_balances_native` v0.7.9 | `map_events` | `424ce160682cf8c429d18322fbc23bf91fdd8a5c` |
-| | `db_out` | `9cf8c500a73dd95f91112d1c71fe4fe7e964334f` |
-| `evm_balances_native` v0.7.10 | `map_events` | `ee871813ce0ebe99dc94d57d3975cb0b45e75095` |
-| | `db_out` | `5feb4830c806c568cc9df46b8f280b618cc2b51b` |
-| `evm_balances_erc20` v0.7.4 | `map_events` | `e611c63aab92c691fbb32550fa008faab113f194` |
-| | `db_out` | `0786f2dffd4c82b9fa011988e6b9b6a18ca4b51b` |
-
-</details>
-
-Each spkg is the release asset
-`https://github.com/pinax-network/substreams-evm-balances/releases/download/<tag>/<tag>.spkg`.
-The hashes above were read with `substreams info` from the published assets.
-
-One native database per chain is enough. The native versions differ only in
-which producer shapes they accept. v0.7.9 and v0.7.10 accept blocks that
-v0.7.8 refused on Arbitrum One and Base, and give v0.7.8's output for every
-block v0.7.8 accepts. So a chain moves to a newer version only when its
-full-history noop needs it. v0.7.11, in progress, is the first to change the
-output of blocks that earlier versions accept: it adds the debits of
-unmarked Polygon self-destructs ([below](#polygon-native-v0711)).
-
-## Databases per chain
-
-Each new database is backfilled from the chain's first Extended block to a
-fixed end block. That end block is the start block of its future live sink.
-"Blocks" counts blocks with at least one balance change; blocks without one
-have no row. "Holders" counts distinct addresses for native and distinct
-(contract, holder) pairs for ERC-20, including rows whose balance is now
-zero.
-
-### Native databases
+Each was backfilled from the chain's first Extended block to a fixed end
+block. "Blocks" counts blocks with at least one balance change; blocks
+without one have no row. "Holders" counts distinct addresses, including rows
+whose balance is now zero.
 
 | Chain | Native database | Backfilled range | Blocks | Holders |
 | --- | --- | --- | ---: | ---: |
@@ -213,23 +458,26 @@ zero.
 | Polygon | `polygon:evm-balances-native@v0.7.8` | [0, 95,690,000) | 86,915,716 | 197,432,321 |
 | Unichain | `unichain:evm-balances-native@v0.7.8` | [0, 61,490,000) | 52,934,210 | 8,385,130 |
 | HyperEVM | `hyperevm:evm-balances-native@v0.7.8` | [0, 48,780,000) | 43,413,402 | 1,254,132 |
-| Arbitrum One | `arbitrum-one:evm-balances-native@v0.7.10` | 🔄 backfilling over [22,208,000, 515,680,000) ([below](#arbitrum-one-native-v0710)) | | |
+| Arbitrum One | `arbitrum-one:evm-balances-native@v0.7.10` | [22,208,000, 470,000,000), incomplete | | |
 
 ```mermaid
 xychart-beta
-  title "Native holders per chain (millions)"
+  title "Cluster C native holders per chain (millions)"
   x-axis [Ethereum, BSC, Base, Optimism, Polygon, Unichain, HyperEVM]
   y-axis "Millions of addresses" 0 --> 550
   bar [345.8, 529.1, 311.7, 25.9, 197.4, 8.4, 1.3]
 ```
 
-Distinct addresses in each backfilled native database, in millions (rounded;
-the exact counts are in the table above). Optimism counts only since Bedrock.
+Distinct addresses in each backfilled cluster C native database, in millions
+(rounded; the exact counts are in the table above). Optimism counts only
+since Bedrock.
 
-### ERC-20 databases
+The Arbitrum One backfill in cluster C finished its last range on
+2026-10-20 at 23:52 UTC. It covers [22,208,000, 470,000,000) in 4,478
+ranges; the last range, [470,000,000, 515,680,000), never ran. Cluster A's
+backfill replaces it.
 
-Only Ethereum and BSC have an ERC-20 database; every other chain has none
-([not scheduled](#not-scheduled)).
+### Cluster C ERC-20 databases
 
 | | Ethereum | BSC |
 | --- | ---: | ---: |
@@ -239,18 +487,18 @@ Only Ethereum and BSC have an ERC-20 database; every other chain has none
 | Holders (pairs) | 443,936,986 | 1,667,606,356 |
 | In contracts | 1,428,012 | 11,725,063 |
 
-### Coverage checks
+### Cluster C coverage checks
 
-Every database listed as backfilled was checked the same way, and every check
-passed. Its `backfill_processed_ranges` cover the range with no break and no
-duplicate, and its `blocks` table has one row per block. A block has no row
-when nothing in it changed a balance. The native databases were also checked
-against the RPC-era transfer databases, `<chain>:evm-transfers@v0.3.3`: no
-block that carries a native value transfer there
-(`native_transfers.amount > 0`) is missing from the native database.
+Every cluster C database listed as backfilled was checked the same way, and
+every check passed. Its `backfill_processed_ranges` cover the range with no
+break and no duplicate, and its `blocks` table has one row per block. The
+native databases were also checked against the RPC-era transfer databases,
+`<chain>:evm-transfers@v0.3.3`: no block that carries a native value
+transfer there (`native_transfers.amount > 0`) is missing from the native
+database.
 
 <details>
-<summary>Blocks without a row, per native database</summary>
+<summary>Blocks without a row, per cluster C native database</summary>
 
 | Chain | Blocks in range | Blocks without a row | Blocks with a native value transfer | Of those, missing from native |
 | --- | ---: | ---: | ---: | ---: |
@@ -269,16 +517,12 @@ hold only system transactions, which pay no fee.
 
 </details>
 
-Optimism starts at Bedrock and Arbitrum One at Nitro, at the first whole
-1,000-block segment of Extended blocks. The legacy chains' balances appear in
-no block's records, so an account that has not changed since then has no
-row ([start blocks](../native/balances/README.md#input-and-networks)).
-
 ### What the Token API serves today
 
-The Token API still reads the RPC-era databases, `<chain>:evm-balances@v0.3.3`.
-Each was backfilled up to the block below and is kept at the chain head by a
-live sink. All comparisons on the quality pages are against these databases.
+The Token API still reads the RPC-era databases in cluster C,
+`<chain>:evm-balances@v0.3.3`. Each was backfilled up to the block below and
+is kept at the chain head by a live sink. All comparisons on the quality
+pages are against these databases.
 
 | Chain | RPC-era database | Backfilled to, then live | Head on 2026-10-19 ~15:20 UTC |
 | --- | --- | ---: | ---: |
@@ -293,149 +537,16 @@ live sink. All comparisons on the quality pages are against these databases.
 | Avalanche | `avalanche:evm-balances@v0.3.4` | not compared | |
 
 Avalanche stays on the RPC-era package. Its endpoint serves no Extended
-blocks, so both new packages refuse every block there.
-
-## Live sinks
-
-BSC and Ethereum native sinks started on 2026-10-23 at their backfills'
-exclusive end blocks. Other databases retain their recorded backfill
-endpoints. Each new sink catches up from that boundary to the head. The
-[cutover](clickhouse.md) then points the Token API's `balances-native` and
-`balances-erc20` keys at the new databases, one chain and one side at a time.
-
-| Chain | Native live sink start | ERC-20 live sink start | Live sink deployment |
-| --- | ---: | ---: | --- |
-| Ethereum | 26,198,000 | 26,215,000 | ✅ native comparison at head; ERC-20 stays legacy |
-| BSC | 127,810,000 | 128,355,000 | 🔄 native catching up; ERC-20 stays legacy |
-| Base | 52,720,000 | | not proposed yet |
-| Optimism | 158,320,000 | | not proposed yet |
-| Polygon | 95,690,000 | | after the v0.7.11 resync ([below](#polygon-native-v0711)) |
-| Unichain | 61,490,000 | | not proposed yet |
-| HyperEVM | 48,780,000 | | not proposed yet |
-| Arbitrum One | 515,680,000 | | after its backfill |
-
-### Before the cutover
-
-> [!IMPORTANT]
-> Resolve the points applicable to each network and balance type before its cutover:
->
-> - **Seed the legacy state on Optimism and Arbitrum One.** Their databases
->   start at Bedrock and Nitro, so balances unchanged since then have no row
->   ([native quality](quality-native.md#optimism-balances-not-changed-since-bedrock)).
-> - **Polygon's missed self-destruct debits** need the v0.7.11 fix and a resync
->   ([below](#polygon-native-v0711),
->   [native quality](quality-native.md#polygon-missed-self-destruct-debits)).
-> - **Ethereum's account-deletion defect** remains a separate fix. Its new
->   native sink is for comparison; the API keeps legacy reads.
-> - **Schema compatibility was checked for EVM native routes on 2026-10-23.**
->   The API uses the retained 1h, 4h, 1d and 1w history intervals and does not
->   read the omitted EVM holder or deletion views. The isolated canary passed
->   balance, holder, token metadata and history routes.
-> - **ERC-20 holders the package never emits.** The zero address, and the token
->   kinds listed in [ERC-20 quality](quality-erc20.md#tokens-the-new-database-does-not-serve).
-
-## In progress
-
-```mermaid
-gantt
-  title Noops and backfills, 2026-10-19 to 2026-10-21 (UTC)
-  dateFormat YYYY-MM-DD HH:mm
-  axisFormat %m-%d %H:%M
-  todayMarker off
-  section BSC ERC-20 v0.7.4
-  0-12.8M         :done, 2026-10-19 03:37, 2026-10-19 07:10
-  12.8-25.6M      :done, 2026-10-19 10:58, 2026-10-19 15:20
-  25.6-38.3M      :done, 2026-10-19 10:59, 2026-10-19 14:42
-  38.3-51.1M      :done, 2026-10-19 14:43, 2026-10-19 19:36
-  51.1-63.9M      :done, 2026-10-19 15:21, 2026-10-19 20:15
-  63.9-76.7M      :done, 2026-10-19 19:36, 2026-10-20 00:45
-  76.7-89.5M      :done, 2026-10-19 20:16, 2026-10-19 23:37
-  89.5-102.2M     :done, 2026-10-19 23:39, 2026-10-20 03:09
-  102.2-115.0M    :done, 2026-10-20 00:46, 2026-10-20 04:39
-  115.0-128.4M    :done, 2026-10-20 03:12, 2026-10-20 07:29
-  section Arbitrum One native v0.7.10
-  10 noops        :done, 2026-10-19 11:22, 2026-10-20 01:25
-  22.2-70M        :done, 2026-10-19 22:53, 2026-10-20 02:30
-  70-120M         :done, 2026-10-20 00:15, 2026-10-20 03:58
-  120-170M        :done, 2026-10-20 02:31, 2026-10-20 06:07
-  170-220M        :done, 2026-10-20 11:49, 2026-10-20 15:53
-  220-270M        :done, 2026-10-20 11:49, 2026-10-20 15:51
-  270-320M, est. end :active, 2026-10-20 15:52, 2026-10-20 19:40
-  320-370M, est. end :active, 2026-10-20 15:54, 2026-10-20 19:40
-  370-420M est.   :2026-10-20 19:40, 2026-10-20 23:20
-  420-470M est.   :2026-10-20 19:40, 2026-10-20 23:20
-  470-515.7M est. :2026-10-20 23:20, 2026-10-21 03:00
-```
-
-Backfill ranges of BSC ERC-20 v0.7.4 (done) and Arbitrum One native v0.7.10
-(done, running, and queued with estimated times), in millions of blocks, and
-the Arbitrum One full-history noops (one bar). The exact ranges and times are
-in the tables below.
-
-### Polygon native v0.7.11
-
-> [!WARNING]
-> The [native quality page](quality-native.md#polygon-missed-self-destruct-debits)
-> found that `polygon:evm-balances-native@v0.7.8` keeps the balance of
-> contracts that self-destructed: 61 contracts and 1,694.17 POL found by the
-> comparison, and at least 1,831.73 POL over-counted by the supply check.
-
-On 2026-10-20 the 61 blocks showed the cause. After Polygon's Napoli fork,
-the producer leaves these self-destructs unmarked (no `suicide` flag) and
-records only the beneficiary's credit, so v0.7.8 never restores the
-contract's debit.
-
-- **Fix:** native v0.7.11 restores the debit in that exact shape. The patch,
-  with captured fixtures and tests, passed two review rounds. Replayed
-  offline, it debits 58 of the 61 contracts (1,692.97 POL), each by exactly
-  the balance v0.7.8 kept; the other 3 (1.2 POL) self-destructed in blocks not
-  fetched. No other block of any chain in the saved data changes.
-- **Only Polygon is planned to resync.** The survey of every saved block of
-  the other chains found the unmarked shape only on Polygon.
-- **Fail closed (owner, 2026-10-20):** a self-destruct close to that shape
-  but not exactly it will refuse the block instead of keeping a wrong
-  balance. That guard is being added and reviewed.
-- **Next, approved by the owner (2026-10-20):** the PR with the CI-built
-  spkg, the pre-release noop on all eight chains, the merge and tag,
-  Polygon's full-history noop, its resync into
-  `polygon:evm-balances-native@v0.7.11`, and the supply check.
-
-### Arbitrum One native v0.7.10
-
-Five of the ten backfill ranges are done and two are running. A range takes
-about 3.7 hours, so the database should be complete early on 2026-10-21 UTC
-(an estimate).
-
-The full-history noop of native v0.7.9 refused block 500,689,520 on
-2026-10-18. v0.7.10 accepts it, and at the owner's direction Arbitrum One
-resyncs into `arbitrum-one:evm-balances-native@v0.7.10`. All 10 full-history
-noops over [22,208,000, 515,680,000) passed by 2026-10-20 01:25 UTC, with no
-refusal (they ran from 2026-10-19 11:22 UTC). The backfills run in ascending
-ranges of 50M blocks, two at a time; three ranges, [370,000,000,
-515,680,000), are queued.
-
-| Range | State | Start (UTC) | End (UTC) |
-| --- | --- | --- | --- |
-| [22,208,000, 70,000,000) | ✅ done | 2026-10-19 22:53 | 2026-10-20 02:30 |
-| [70,000,000, 120,000,000) | ✅ done | 2026-10-20 00:15 | 2026-10-20 03:58 |
-| [120,000,000, 170,000,000) | ✅ done | 2026-10-20 02:31 | 2026-10-20 06:07 |
-| [170,000,000, 220,000,000) | ✅ done | 2026-10-20 11:49 | 2026-10-20 15:53 |
-| [220,000,000, 270,000,000) | ✅ done | 2026-10-20 11:49 | 2026-10-20 15:51 |
-| [270,000,000, 320,000,000) | 🔄 running | 2026-10-20 15:52 | 19:40, est. |
-| [320,000,000, 370,000,000) | 🔄 running | 2026-10-20 15:54 | 19:40, est. |
-| [370,000,000, 420,000,000) | ⏳ queued | 19:40, est. | 23:20, est. |
-| [420,000,000, 470,000,000) | ⏳ queued | 19:40, est. | 23:20, est. |
-| [470,000,000, 515,680,000) | ⏳ queued | 23:20, est. | 2026-10-21 03:00, est. |
-
-The partial `arbitrum-one:evm-balances-native@v0.7.9`, [22,208,000,
-220,000,000), is superseded. Dropping it needs the owner's OK.
+blocks, so both new packages refuse every block there. On 2026-10-29 its
+database was 5 seconds behind the head, at block 98,832,097. Cluster A has
+no Avalanche database.
 
 ### BSC ERC-20 comparison
 
-The BSC ERC-20 v0.7.4 database is complete and compared. The backfill
-completed on 2026-10-20 at 07:29 UTC: all 10 full-history noops passed, and
-the 10 backfills cover [0, 128,355,000) in 1,286 contiguous ranges. The
-comparison with the RPC-era database ran on 2026-10-20
+The BSC ERC-20 v0.7.4 database in cluster C is complete and compared. The
+backfill completed on 2026-10-20 at 07:29 UTC: all 10 full-history noops
+passed, and the 10 backfills cover [0, 128,355,000) in 1,286 contiguous
+ranges. The comparison with the RPC-era database ran on 2026-10-20
 ([ERC-20 quality](quality-erc20.md#bsc), [top tokens](quality-top-tokens.md#bsc-usdt-usdc-and-wbnb)):
 
 - **USDT and USDC:** no wrong new balance; every difference is a block the
@@ -449,27 +560,10 @@ comparison with the RPC-era database ran on 2026-10-20
   with more airdrop-like spam among the missing pairs (87.5% against 67.4%
   on Ethereum); 99.39% of the new non-zero rows equal the RPC-era row.
 
-<details>
-<summary>The 10 backfill ranges and their times</summary>
-
-| Range | Start (UTC) | End (UTC) |
-| --- | --- | --- |
-| [0, 12,781,000) | 2026-10-19 03:37 | 2026-10-19 07:10 |
-| [12,781,000, 25,562,000) | 2026-10-19 10:58 | 2026-10-19 15:20 |
-| [25,562,000, 38,343,000) | 2026-10-19 10:59 | 2026-10-19 14:42 |
-| [38,343,000, 51,124,000) | 2026-10-19 14:43 | 2026-10-19 19:36 |
-| [51,124,000, 63,905,000) | 2026-10-19 15:21 | 2026-10-19 20:15 |
-| [63,905,000, 76,686,000) | 2026-10-19 19:36 | 2026-10-20 00:45 |
-| [76,686,000, 89,467,000) | 2026-10-19 20:16 | 2026-10-19 23:37 |
-| [89,467,000, 102,248,000) | 2026-10-19 23:39 | 2026-10-20 03:09 |
-| [102,248,000, 115,029,000) | 2026-10-20 00:46 | 2026-10-20 04:39 |
-| [115,029,000, 128,355,000) | 2026-10-20 03:12 | 2026-10-20 07:29 |
-
-</details>
-
 ### Superseded databases
 
-Three databases are replaced, and dropping each needs the owner's OK.
+These cluster C databases are replaced, and dropping each needs the owner's
+OK.
 
 <details>
 <summary>Superseded databases and their replacements</summary>
@@ -479,12 +573,10 @@ Three databases are replaced, and dropping each needs the owner's OK.
 | `mainnet:evm-balances-erc20@v0.7.3` | `mainnet:evm-balances-erc20@v0.7.4` |
 | `bsc:evm-balances-erc20@v0.7.3` | `bsc:evm-balances-erc20@v0.7.4` |
 | `arbitrum-one:evm-balances-native@v0.7.9` (partial) | `arbitrum-one:evm-balances-native@v0.7.10` |
+| `arbitrum-one:evm-balances-native@v0.7.10` (partial, to 470,000,000) | the cluster A database of the same name |
 
 </details>
 
-### Not scheduled
+## Not scheduled
 
-- ERC-20 on Base, Optimism, Polygon, Unichain, HyperEVM and Arbitrum One. The
-  owner extended only the native package to these chains (2026-10-17), so the
-  Token API keeps the RPC-era ERC-20 balances there.
 - Avalanche ([above](#what-the-token-api-serves-today)).
