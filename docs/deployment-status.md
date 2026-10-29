@@ -174,7 +174,6 @@ a self-destruct to itself. Such a self-destruct was found in the saved
 blocks of Polygon only, so only Polygon is planned to move to it
 ([below](#polygon-native-v0711)).
 
-
 ## Cluster A databases
 
 Each database is backfilled to a fixed end block, which is the start block
