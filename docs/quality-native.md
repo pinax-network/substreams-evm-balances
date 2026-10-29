@@ -151,8 +151,18 @@ not mark these self-destructs.
 - In block 55,741,124, for example (transaction
   `0x055a91ac30a82427d6a3c7ad157b53dc549cdd3f2c4b04e8feec61b083f5da05`),
   `0xeb0de914…` sends its 1,391.16 POL to `0xd55ffe27…`.
-- In the other 5 cases the self-destruct is in an earlier block, not located
-  yet.
+- In the other 5 cases the fetched block holds no refund or record of the
+  contract. 2 of them were located the same day in earlier blocks, in the
+  same shape, in root calls: blocks 56,042,508 (`0x44819973…`, 1 POL) and
+  58,697,458 (`0x086d5f9a…`, 2 POL). So 58 of the 61 contracts are located
+  in this shape (1,692.97 POL). The last 3 (1.2 POL) lie in blocks not
+  fetched.
+- Native v0.7.11 restores the debit in this exact shape. Replayed offline
+  on the 63 fetched blocks, it writes the 58 contracts at zero at their
+  blocks and changes no other row. A call without the flag that holds a
+  self-destruct credit in any other shape fails the block instead of keeping
+  a balance that may be wrong, except a self-destruct to itself, whose
+  records keep the right balance; none is in the saved blocks of any chain.
 
 ### Optimism: balances not changed since Bedrock
 

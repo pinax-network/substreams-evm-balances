@@ -91,6 +91,7 @@ data is ambiguous, incomplete or in a shape no rule pins:
 | A record's old value differs from the account's previous new value, apart from the nine [continuity exceptions](#continuity-exceptions) | `discontinuous native balance changes within block` |
 | A record of a failed transaction's root call that moves a balance and does not persist, after the execution (past the root call's end ordinal) or before it (at a positive ordinal below the root call's begin ordinal); checked after the reduction, so the errors above come first | `failed transaction carries a balance record after its execution without pinned persistence semantics` / `failed transaction carries a balance record before its execution without pinned persistence semantics` |
 | The same, for a root call without an end ordinal in a transaction with one | `failed transaction carries a balance record that its root call's missing end ordinal cannot place` |
+| A persisted transaction call without the self-destruct flag holds a `SUICIDE_REFUND` outside the exact shape whose debit native restores, other than a self-destruct to itself recorded as the account's own refund from zero (v0.7.11; [continuity exceptions](#continuity-exceptions)); checked last, after the reduction and the failed-transaction records above, so their errors come first | `unrecognized self-destruct without the self-destruct flag: call <index> of transaction 0x<hash> holds a SUICIDE_REFUND outside the shape whose debit is restored, so the balance of its execution context 0x<account> after the self-destruct is unknown` |
 
 Below, *the first v0.7.8 build* is the source of `cfc2923` (2026-10-14), with
 four of the v0.7.8 rules: the self-destruct debit in a call with other
@@ -112,7 +113,11 @@ execution and Arbitrum One's withdraw of a legacy self-destruct to itself
 are rewritten. Every other record of the account must still chain across
 them. One related shape, a self-destruct to itself that would chain to a
 wrong zero, fails the block instead (below), outside the exact shape that
-native v0.7.9 drops on Arbitrum One.
+native v0.7.9 drops on Arbitrum One. Since v0.7.11 so does a
+`SUICIDE_REFUND` in a persisted transaction call without the self-destruct
+flag outside the exact shape whose debit native restores, other than a
+self-destruct to itself recorded as the account's own refund from zero
+(below).
 
 **Self-transfer pair (v0.2.2, v0.7.8).** A value transfer from an account to itself,
 a CALLCODE with value or a CALL whose caller is its address, does not move the
@@ -193,8 +198,10 @@ the credit, and the transaction has no `SUICIDE_WITHDRAW` of the destroyed
 account. A producer that records the debit in another shape breaks the
 continuity check instead. Polygon's producer of `Block.ver` 3 (to block
 73,440,255; `Block.ver` 4 from 73,440,256 records the withdraw) records no
-`SUICIDE_WITHDRAW` at all, and the Ethereum producer of `Block.ver` 3 none
-after Cancun for an account created in the transaction either. An account
+`SUICIDE_WITHDRAW` at all, and from Napoli no self-destruct flag either for
+an account not created in the transaction (v0.7.11, below). The Ethereum
+producer of `Block.ver` 3 records none after Cancun for an account created in
+the transaction either. An account
 created and self-destructed in one transaction then kept, in v0.7.7's
 output, the balance it was created with: a wrong balance, not a refused
 block, since nothing after it breaks continuity, so the full-history noops
@@ -212,6 +219,95 @@ blocks from 60,000,000, 56,000,000 and 62,000,000, and 1 in 1,000 Ethereum
 blocks from 19,500,000. Ethereum before Cancun, Ethereum's `Block.ver` 5
 producer, Polygon's `Block.ver` 4 producer and BSC's producers record the
 withdraw.
+
+**Self-destruct debit without the self-destruct flag (v0.7.11, Polygon).**
+From Napoli (block 54,876,000, Bor's Cancun, which brings EIP-6780) an
+account not created in its transaction that self-destructs to another
+account survives with a zero balance. Polygon's producer of `Block.ver` 3
+records only the beneficiary's `SUICIDE_REFUND` of the account's whole
+balance `d`, in a call without the self-destruct flag, with no
+`SUICIDE_WITHDRAW` and no record of the account. It sets the flag on the
+self-destruct of an account created in the transaction (block 70,000,124
+above). Native v0.7.3 to v0.7.10 restore the debit only in a flagged call,
+so the account kept `d`: a wrong balance, not a refused block, since no later
+record of the account breaks continuity. The
+[native quality comparison](../../docs/quality-native.md#polygon-missed-self-destruct-debits)
+of 2026-10-19 found 61 contracts for which
+`polygon:evm-balances-native@v0.7.8` keeps 1,694.17 POL in all and the
+RPC-era database reads zero, from block 55,412,000 to 71,461,200. 58 of the
+61 contracts are located in this shape (1,692.97 POL), each credit equal to
+the balance v0.7.8 kept: 56 in the blocks of those zero readings, fetched
+on 2026-10-20, and 2 more in blocks 56,042,508 and 58,697,458, fetched the
+same day, whose zero-reading blocks hold no refund or record of them. The
+last 3 (1.2 POL) lie in blocks not fetched. Since v0.7.11
+native restores the debit `d -> 0` at the credit's ordinal also for a call
+without the flag, in the v0.7.8 shape (one positive `SUICIDE_REFUND` of
+another account, no `SUICIDE_WITHDRAW` in the call and none of the account
+in the transaction) and four more conditions:
+
+- the call is not a STATICCALL, which cannot self-destruct;
+- no persisted CREATE of the transaction creates the account;
+- the transaction has no persisted balance record of the account before the
+  refund (in a Bor state-sync transaction, whose subtrees restart the
+  ordinals, none at all);
+- the refund is the call's last act, as a `SELFDESTRUCT` ends its frame: it
+  lies after the call's begin ordinal and before its end ordinal, it is the
+  call's only balance record from its ordinal to the end ordinal, and every
+  child call of the call ends before it (a refund within a child's ordinals
+  belongs to the child's execution). In all 58 it is at the end ordinal less
+  one, and the one call with child calls (block 56,243,453) has two, both
+  ending before it; a root call's records after its end ordinal (gas
+  refund, base-fee `BURN`, fee) do not matter.
+
+Persisted means in a call that is not reverted, as the shared rules keep
+it: a reverted call's records and CREATE do not count. As for a flagged
+call, the account's records in earlier transactions of the block chain into
+the debit, and its later records, in a later call of the transaction or in
+a later transaction, chain from its zero: an account not created in its
+transaction survives an EIP-6780 self-destruct and can be credited again.
+The rule is not gated to a network, a `Block.ver` or a fork: a
+self-destruct to another account leaves the account at zero under the
+legacy opcode and EIP-6780 alike. Without the flag the refund is the only
+evidence of the self-destruct, so at the owner's direction (2026-10-20) a
+near-shape fails the block instead of keeping a balance that may be wrong: a
+persisted transaction call without the flag that holds a `SUICIDE_REFUND`
+and gets no restored debit, such as the self-destruct of an account created
+in its transaction or with a record there before it (a value credit), two
+refunds, a refund that moves nothing, a refund of the account itself from a
+positive balance, a `SUICIDE_WITHDRAW` in the call, or a refund that does
+not end the frame. Most of these would keep the balance that the
+self-destruct moved away. A few may keep the right balance, such as a debit
+that the producer records itself, whose records chain to zero, but no
+capture shows them without the flag, so they stop the stream at their
+block, for a capture and a decision. One shape is not refused: a
+self-destruct to itself recorded as the account's own refund from zero to
+`d`, its only record in the transaction, of an account not created there,
+in a call that is not a STATICCALL and holds no `SUICIDE_WITHDRAW`, the
+refund ending the frame. Its records end at `d`, the balance EIP-6780 leaves
+the account, and are kept as they are, as up to v0.7.10. That is how
+Polygon's producer would record one, judging by its 58 captured
+self-destructs and by Ethereum's `Block.ver` 3 refund from zero to itself
+(below); none is captured. The refusal fails no saved block: in the saved
+blocks and fixtures of every supported network, every `SUICIDE_REFUND` in a
+call without the flag is one of the 58 restored (none is in a system call or
+at block level). A reverted call's or a failed transaction's refund does not
+persist and is not checked. Like v0.7.8, and unlike v0.7.9 and v0.7.10,
+v0.7.11 can therefore refuse blocks that the earlier releases accept. That
+is untested on Polygon `Block.ver` 4 and 5 (from 73,440,256), on Polygon
+before Napoli and on the networks with no saved self-destruct of a positive
+balance (BSC, Base, Optimism, Unichain and HyperEVM): the pre-release noop
+and Polygon's full-history noop are its test there. Unlike v0.7.9 and
+v0.7.10 (and like v0.7.8's debit in a call with other records), the rule
+also changes rows of blocks that the earlier releases accept: each block
+with the shape gains the destroyed account's row. The 58 found are Polygon
+`Block.ver` 3 blocks from 55,412,000 to 71,461,200.
+Fixtures: block 55,741,124
+(transaction `0x055a91ac…`, whose root call from `0xd55ffe27…` self-destructs
+`0xeb0de914…`, 1,391.16 POL, to the sender;
+[fixture](tests/fixtures/polygon-55741124-selfdestruct-unflagged-root.json))
+and block 55,412,000 (transaction `0xe8d9e1d3…`, whose depth-1 call from
+`0xd98be101…` self-destructs `0xeba4fc1a…`, 19.8 POL, to that caller;
+[fixture](tests/fixtures/polygon-55412000-selfdestruct-unflagged-nested.json)).
 
 **Self-destruct to itself (v0.7.5).** Since Cancun, an account not created
 in the same transaction that self-destructs to itself keeps its balance:
@@ -864,7 +960,8 @@ capture (see the [persisted-effect matrix](docs/persisted-effects.md) and
 The existing data checks reject detectable ambiguity; they do not establish
 that every chain's persistent effects are represented correctly: a shape that
 chains with a wrong balance, as the missing self-destruct debit did until
-v0.7.8, passes a noop and shows only in a same-block RPC check. The dated
+v0.7.8, and on Polygon until v0.7.11, passes a noop and shows only in a
+same-block RPC check or a comparison across blocks. The dated
 BSC evidence below still refers to its original packages and parameters.
 
 ## Build and test
@@ -924,7 +1021,16 @@ rewrites a fee vault's credit after a transfer into the vault. v0.7.10
 accepts Arbitrum One block 500,689,520, which v0.7.9's full-history noop
 refused, and changes nothing for a block v0.7.9 accepts: it drops the
 repeated withdraw also of an account created in its transaction that
-self-destructs to itself, which ends at zero. None is live-qualified.
+self-destructs to itself, which ends at zero. v0.7.11 restores the debit of a
+Polygon self-destruct that the `Block.ver` 3 producer records without the
+self-destruct flag, and refuses such a call in any other shape, except a
+self-destruct to itself recorded as the account's own refund from zero.
+Unlike v0.7.9 and v0.7.10, it changes rows of blocks the earlier releases
+accept:
+Polygon blocks with that shape (the 58 found are from 55,412,000 to
+71,461,200), and it can refuse blocks they accept. No such call was found
+in the saved blocks and fixtures of the other networks, so the refusal fails
+none of those blocks. None is live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
@@ -994,8 +1100,10 @@ with the rule disabled. The self-destruct to itself recorded as debit,
 refund and repeat is captured (block 326,011,151) and also built from
 another capture, and the guard on records outside a failed transaction's
 execution runs over every captured failed-transaction shape. Every v0.7.9
-test of a new rule fails against the v0.7.8 rules, and every v0.7.10 test of
-the new shape against the v0.7.9 rules. `tests/db_out.rs` covers the
+test of a new rule fails against the v0.7.8 rules, every v0.7.10 test of
+the new shape against the v0.7.9 rules, and every v0.7.11 test of the
+unflagged self-destruct against the v0.7.10 rules; every test of its
+refusal fails with the refusal disabled. `tests/db_out.rs` covers the
 ClickHouse rows, the manifest wiring and the embedded schema.
 
 The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);

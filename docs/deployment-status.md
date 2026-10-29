@@ -12,7 +12,7 @@ writes cluster A yet.
 | BSC | ✅ | 🔄 5.6% | |
 | Base | ✅ | 🔄 32.5% | |
 | Optimism | 🔄 99.7% | 🔄 78.5% | ✅ [pre-Bedrock state seeded](#legacy-state-below-the-extended-start) |
-| Polygon | 🔄 24.9% | 🔄 25.4% | ⚠️ [over-count](#polygon-native-v0711), v0.7.11 fix not released |
+| Polygon | 🔄 24.9% | 🔄 25.4% | ⚠️ [over-count](#polygon-native-v0711), v0.7.11 fix; resync pending |
 | Unichain | 🔄 86.5% | 🔄 57.3% | |
 | HyperEVM | 🔄 44.1% | 🔄 44.7% | |
 | Arbitrum One | 🔄 38.1% | 🔄 24.5% | ✅ [pre-Nitro state seeded](#legacy-state-below-the-extended-start) |
@@ -90,7 +90,7 @@ One have not been compared yet.
 
 | Chain | Known gap in the cluster C native database | Extent | In cluster A |
 | --- | --- | --- | --- |
-| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix v0.7.11 [not released](#polygon-native-v0711) | at least 1,831.73 POL over-counted | the same, v0.7.10 |
+| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix in [v0.7.11](#polygon-native-v0711), resync pending | at least 1,831.73 POL over-counted | the same, v0.7.10 |
 | Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH | [seeded](#legacy-state-below-the-extended-start) from the RPC era |
 | Ethereum | [72 contracts keep ETH](quality-native.md#ethereum-credits-of-contracts-created-in-the-transaction) | 0.00153 ETH | the same |
 | Unichain | [Three early credits are missing from the history](quality-native.md#unichain-three-early-credits-missing-from-the-history) | three credits | the same |
@@ -162,12 +162,17 @@ Each spkg is the release asset
 The hashes above were read with `substreams info` from the published assets.
 The cluster A workflows stream these assets.
 
-The native versions differ only in which producer shapes they accept.
-v0.7.9 and v0.7.10 accept blocks that v0.7.8 refused on Arbitrum One and
-Base, and give v0.7.8's output for every block v0.7.8 accepts. So cluster A
-runs v0.7.10 on every chain. v0.7.11, not released yet, is the first to
-change the output of blocks that earlier versions accept: it adds the debits
-of unmarked Polygon self-destructs ([below](#polygon-native-v0711)).
+From v0.7.8 to v0.7.10 the native versions differ only in which producer
+shapes they accept. v0.7.9 and v0.7.10 accept blocks that v0.7.8 refused on
+Arbitrum One and Base, and give v0.7.8's output for every block v0.7.8
+accepts. So cluster A runs v0.7.10 on every chain. v0.7.11, not released
+yet, is the first since v0.7.8 to change the output of blocks that earlier
+versions accept, and the first since v0.7.8 that can refuse such blocks:
+it adds the debits of unmarked Polygon self-destructs, and refuses a call
+without the mark that holds a self-destruct credit in any other shape but
+a self-destruct to itself. Such a self-destruct was found in the saved
+blocks of Polygon only, so only Polygon is planned to move to it
+([below](#polygon-native-v0711)).
 
 ## Cluster A databases
 
@@ -372,17 +377,38 @@ contract's debit.
 - **Fix:** native v0.7.11 restores the debit in that exact shape. The patch,
   with captured fixtures and tests, passed two review rounds. Replayed
   offline, it debits 58 of the 61 contracts (1,692.97 POL), each by exactly
-  the balance v0.7.8 kept; the other 3 (1.2 POL) self-destructed in blocks not
-  fetched. No other block of any chain in the saved data changes.
+  the balance v0.7.8 kept; the other 3 (1.2 POL) lie in blocks not fetched.
+  No other block of any chain in the saved data changes.
 - **Only Polygon is planned to resync.** The survey of every saved block of
   the other chains found the unmarked shape only on Polygon.
-- **Fail closed (owner, 2026-10-20):** a self-destruct close to that shape
-  but not exactly it will refuse the block instead of keeping a wrong
-  balance. That guard is being added and reviewed.
-- **Next, approved by the owner (2026-10-20):** the PR with the CI-built
-  spkg, the pre-release noop on all eight chains, the merge and tag,
-  Polygon's full-history noop, its resync, and the supply check. v0.7.11 was
-  not released by 2026-10-29.
+- **Fail closed (owner, 2026-10-20), done:** a call without the flag that
+  holds a self-destruct credit in any other shape now refuses the block
+  instead of keeping a balance that may be wrong. One shape is kept as
+  recorded, as by v0.7.10: a self-destruct to itself recorded as the
+  contract's own credit from zero, whose records hold the right balance.
+  The offline replay of the 63 fetched blocks (the 61, and blocks
+  56,042,508 and 58,697,458 with 2 of the 58) refuses none, and neither does
+  any other saved block of any chain. Still, v0.7.11 is the first native
+  version since v0.7.8 that can refuse blocks that earlier versions accept,
+  so the 2026-10-29 pre-release noops covered all eight chains, including
+  Polygon before Napoli and after the producer transition at 73,440,256.
+  All 525 windows passed. This does not establish coverage of every
+  self-destruct shape; Polygon's full-history noop is still required. A few
+  refused shapes may hold the right balance, such
+  as a debit that the producer records itself, but no capture shows them
+  without the flag; one would stop the noop at its block, for a capture and
+  a decision.
+- **Release package (2026-10-29):** [PR #176](https://github.com/pinax-network/substreams-evm-balances/pull/176)
+  includes the canonical CI-built `evm-balances-native-v0.7.11.spkg`
+  (`map_events` `8464a464…`, `db_out` `3a1476fe…`), with passing CI and
+  release dry runs. [Pre-release evidence](history/native-v0711-prerelease-2026-10-29.json)
+  records 525 passing noop windows across eight networks and all 15,721
+  emitted-row comparisons matching same-block RPC. The package is attached
+  to the [native v0.7.11 release](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.11).
+- **Next:** Polygon's full-history noop of the released package, its resync
+  into `polygon:evm-balances-native@v0.7.11`, and the identified-contract and
+  supply checks. Publication does not complete these steps or the API
+  cutover gates; ingestion continues through `db_out`.
 
 ## Cluster C
 
