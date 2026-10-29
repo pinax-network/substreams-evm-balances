@@ -12,7 +12,7 @@ writes cluster A yet.
 | BSC | ✅ | 🔄 5.6% | |
 | Base | ✅ | 🔄 32.5% | |
 | Optimism | 🔄 99.7% | 🔄 78.5% | ✅ [pre-Bedrock state seeded](#legacy-state-below-the-extended-start) |
-| Polygon | 🔄 24.9% | 🔄 25.4% | ⚠️ [over-count](#polygon-native-v0711), v0.7.11 fix not released |
+| Polygon | 🔄 24.9% | 🔄 25.4% | ⚠️ [over-count](#polygon-native-v0711), v0.7.11 fix; resync pending |
 | Unichain | 🔄 86.5% | 🔄 57.3% | |
 | HyperEVM | 🔄 44.1% | 🔄 44.7% | |
 | Arbitrum One | 🔄 38.1% | 🔄 24.5% | ✅ [pre-Nitro state seeded](#legacy-state-below-the-extended-start) |
@@ -90,7 +90,7 @@ One have not been compared yet.
 
 | Chain | Known gap in the cluster C native database | Extent | In cluster A |
 | --- | --- | --- | --- |
-| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix v0.7.11 [not released](#polygon-native-v0711) | at least 1,831.73 POL over-counted | the same, v0.7.10 |
+| Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix in [v0.7.11](#polygon-native-v0711), resync pending | at least 1,831.73 POL over-counted | the same, v0.7.10 |
 | Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH | [seeded](#legacy-state-below-the-extended-start) from the RPC era |
 | Ethereum | [72 contracts keep ETH](quality-native.md#ethereum-credits-of-contracts-created-in-the-transaction) | 0.00153 ETH | the same |
 | Unichain | [Three early credits are missing from the history](quality-native.md#unichain-three-early-credits-missing-from-the-history) | three credits | the same |
@@ -390,18 +390,25 @@ contract's debit.
   56,042,508 and 58,697,458 with 2 of the 58) refuses none, and neither does
   any other saved block of any chain. Still, v0.7.11 is the first native
   version since v0.7.8 that can refuse blocks that earlier versions accept,
-  and that is untested on Polygon `Block.ver` 4 and 5 (from block
-  73,440,256), on Polygon before Napoli and on the chains with no saved
-  self-destruct of a positive balance (BSC, Base, Optimism, Unichain and
-  HyperEVM). The pre-release noop and Polygon's full-history noop are the
-  guard's test there. A few refused shapes may hold the right balance, such
+  so the 2026-10-29 pre-release noops covered all eight chains, including
+  Polygon before Napoli and after the producer transition at 73,440,256.
+  All 525 windows passed. This does not establish coverage of every
+  self-destruct shape; Polygon's full-history noop is still required. A few
+  refused shapes may hold the right balance, such
   as a debit that the producer records itself, but no capture shows them
   without the flag; one would stop the noop at its block, for a capture and
   a decision.
-- **Next, approved by the owner (2026-10-20):** the PR with the CI-built
-  spkg, the pre-release noop on all eight chains, the merge and tag,
-  Polygon's full-history noop, its resync, and the supply check. v0.7.11 was
-  not released by 2026-10-29.
+- **Release package (2026-10-29):** [PR #176](https://github.com/pinax-network/substreams-evm-balances/pull/176)
+  includes the canonical CI-built `evm-balances-native-v0.7.11.spkg`
+  (`map_events` `8464a464…`, `db_out` `3a1476fe…`), with passing CI and
+  release dry runs. [Pre-release evidence](history/native-v0711-prerelease-2026-10-29.json)
+  records 525 passing noop windows across eight networks and all 15,721
+  emitted-row comparisons matching same-block RPC. The package is attached
+  to the [native v0.7.11 release](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.11).
+- **Next:** Polygon's full-history noop of the released package, its resync
+  into `polygon:evm-balances-native@v0.7.11`, and the identified-contract and
+  supply checks. Publication does not complete these steps or the API
+  cutover gates; ingestion continues through `db_out`.
 
 ## Cluster C
 
