@@ -103,7 +103,7 @@ seed before a cutover. The Ethereum and Unichain gaps are open checks.
 
 | Chain | Gap | Size | Status |
 | --- | --- | --- | --- |
-| Polygon | [Missed self-destruct debits](#polygon-missed-self-destruct-debits) | 61 contracts; at least 1,831.73 POL over-counted | 🛠️ native v0.7.11 |
+| Polygon | [Missed self-destruct debits](#polygon-missed-self-destruct-debits) | 61 contracts, and 9 found by v0.7.11's backfill; at least 1,831.73 POL over-counted | 🛠️ native v0.7.12 |
 | Optimism | [Balances not changed since Bedrock](#optimism-balances-not-changed-since-bedrock) | 411,978 addresses; 501.44 ETH by the RPC-era's reading, an estimate | ⚠️ needs the Bedrock state seeded |
 | Ethereum | [Credits of contracts created in the transaction](#ethereum-credits-of-contracts-created-in-the-transaction) | 72 contracts, 0.00153 ETH | 🔍 needs `eth_getBalance` |
 | Unichain | [Three early credits missing from the history](#unichain-three-early-credits-missing-from-the-history) | 3 addresses | 🔍 needs the Firehose blocks |
@@ -114,9 +114,9 @@ seed before a cutover. The Ethereum and Unichain gaps are open checks.
 > The new Polygon database over-counts at least 1,831.73 POL. 61 contracts
 > explain 1,694.17 POL of it: a self-destruct credited their balance to the
 > beneficiary, but the new database never debited the contract, so it counts
-> the POL twice. A fix, native v0.7.11, is in progress
-> ([Deployment status](deployment-status.md#polygon-native-v0711)), after
-> which Polygon would resync.
+> the POL twice. Native v0.7.11 fixes 58 of them, but its Polygon backfill
+> stopped on 9 more contracts in a near-shape, which native v0.7.12 fixes
+> ([below](#polygon-missed-self-destruct-debits)). Polygon resyncs after it.
 
 **What the databases show.** 61 contracts keep a balance in the new database
 (1,694.17 POL in all) that the RPC-era reads as 0 at a later block, between
@@ -163,6 +163,17 @@ not mark these self-destructs.
   self-destruct credit in any other shape fails the block instead of keeping
   a balance that may be wrong, except a self-destruct to itself, whose
   records keep the right balance; none is in the saved blocks of any chain.
+- v0.7.11's Polygon backfill and full-history noop of 2026-10-29 stopped on
+  such a near-shape in 9 blocks from 56,954,084 to 72,387,144, the first
+  refusal of each range it stopped. In 8, a transaction sends POL to an
+  existing contract, which self-destructs in the same call, so the
+  contract's value credit comes before the refund; in block 68,559,510 the
+  contract pays 0.0001 POL out first. The RPC-era reads zero for each
+  contract at its block, and v0.7.8 keeps the balance those records leave:
+  96.16 POL in all, part of the 137.56 POL the supply check did not locate.
+  The comparison below did not single them out: a same-block RPC-era zero
+  looks like an RPC-era pre-change value (class A). Native v0.7.12 debits
+  them, with those records chaining into the debit.
 
 ### Optimism: balances not changed since Bedrock
 
@@ -575,4 +586,7 @@ reads, which are live steps that need the owner's OK:
 - [ ] Firehose blocks to capture as fixtures: Ethereum 21,257,833; Unichain
   829,577, 1,029,916 and 2,766,940.
 - [x] The Polygon blocks were fetched on 2026-10-20 for v0.7.11.
+- [x] The 9 Polygon blocks v0.7.11's backfill refused were fetched on
+  2026-10-30 for v0.7.12: 56,954,084, 57,779,334, 57,957,015, 58,316,117,
+  58,838,757, 61,749,385, 65,194,250, 68,559,510 and 72,387,144.
 - [ ] The Optimism Bedrock state at block 105,235,999, for the seed.

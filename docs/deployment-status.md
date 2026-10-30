@@ -405,8 +405,28 @@ contract's debit.
   records 525 passing noop windows across eight networks and all 15,721
   emitted-row comparisons matching same-block RPC. The package is attached
   to the [native v0.7.11 release](https://github.com/pinax-network/substreams-evm-balances/releases/tag/evm-balances-native-v0.7.11).
-- **Next:** Polygon's full-history noop of the released package, its resync
-  into `polygon:evm-balances-native@v0.7.11`, and the identified-contract and
+- **v0.7.11 stopped on Polygon (2026-10-29):** the Polygon backfill
+  (`token-backfill-prod-a-mp424`) and full-history noop
+  (`token-noop-fpm85`) of v0.7.11 refused 9 blocks, from 56,954,084 to
+  72,387,144, the first refusal of each of 9 ranges, in a near-shape: a
+  record of the self-destructing contract before the unmarked refund. In 8
+  a transaction sends POL to an existing contract (1 wei to 100 POL), which
+  self-destructs in the same call; in block 68,559,510 the contract pays
+  0.0001 POL out before it self-destructs. The other chains' v0.7.11
+  backfills refused nothing. The RPC-era reads zero for each contract at its
+  block, where v0.7.8 and v0.7.10 keep the balance those records leave
+  (96.16 POL).
+- **Fix: native v0.7.12** (owner's choice, 2026-10-30) also restores the
+  debit after the contract's earlier records in its transaction, which
+  chain into it: the continuity check requires the balance they leave to be
+  exactly what the self-destruct moves. It gives v0.7.11's output for every
+  block v0.7.11 accepts, so only Polygon moves to it. The 9 refused blocks
+  were fetched on 2026-10-30 with the owner's OK. Replayed whole, all 9 pass,
+  and only the 9 contracts' rows differ from v0.7.10's, each now at zero.
+- **Next:** v0.7.12's pre-release noops, including Polygon's `Block.ver` 3
+  range after Napoli (54,876,000 to 73,440,255); Polygon's full-history noop
+  of the released package, its resync into
+  `polygon:evm-balances-native@v0.7.12`, and the identified-contract and
   supply checks. Publication does not complete these steps or the API
   cutover gates; ingestion continues through `db_out`.
 

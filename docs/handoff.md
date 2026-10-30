@@ -128,6 +128,22 @@ records 525 passing historical noop windows across eight networks and
 the Polygon resync, identified-contract and supply comparisons, and API
 cutover remain separate; `db_out` remains the ingestion module.
 
+**Native v0.7.12 (Polygon), 2026-10-30.** v0.7.11's Polygon backfill and
+full-history noop of 2026-10-29 stopped on 9 blocks, from 56,954,084 to
+72,387,144, with a near-shape that no saved block held: a record of the
+self-destructing contract before the unmarked refund. In 8 a transaction
+sends POL to an existing contract, which self-destructs in the same call; in
+block 68,559,510 the contract pays out before it self-destructs. The RPC-era
+reads zero for each contract at its block; v0.7.8 and v0.7.10 keep the
+balance those records leave (96.16 POL). At the owner's choice v0.7.12 also restores the debit after
+the account's earlier records in its transaction, which must chain into it
+(in a Bor state-sync transaction any other record still fails the block).
+It gives v0.7.11's output for every block v0.7.11 accepts, so only Polygon
+moves to it, into `polygon:evm-balances-native@v0.7.12`. The other chains'
+v0.7.11 backfills refused nothing. The 9 blocks, fetched on 2026-10-30 with
+the owner's OK and replayed whole, all pass, and only the 9 contracts' rows
+differ from v0.7.10's, each now at zero; three are fixtures.
+
 | Package | spkg and release tag | BSC database | `map_events` output |
 | --- | --- | --- | --- |
 | [`native/balances`](../native/balances/README.md) | `evm-balances-native-v<version>` | `bsc:evm-balances-native@<version>` | `evm.balances.v1.NativeEvents` |
@@ -337,7 +353,7 @@ package's noop over that range passes (owner, 2026-10-13).
    Ethereum and BSC (`<chain>:evm-balances-erc20@v0.7.4`, BSC on
    2026-10-20). Native v0.7.10 on Arbitrum One
    (`arbitrum-one:evm-balances-native@v0.7.10`) is backfilling, and Polygon
-   waits for native v0.7.11 (above).
+   waits for native v0.7.12 (above).
 2. Token API (pinax-api): set `balances-native` and `balances-erc20` in the
    network's `dbs-config.yaml` entry
    ([pinax-api#601](https://github.com/pinax-network/pinax-api/pull/601)),

@@ -247,9 +247,10 @@ in the transaction) and four more conditions:
 
 - the call is not a STATICCALL, which cannot self-destruct;
 - no persisted CREATE of the transaction creates the account;
-- the transaction has no persisted balance record of the account before the
-  refund (in a Bor state-sync transaction, whose subtrees restart the
-  ordinals, none at all);
+- in a Bor state-sync transaction, whose subtrees restart the ordinals, the
+  transaction has no other persisted balance record of the account at all
+  (elsewhere, since v0.7.12, its records before the refund chain into the
+  debit, below; v0.7.11 refused them);
 - the refund is the call's last act, as a `SELFDESTRUCT` ends its frame: it
   lies after the call's begin ordinal and before its end ordinal, it is the
   call's only balance record from its ordinal to the end ordinal, and every
@@ -272,10 +273,9 @@ evidence of the self-destruct, so at the owner's direction (2026-10-20) a
 near-shape fails the block instead of keeping a balance that may be wrong: a
 persisted transaction call without the flag that holds a `SUICIDE_REFUND`
 and gets no restored debit, such as the self-destruct of an account created
-in its transaction or with a record there before it (a value credit), two
-refunds, a refund that moves nothing, a refund of the account itself from a
-positive balance, a `SUICIDE_WITHDRAW` in the call, or a refund that does
-not end the frame. Most of these would keep the balance that the
+in its transaction, two refunds, a refund that moves nothing, a refund of
+the account itself from a positive balance, a `SUICIDE_WITHDRAW` in the
+call, or a refund that does not end the frame. Most of these would keep the balance that the
 self-destruct moved away. A few may keep the right balance, such as a debit
 that the producer records itself, whose records chain to zero, but no
 capture shows them without the flag, so they stop the stream at their
@@ -308,6 +308,44 @@ Fixtures: block 55,741,124
 and block 55,412,000 (transaction `0xe8d9e1d3…`, whose depth-1 call from
 `0xd98be101…` self-destructs `0xeba4fc1a…`, 19.8 POL, to that caller;
 [fixture](tests/fixtures/polygon-55412000-selfdestruct-unflagged-nested.json)).
+
+**Self-destruct debit after earlier records of the account (v0.7.12,
+Polygon).** v0.7.11 also refused a self-destruct without the flag of an
+account with a persisted record earlier in its transaction, a near-shape no
+saved block held. Its Polygon backfill and full-history noop of 2026-10-29
+stopped on it in 9 blocks, from 56,954,084 to 72,387,144, each the first
+refusal of a 490,000-block range, all in root calls. In 8, a transaction
+sends POL to an existing contract, from 1 wei to 100 POL, and the contract
+self-destructs in the same call: the contract's `TRANSFER` credit precedes
+the beneficiary's `SUICIDE_REFUND` (block 58,316,117, transaction
+`0xf5f9b9ed…`, 0.05 POL to `0x2d2644a9…`). In block 68,559,510
+(transaction `0x6b852033…`) the contract `0xd3b87fc7…` pays 0.0001 POL in a
+call before it self-destructs. The RPC-era rows read zero for each contract
+at its block, where native v0.7.8 and v0.7.10 keep the balance those records
+leave (96.16 POL in all in v0.7.8's database at block 95,689,999).
+A same-block RPC-era zero there looks like an RPC-era pre-change value, the
+[quality comparison](../../docs/quality-native.md#polygon)'s class A, so
+that comparison did not single them out. At the owner's choice (2026-10-30)
+v0.7.12 makes the account's records before the refund part of the shape:
+they chain into the restored debit, whose old value is the refund's amount,
+so the continuity check requires the balance they leave to be exactly what
+the self-destruct moves, as v0.7.11 already requires of a record in an
+earlier transaction of the block, and a debit that does not chain fails the
+block. A Bor state-sync transaction keeps v0.7.11's rule, since its ordinals
+cannot place a record before the refund. Every other near-shape above still
+fails the block. v0.7.12 writes the same rows as v0.7.11 for every block
+v0.7.11 accepts, since it only restores debits that v0.7.11 refuses. The 9
+blocks, fetched on 2026-10-30 and replayed whole, pass with each contract at
+zero; their other 1,092 rows equal v0.7.10's. Fixtures: block 58,316,117
+(transaction `0xf5f9b9ed…`;
+[fixture](tests/fixtures/polygon-58316117-selfdestruct-unflagged-after-credit.json)),
+block 68,559,510 (transactions 46 to 48, which create `0xd3b87fc7…`, fund
+it and have it pay out and self-destruct;
+[fixture](tests/fixtures/polygon-68559510-selfdestruct-unflagged-after-payment.json))
+and block 72,387,144 (transaction `0xad39d8c2…`, whose contract calls itself
+with the credited value before it self-destructs;
+[fixture](tests/fixtures/polygon-72387144-selfdestruct-unflagged-after-self-calls.json)).
+
 
 **Self-destruct to itself (v0.7.5).** Since Cancun, an account not created
 in the same transaction that self-destructs to itself keeps its balance:
@@ -1030,7 +1068,11 @@ accept:
 Polygon blocks with that shape (the 58 found are from 55,412,000 to
 71,461,200), and it can refuse blocks they accept. No such call was found
 in the saved blocks and fixtures of the other networks, so the refusal fails
-none of those blocks. None is live-qualified.
+none of those blocks. v0.7.12 also restores that debit after the account's
+earlier records in its transaction, which chain into it, a near-shape on
+which v0.7.11's Polygon backfill stopped in 9 blocks from 56,954,084 to
+72,387,144, and changes nothing for a block v0.7.11 accepts. None is
+live-qualified.
 
 ## Live qualification (BSC, 2026-09-23)
 
@@ -1101,9 +1143,10 @@ refund and repeat is captured (block 326,011,151) and also built from
 another capture, and the guard on records outside a failed transaction's
 execution runs over every captured failed-transaction shape. Every v0.7.9
 test of a new rule fails against the v0.7.8 rules, every v0.7.10 test of
-the new shape against the v0.7.9 rules, and every v0.7.11 test of the
-unflagged self-destruct against the v0.7.10 rules; every test of its
-refusal fails with the refusal disabled. `tests/db_out.rs` covers the
+the new shape against the v0.7.9 rules, every v0.7.11 test of the
+unflagged self-destruct against the v0.7.10 rules, and every v0.7.12 test
+of earlier records chaining into its debit against the v0.7.11 rules; every
+test of its refusal fails with the refusal disabled. `tests/db_out.rs` covers the
 ClickHouse rows, the manifest wiring and the embedded schema.
 
 The host replay tool (`native/balances/tools`, [source at `6dade89`](https://github.com/pinax-network/substreams-evm-balances/tree/6dade8957887c0c278cfa8da6bef61b9cc22f534/native/balances/tools);

@@ -1,0 +1,85 @@
+{
+ "source": "Polygon Firehose (Pinax), fetched 2026-10-30 with firecore tools firehose-client; values are big-endian hex, enums numeric",
+ "number": 58316117,
+ "hash": "1382d56b2ba080978cfa29a92dd0b294c7a36229d172af76f21ae9dbed7dd0f9",
+ "ver": 3,
+ "coinbase": "0000000000000000000000000000000000000000",
+ "base_fee_per_gas": "012725b59b",
+ "contents": "transaction 0 whole: every call with its balance records, self-destruct flag and ordinals, gas fields and the block's base fee. Its root call from 0x76604501\u2026 sends 0.05 POL to 0x2d2644a9\u2026, which the producer records as a TRANSFER credit of 0x2d2644a9\u2026 from zero at ordinal 7, and 0x2d2644a9\u2026 then self-destructs to 0x4a02f51f\u2026 without the self-destruct flag: the producer records only the beneficiary's SUICIDE_REFUND of 0.05 POL at ordinal 12, and the call ends at 13. Native v0.7.11 refused the block (the credit precedes the refund); the RPC-era rows read zero for 0x2d2644a9\u2026 at the block; no block-level record",
+ "block_balance_changes": [],
+ "transactions": [
+  {
+   "index": 0,
+   "hash": "f5f9b9ed6ddac1838fa0e943d5d473d5dfc4802519d4f52fa38416f90961ebbd",
+   "type": 0,
+   "begin_ordinal": 1,
+   "end_ordinal": 17,
+   "status": 1,
+   "gas_limit": 32369,
+   "gas_used": 32369,
+   "gas_price": "1bf08eb000",
+   "value": "b1a2bc2ec50000",
+   "from": "7660450112bf146403985c63a7c9a685c3ccdbe4",
+   "to": "2d2644a9a9303094c8c3c59efcf0b41e22875a93",
+   "calls": [
+    {
+     "index": 1,
+     "parent_index": 0,
+     "depth": 0,
+     "call_type": 1,
+     "caller": "7660450112bf146403985c63a7c9a685c3ccdbe4",
+     "address": "2d2644a9a9303094c8c3c59efcf0b41e22875a93",
+     "value": "b1a2bc2ec50000",
+     "state_reverted": false,
+     "suicide": false,
+     "begin_ordinal": 0,
+     "end_ordinal": 13,
+     "balance_changes": [
+      {
+       "address": "7660450112bf146403985c63a7c9a685c3ccdbe4",
+       "old_value": "e6ccb8d53ae6c1cf",
+       "new_value": "e6beec19d14b11cf",
+       "ordinal": 2,
+       "reason": 7
+      },
+      {
+       "address": "7660450112bf146403985c63a7c9a685c3ccdbe4",
+       "old_value": "e6beec19d14b11cf",
+       "new_value": "e60d495da28611cf",
+       "ordinal": 6,
+       "reason": 5
+      },
+      {
+       "address": "2d2644a9a9303094c8c3c59efcf0b41e22875a93",
+       "old_value": "",
+       "new_value": "b1a2bc2ec50000",
+       "ordinal": 7,
+       "reason": 5
+      },
+      {
+       "address": "4a02f51f5ac0fd7e14179f3b3a49bfa7f3fa7289",
+       "old_value": "0da02cab01f7f0",
+       "new_value": "bf42e8d9c6f7f0",
+       "ordinal": 12,
+       "reason": 11
+      },
+      {
+       "address": "7a8ed27f4c30512326878652d20fc85727401854",
+       "old_value": "062b86373c88757ca6c81a",
+       "new_value": "062b86373d1a3c53ae3b85",
+       "ordinal": 14,
+       "reason": 15
+      },
+      {
+       "address": "73d378cfeaa5cbe8daed64128ebdc91322aa586b",
+       "old_value": "0349c0d35a1a4cb6ef53",
+       "new_value": "0349c0e0950edf4b2be8",
+       "ordinal": 15,
+       "reason": 8
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
