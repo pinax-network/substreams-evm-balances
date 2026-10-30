@@ -132,7 +132,11 @@ never prints them.
   created in its transaction (not gated; unlike v0.7.9 and v0.7.10 this
   changes rows of blocks that earlier releases accept; at the owner's
   direction a `SUICIDE_REFUND` in a call without the flag in any other shape
-  fails the block). Reduce records by ordinal, except a
+  fails the block), and since v0.7.12 (2026-10-30, owner's choice) also
+  after the account's own earlier records in its transaction, which chain
+  into the debit (such as the value credit before the self-destruct, on
+  which v0.7.11's Polygon backfill stopped; in a Bor state-sync transaction
+  any other record of the account still fails the block). Reduce records by ordinal, except a
   recognized Polygon `Block.ver` 3 state-sync transaction: by depth-1 call,
   then ordinal. Of a failed transaction, persist the shared rules' gas
   records and, each in its exact shape with a captured fixture, what the
