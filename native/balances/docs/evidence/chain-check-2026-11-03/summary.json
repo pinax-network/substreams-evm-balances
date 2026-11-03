@@ -1,0 +1,212 @@
+{
+ "observed_on": "2026-11-03",
+ "scope": "Sampled native balance rows of the new databases on cluster C checked block-exactly against the chain (eth_getBalance at the row block, Pinax archive RPC) and, where Etherscan v2 free tier covers the chain, against Etherscan current balances. No writes except the Optimism seed correction recorded separately.",
+ "method": "scripts/check-db-native-balances",
+ "sample": "top 1,000 holders (>= 1 native unit) plus up to 900 random addresses per balance stratum (zero, <0.01, 0.01-1, 1-100, >100 units) from the 0x00 address slice",
+ "chains": {
+  "mainnet": {
+   "chain": "mainnet",
+   "database": "mainnet:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 26335513,
+   "etherscan_chainid": 1,
+   "sample_strata": {
+    "gt100": 259,
+    "1-100": 900,
+    "0.01-1": 900,
+    "zero": 900,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 4859,
+    "equal_at_block": 4859,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": {
+    "equal_current": 4832,
+    "differ": 27,
+    "settled": {
+     "changed_since": 27
+    }
+   },
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "bsc": {
+   "chain": "bsc",
+   "database": "bsc:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 131467529,
+   "etherscan_chainid": 56,
+   "sample_strata": {
+    "1-100": 900,
+    "0.01-1": 900,
+    "zero": 900,
+    "gt100": 22,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 4622,
+    "equal_at_block": 4622,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": "not on the free tier",
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "base": {
+   "chain": "base",
+   "database": "base:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 53467617,
+   "etherscan_chainid": 8453,
+   "sample_strata": {
+    "0.01-1": 900,
+    "1-100": 160,
+    "zero": 900,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 3860,
+    "equal_at_block": 3860,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": "not on the free tier",
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "arbitrum-one": {
+   "chain": "arbitrum-one",
+   "database": "arbitrum-one:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 520934281,
+   "etherscan_chainid": 42161,
+   "sample_strata": {
+    "0.01-1": 900,
+    "1-100": 135,
+    "zero": 900,
+    "gt100": 4,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 3839,
+    "equal_at_block": 3839,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": {
+    "equal_current": 3805,
+    "differ": 34,
+    "settled": {
+     "changed_since": 34
+    }
+   },
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "optimism": {
+   "chain": "optimism",
+   "database": "optimism:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 159063078,
+   "etherscan_chainid": 10,
+   "sample_strata": {
+    "zero": 900,
+    "0.01-1": 900,
+    "1-100": 39,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 3739,
+    "equal_at_block": 3394,
+    "mismatch": 345,
+    "unknown": 0
+   },
+   "etherscan": "not on the free tier",
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"],
+   "note": "All 345 mismatches are seeded zero rows below the Bedrock start 105,236,000 whose addresses hold dust on chain; corrected on 2026-11-03, see optimism-pre-bedrock-seed-fix-2026-11-03.json."
+  },
+  "polygon": {
+   "chain": "polygon",
+   "database": "polygon:evm-balances-native@v0.7.12",
+   "head_block_at_sampling": 96679706,
+   "etherscan_chainid": 137,
+   "sample_strata": {
+    "gt100": 900,
+    "1-100": 900,
+    "0.01-1": 900,
+    "zero": 900,
+    "lt0.01": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 5500,
+    "equal_at_block": 5500,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": {
+    "equal_current": 5466,
+    "differ": 34,
+    "settled": {
+     "changed_since": 34
+    }
+   },
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "unichain": {
+   "chain": "unichain",
+   "database": "unichain:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 62976929,
+   "etherscan_chainid": 130,
+   "sample_strata": {
+    "lt0.01": 900,
+    "0.01-1": 69,
+    "1-100": 3,
+    "zero": 900,
+    "top": 392
+   },
+   "block_exact": {
+    "rows": 2264,
+    "equal_at_block": 2264,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": {
+    "equal_current": 2260,
+    "differ": 4,
+    "settled": {
+     "changed_since": 4
+    }
+   },
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  },
+  "hyperevm": {
+   "chain": "hyperevm",
+   "database": "hyperevm:evm-balances-native@v0.7.11",
+   "head_block_at_sampling": 50293069,
+   "etherscan_chainid": 999,
+   "sample_strata": {
+    "1-100": 302,
+    "zero": 900,
+    "lt0.01": 900,
+    "gt100": 28,
+    "0.01-1": 900,
+    "top": 1000
+   },
+   "block_exact": {
+    "rows": 4030,
+    "equal_at_block": 4030,
+    "mismatch": 0,
+    "unknown": 0
+   },
+   "etherscan": {
+    "equal_current": 4017,
+    "differ": 13,
+    "settled": {
+     "changed_since": 13
+    }
+   },
+   "row_fields": ["address", "block", "db_wei", "chain_wei_at_block", "stratum", "verdict"]
+  }
+ }
+}

@@ -31,7 +31,7 @@ corrected results.
 | Ethereum | 99.1129% | 98.5950% | 988 | 🔍 72 contracts, 0.00153 ETH (likely) |
 | BSC | 99.9992% | 99.9973% | 1,000 | ✅ none found |
 | Base | 99.999999% | 99.99999998% | 1,000 | ✅ none found |
-| Optimism | 99.999996% | 100% (2 wei short) | 999 | ⚠️ legacy balances (below) |
+| Optimism | 99.999996% | 100% (2 wei short) | 999 | ✅ legacy balances seeded, then corrected from the chain on 2026-11-03 (below) |
 | Polygon | 99.9975% | 99.9967% | 1,000 | 🛠️ 61 contracts, at least 1,831.73 POL |
 | Unichain | 100% | 100% | 1,000 | 🔍 3 early history gaps |
 | HyperEVM | 99.4852% | 99.2676% | 964 | ✅ none found |
@@ -98,13 +98,14 @@ them (below).
 
 ## Gaps in the new databases
 
-Four gaps are real. Polygon's has a fix in progress. Optimism's needs a
-seed before a cutover. The Ethereum and Unichain gaps are open checks.
+Four gaps are real. Polygon's has a fix in progress. Optimism's was seeded
+before the cutover and the seed corrected from the chain. The Ethereum and
+Unichain gaps are open checks.
 
 | Chain | Gap | Size | Status |
 | --- | --- | --- | --- |
 | Polygon | [Missed self-destruct debits](#polygon-missed-self-destruct-debits) | 61 contracts, and 9 found by v0.7.11's backfill; at least 1,831.73 POL over-counted | 🛠️ native v0.7.12 |
-| Optimism | [Balances not changed since Bedrock](#optimism-balances-not-changed-since-bedrock) | 411,978 addresses; 501.44 ETH by the RPC-era's reading, an estimate | ⚠️ needs the Bedrock state seeded |
+| Optimism | [Balances not changed since Bedrock](#optimism-balances-not-changed-since-bedrock) | 411,978 addresses; 501.44 ETH by the RPC-era's reading, an estimate | ✅ seeded 2026-10-29; the seed's wrong zero rows corrected from the chain 2026-11-03 |
 | Ethereum | [Credits of contracts created in the transaction](#ethereum-credits-of-contracts-created-in-the-transaction) | 72 contracts, 0.00153 ETH | 🔍 needs `eth_getBalance` |
 | Unichain | [Three early credits missing from the history](#unichain-three-early-credits-missing-from-the-history) | 3 addresses | 🔍 needs the Firehose blocks |
 
@@ -197,6 +198,25 @@ not changed since has no row
   single-receipt address read as 0 at its receipt block).
 - The 936 Bedrock blocks before 105,236,000 are not covered either.
 
+**Seeded, then corrected (2026-11-03).** The state below 105,236,000 was
+[seeded](deployment-status.md#legacy-state-below-the-extended-start) from the
+RPC-era rows on 2026-10-29. A block-exact check of the seeded rows against
+the chain ([below](#checks-against-the-chain-and-etherscan-2026-11-03)) then
+showed the pre-block reads were the rule, not the exception: of the seed's
+938,786 zero rows, 730,789 belonged to addresses holding a balance at the
+last pre-Bedrock block, and 5,319 non-zero rows were stale. Every seeded row
+was read from the chain at block 105,235,999 and the differing 736,108
+corrected in place, plus 2,035 zero rows whose last change the RPC era had
+missed; their history bars were rebuilt. Zero rows below Bedrock fell to
+208,023 and 645.5 ETH came back, among it the top-1,000 legacy holder below.
+A fresh sample of 3,000 rows below Bedrock then matched the chain at every
+row's block. Procedure and record:
+[`repair-optimism-pre-bedrock-seed`](../native/balances/clickhouse/examples/repair-optimism-pre-bedrock-seed/),
+[`optimism-pre-bedrock-seed-fix-2026-11-03.json`](../native/balances/docs/evidence/optimism-pre-bedrock-seed-fix-2026-11-03.json).
+Not corrected: the seeded history bars of addresses that changed again
+later keep the RPC era's zero readings (12.2 M hourly bars below Bedrock);
+balances are unaffected.
+
 ### Ethereum: credits of contracts created in the transaction
 
 > [!NOTE]
@@ -283,6 +303,41 @@ changed without being touched (an OP Stack fee vault, for example), both
 databases therefore read the same Firehose data, and agreement there is not
 independent evidence. Whether the deployed build matches that tag was not
 checked.
+
+## Checks against the chain and Etherscan (2026-11-03)
+
+The comparisons above measure the new databases against the RPC-era ones,
+which have errors of their own. On 2026-11-03 the cluster C native databases
+were checked against the chain itself with
+[`scripts/check-db-native-balances`](../scripts/check-db-native-balances/):
+per chain, the top 1,000 holders of at least one native unit plus up to 900
+random addresses per balance stratum (zero rows, under 0.01, 0.01 to 1, 1 to
+100, over 100 units) from the 0x00 address slice, each row read with
+`eth_getBalance` at its own block on the Pinax archive RPC. Where Etherscan's
+free tier serves the chain, each row was also compared with Etherscan's
+current balance first, as a source independent of Pinax; a row that differed
+there was settled at its own block. Evidence, with every checked row:
+[`chain-check-2026-11-03/`](../native/balances/docs/evidence/chain-check-2026-11-03/).
+
+| Chain | Database | Head | Rows | Etherscan, current balance | Chain at the row's block |
+| --- | --- | ---: | ---: | --- | --- |
+| Ethereum | `mainnet:evm-balances-native@v0.7.11` | 26,335,513 | 4,859 | 4,832 equal, 27 changed since | 4,859 equal, 0 mismatches |
+| BSC | `bsc:evm-balances-native@v0.7.11` | 131,467,529 | 4,622 | not on the free tier | 4,622 equal, 0 mismatches |
+| Base | `base:evm-balances-native@v0.7.11` | 53,467,617 | 3,860 | not on the free tier | 3,860 equal, 0 mismatches |
+| Arbitrum One | `arbitrum-one:evm-balances-native@v0.7.11` | 520,934,281 | 3,839 | 3,805 equal, 34 changed since | 3,839 equal, 0 mismatches |
+| Optimism | `optimism:evm-balances-native@v0.7.11` | 159,063,078 | 3,739 | not on the free tier | 3,394 equal, 345 mismatches |
+| Polygon | `polygon:evm-balances-native@v0.7.12` | 96,679,706 | 5,500 | 5,466 equal, 34 changed since | 5,500 equal, 0 mismatches |
+| Unichain | `unichain:evm-balances-native@v0.7.11` | 62,976,929 | 2,264 | 2,260 equal, 4 changed since | 2,264 equal, 0 mismatches |
+| HyperEVM | `hyperevm:evm-balances-native@v0.7.11` | 50,293,069 | 4,030 | 4,017 equal, 13 changed since | 4,030 equal, 0 mismatches |
+
+"Changed since" is an address that moved between the sample and the
+Etherscan call; every one equals the chain at its own block. The 345
+Optimism mismatches are all seeded zero rows below Bedrock whose addresses
+hold dust, the defect [corrected](#optimism-balances-not-changed-since-bedrock)
+the same day; the rows the package wrote, from Bedrock on, all matched, as
+did Arbitrum One's 67 sampled pre-Nitro rows. A sample is not a universal
+claim: it says these rows agree with the chain across every balance
+magnitude and the whole top 1,000 at the stated head.
 
 ## Per chain
 
@@ -470,7 +525,9 @@ balances.
 - **Top 1,000.** The top-1,000 difference is a legacy holder,
   `0x4c992ea3f3e147aec82589bd8d0b37af434cd57f` (12.78 ETH, no new row). The
   non-zero RPC-era-only addresses are the [legacy
-  balances](#optimism-balances-not-changed-since-bedrock).
+  balances](#optimism-balances-not-changed-since-bedrock). Since the seed
+  correction of 2026-11-03 the new database holds this address at
+  12.7834 ETH, block 74,780,707, the largest of the corrected rows.
 - **System contracts.** The OP Stack fee vaults, WETH,
   `L2ToL1MessagePasser`, the messenger, the bridge and the zero address agree
   at the cutoff hour.

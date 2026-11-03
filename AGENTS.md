@@ -23,7 +23,11 @@ Bun script with no dependencies that streams a package's `map_events` over
 recent blocks with `substreams run` and compares every emitted balance with
 `balanceOf` or `eth_getBalance` at the same block. Running it is a live step
 (see Evidence). It reads its endpoints and API key from the environment and
-never prints them.
+never prints them. The second exception is `scripts/check-db-native-balances`
+(owner, 2026-11-03): a sampler and a Python script with no dependencies that
+check sampled rows of a native balances database against `eth_getBalance` at
+each row's block and, where Etherscan's free tier serves the chain, against
+Etherscan; read-only, and a live step like the first.
 
 ## Production boundary
 
