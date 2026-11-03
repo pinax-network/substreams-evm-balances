@@ -91,7 +91,7 @@ One have not been compared yet.
 | Chain | Known gap in the cluster C native database | Extent | In cluster A |
 | --- | --- | --- | --- |
 | Polygon | [Misses some self-destruct debits](quality-native.md#polygon-missed-self-destruct-debits), which its producer leaves unmarked; fix in [v0.7.11](#polygon-native-v0711), resync pending | at least 1,831.73 POL over-counted | the same, v0.7.10 |
-| Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH | [seeded](#legacy-state-below-the-extended-start) from the RPC era |
+| Optimism | [Lacks balances unchanged since Bedrock](quality-native.md#optimism-balances-not-changed-since-bedrock) | at least 411,978 addresses, about 501 ETH | [seeded](#legacy-state-below-the-extended-start) from the RPC era, then corrected from the chain on 2026-11-03 |
 | Ethereum | [72 contracts keep ETH](quality-native.md#ethereum-credits-of-contracts-created-in-the-transaction) | 0.00153 ETH | the same |
 | Unichain | [Three early credits are missing from the history](quality-native.md#unichain-three-early-credits-missing-from-the-history) | three credits | the same |
 
@@ -265,6 +265,24 @@ Arbitrum One.
   output, with its errors, not the new packages'. On Optimism, the last
   seeded change is at block 105,235,059 for native and 105,235,061 for
   ERC-20.
+- **Correction (2026-11-03, Optimism native).** The RPC era had read most
+  pre-Bedrock dust receipts as 0, so the seed's zero rows were mostly wrong:
+  a block-exact check found 345 of 450 sampled seeded zero rows holding a
+  balance on chain. Every row still current below S in
+  `optimism:evm-balances-native@v0.7.11` on cluster C (1,349,169) was read
+  from the chain at block 105,235,999; 736,108 were corrected in place,
+  plus 2,035 whose last pre-Bedrock change the RPC era had missed, and
+  their 2,915,208 history bars were rebuilt through the materialized view,
+  with the live sink running. Zero rows below S fell from 938,786 to
+  208,023 and 645.5 ETH came back; a fresh sample of 3,000 rows below S then
+  matched the chain at every row's block. The seeded bars of addresses that
+  changed again later still carry the RPC era's zeros; balances are
+  unaffected. Procedure:
+  [`repair-optimism-pre-bedrock-seed`](../native/balances/clickhouse/examples/repair-optimism-pre-bedrock-seed/);
+  record:
+  [`optimism-pre-bedrock-seed-fix-2026-11-03.json`](../native/balances/docs/evidence/optimism-pre-bedrock-seed-fix-2026-11-03.json).
+  Arbitrum One's seed showed no such defect in the same check (67 sampled
+  pre-Nitro rows, all equal).
 
 ## Live sinks
 
