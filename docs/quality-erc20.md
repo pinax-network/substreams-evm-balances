@@ -842,9 +842,11 @@ but changed before Nitro without the RPC era recording it: a holder of 608
 quadrillion USD₮0 and one of 3.4 trillion bridged USDC who held nothing,
 and 11,906 WETH and 7.96 WBTC in other rows. Optimism's seed had the same
 defect in 2 OP rows (1,687 OP) and many rows of computed tokens. Every
-seeded row of both chains was read at the last block before the start and
-the 486,837 differing rows prepared for an in-place correction, with the
-procedure and counts in
-[`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/).
-Before the correction, 29 of 1,000 sampled seeded Arbitrum One pairs and 70
-of 2,000 Optimism ones were wrong at that block.
+seeded row of both chains was read at the last block before the start, and
+on 2026-11-04 the 486,837 differing rows were corrected in place
+([`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/),
+record
+[`pre-start-seed-fix-2026-11-04.json`](../erc20/balances/docs/evidence/pre-start-seed-fix-2026-11-04.json)).
+A sample of seeded pairs went from 29 of 1,000 on Arbitrum One and 70 of
+2,000 on Optimism wrong at that block to none, and USD₮0, bridged USDC,
+WBTC and OP now sum to their supply. Optimism's regenesis gap remains.

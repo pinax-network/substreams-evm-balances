@@ -283,15 +283,22 @@ Arbitrum One.
   [`optimism-pre-bedrock-seed-fix-2026-11-03.json`](../native/balances/docs/evidence/optimism-pre-bedrock-seed-fix-2026-11-03.json).
   Arbitrum One's seed showed no such defect in the same check (67 sampled
   pre-Nitro rows, all equal).
-- **Correction prepared (2026-11-03, ERC-20, both chains).** The ERC-20
-  chain check found stale seeded rows: right at their own block, then
+- **Correction (2026-11-04, ERC-20, both chains).** The ERC-20 chain check
+  of 2026-11-03 found stale seeded rows: right at their own block, then
   changed before S without the RPC era recording it. On Arbitrum One they
-  include a holder of 608 quadrillion USD₮0 and one of 3.4 trillion bridged
-  USDC who hold nothing on chain. Every seeded row of both cluster C ERC-20
-  databases was read at S-1, and the differing rows are prepared for an
-  in-place correction: 62,827 of 2,275,584 on Arbitrum One and 424,010 of
-  11,985,028 on Optimism. Not applied yet. Procedure and counts:
-  [`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/).
+  included a holder of 608 quadrillion USD₮0 and one of 3.4 trillion bridged
+  USDC who held nothing on chain. Every row still current below S in both
+  cluster C ERC-20 databases was read at S-1, and the differing rows were
+  corrected in place with the live sinks running: 62,827 of 2,275,584 on
+  Arbitrum One and 424,010 of 11,985,028 on Optimism, with their history
+  bars in the S-1 windows rebuilt through the materialized view. Afterwards
+  every corrected pair held its corrected row, except one Arbitrum One pair
+  the live sink had written since. A sample of seeded pairs went from 29 of
+  1,000 (Arbitrum One) and 70 of 2,000 (Optimism) wrong at S-1 to none.
+  USD₮0, bridged USDC, WBTC and OP now sum to their supply. Procedure:
+  [`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/);
+  record:
+  [`pre-start-seed-fix-2026-11-04.json`](../erc20/balances/docs/evidence/pre-start-seed-fix-2026-11-04.json).
 
 ## Live sinks
 

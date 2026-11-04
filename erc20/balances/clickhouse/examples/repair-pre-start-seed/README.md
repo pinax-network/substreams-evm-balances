@@ -10,8 +10,9 @@ found stale seeded rows: rows that were right at their own block, whose
 balance then changed before S without the RPC era recording it. On Arbitrum
 One they include a holder of 608 quadrillion USD₮0 and one of 3.4 trillion
 bridged USDC, both holding nothing on chain at S-1. This procedure reads every seeded row from the
-chain at block S-1 and corrects the database in place, with the live sink
-running. It is the procedure of the
+chain at block S-1 and corrected the database in place on 2026-11-04, with
+the live sinks running. Record:
+[`pre-start-seed-fix-2026-11-04.json`](../../../docs/evidence/pre-start-seed-fix-2026-11-04.json). It is the procedure of the
 [native Optimism repair](../../../../../native/balances/clickhouse/examples/repair-optimism-pre-bedrock-seed/),
 for ERC-20 and both chains.
 
@@ -101,6 +102,10 @@ environment and never print them. Each works in a directory per chain.
 | Tokens with corrections | 294 | 274 |
 | Corrected rows read back at their block (`spot.py`) | 31 of 31 equal | 31 of 31 equal |
 | Sampled seeded pairs wrong at S-1, before the apply (`check_rows.py`) | 29 of 1,000 | 70 of 2,000 (4 no word) |
+| History bars deleted in the corrected windows | 17,963 | not counted |
+| Corrected pairs holding their corrected row after the apply | 62,826, and 1 with a newer live row | 424,010 |
+| The same sample after the apply | 0 of 1,000 | 0 of 2,000 (4 no word) |
+| Top tokens whose supply gap closed | USD₮0, bridged USDC, WBTC; WETH to 0.000001 | OP |
 
 On Arbitrum One, the equal rows include 1,554,729 read only at head. Of
 18,308 rows read again at their own block, 17 already held the final
@@ -111,3 +116,12 @@ when the history shows the change. The 15,729 rows changed after S are in
 aTokens. On Optimism, the 416,799 computed rows are in 23 tokens, led by
 the legacy ETH token `0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000`
 (150,262 rows).
+
+The supply gaps the seed caused were 633.6 quadrillion USD₮0, 3.39
+trillion bridged USDC, 11,906 WETH and 7.96 WBTC on Arbitrum One, and 1,703.6
+OP on Optimism; each token's rows now sum to its `totalSupply()`, WETH less
+its zero-address balance. One Arbitrum One `receipt_block` row has the block
+number of the seeded row it replaces; reads with `FINAL` return the
+corrected value, and the older row goes at the next merge. Optimism's USDT,
+bridged USDC, DAI and WBTC remain short by the balances carried through the
+2021 regenesis, which no seed holds.
