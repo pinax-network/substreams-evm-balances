@@ -1,0 +1,577 @@
+{
+ "chain": "arbitrum-one",
+ "database": "arbitrum-one:evm-balances-erc20@v0.7.4",
+ "head_block_H": 520985477,
+ "top_tokens": [{
+   "contract": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+   "symbol": "USDC",
+   "senders_24h": 97294
+  }, {
+   "contract": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+   "symbol": "USD₮0",
+   "senders_24h": 43955
+  }, {
+   "contract": "0xace876e867ecf2c3d1b8097b160a666adce04cd0",
+   "symbol": "USD",
+   "senders_24h": 4983
+  }, {
+   "contract": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+   "symbol": "WETH",
+   "senders_24h": 3273
+  }, {
+   "contract": "0x912ce59144191c1204e64559fe8253a0e49e6548",
+   "symbol": "ARB",
+   "senders_24h": 3234
+  }, {
+   "contract": "0x1009c5c11cdd44bffeac3c70db7eb143df2faad1",
+   "symbol": "Up",
+   "senders_24h": 2834
+  }, {
+   "contract": "0x33b49f2264e85bb124d2730dc180182717d436ae",
+   "symbol": "Dory",
+   "senders_24h": 1996
+  }, {
+   "contract": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+   "symbol": "WBTC",
+   "senders_24h": 1331
+  }, {
+   "contract": "0x0c06ccf38114ddfc35e07427b9424adcca9f44f8",
+   "symbol": "EURe",
+   "senders_24h": 1167
+  }, {
+   "contract": "0xb40dbbb7931cfef8be73aeec6c67d3809bd4600b",
+   "symbol": "PPO",
+   "senders_24h": 1134
+  }, {
+   "contract": "0xbe00f3db78688d9704bcb4e0a827aea3a9cc0d62",
+   "symbol": "USD24",
+   "senders_24h": 828
+  }, {
+   "contract": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+   "symbol": "USDC",
+   "senders_24h": 764
+  }, {
+   "contract": "0xff7421d1f92882f3f86df8d880d751f75201c6da",
+   "symbol": "ECO",
+   "senders_24h": 634
+  }, {
+   "contract": "0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469",
+   "symbol": "DIA",
+   "senders_24h": 581
+  }, {
+   "contract": "0x374c5fb7979d5fdbaad2d95409e235e5cbdfd43c",
+   "symbol": "MLK",
+   "senders_24h": 559
+  }, {
+   "contract": "0x6694340fc020c5e6b96567843da2df01b2ce1eb6",
+   "symbol": "STG",
+   "senders_24h": 425
+  }, {
+   "contract": "0xe796460adc7b6120a210459e09b78103fa3eec47",
+   "symbol": "BRT",
+   "senders_24h": 411
+  }, {
+   "contract": "0x2c5d06f591d0d8cd43ac232c2b654475a142c7da",
+   "symbol": "EUR24",
+   "senders_24h": 392
+  }, {
+   "contract": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
+   "symbol": "USDG",
+   "senders_24h": 375
+  }, {
+   "contract": "0xe9f5a048103293aeeb05f1d986bb91ef38410d8e",
+   "symbol": "BTCM",
+   "senders_24h": 375
+  }],
+ "top_candidates_skipped_no_rows": [{
+   "contract": "0x676b090f8919dfacb04ae922edc9ea99c7286e9e",
+   "symbol": "ꓴ឵ՏᎠ឵Ꮳ",
+   "senders_24h": 8475,
+   "total_supply": "1000000000000000000000000000000000000"
+  }, {
+   "contract": "0xa846e6fd54841d3e5410edc26ce66a12c4773224",
+   "symbol": "ሀ‍‍Տ​‍D‍‌C",
+   "senders_24h": 6284,
+   "total_supply": ""
+  }, {
+   "contract": "0x6df5c3bfe6f1a90c0354bb976bb5f18c13c0244e",
+   "symbol": "ⴹ​‍Τ‌‍Н",
+   "senders_24h": 3908,
+   "total_supply": ""
+  }, {
+   "contract": "0x68f5d4965ffa9e232b33dc6698aaf48751098b6d",
+   "symbol": "ÚSDС",
+   "senders_24h": 3830,
+   "total_supply": "2596950007647119"
+  }, {
+   "contract": "0x2fbbcf837a8c3e200cbc959c98b2de6ab6cc7b2a",
+   "symbol": "ሀ‍Տ‍D‌‌₮​​0",
+   "senders_24h": 2878,
+   "total_supply": ""
+  }, {
+   "contract": "0xb8894e9b133c97bf2c34365ff803cebbfeb467da",
+   "symbol": "ꓴ឵ՏᎠ឵Ⲧ",
+   "senders_24h": 2599,
+   "total_supply": "1000000000000000000000000000000000000"
+  }, {
+   "contract": "0xfa6d601df8636357c823027b409f2812f2bd1470",
+   "symbol": "ÚSDС",
+   "senders_24h": 2277,
+   "total_supply": "2596950007647119"
+  }, {
+   "contract": "0x6c00d86ebb74ca040de152837093ca400d67bae1",
+   "symbol": "ÚSDT",
+   "senders_24h": 1451,
+   "total_supply": "971503492911205"
+  }, {
+   "contract": "0x1b0030222d3b778d48e7d83577a0948ae017eee2",
+   "symbol": "ꓰ឵Ⲧ឵ꓧ",
+   "senders_24h": 1085,
+   "total_supply": "1000000000000000000000000000000000000"
+  }, {
+   "contract": "0xf28652a05cc1c6768c5f18e7e757ee925e948b91",
+   "symbol": "ЕТΗ",
+   "senders_24h": 664,
+   "total_supply": "142201985818870836144794214"
+  }, {
+   "contract": "0xfed4d3f445518983a189fbb1beccc7b654c46c0c",
+   "symbol": "Α‌​Ꭱ​‍В",
+   "senders_24h": 406,
+   "total_supply": ""
+  }],
+ "check_by_stratum": {
+  "rand:1e12-1e18": {
+   "rows": 900,
+   "precision_equal": 900,
+   "freshness_equal": 885,
+   "freshness_unknown": 11,
+   "freshness_differs": 4
+  },
+  "rand:1e6-1e12": {
+   "rows": 900,
+   "precision_equal": 899,
+   "freshness_equal": 895,
+   "freshness_unknown": 2,
+   "freshness_differs": 3,
+   "precision_unknown": 1
+  },
+  "rand:ge1e18": {
+   "rows": 900,
+   "precision_equal": 900,
+   "freshness_equal": 898,
+   "freshness_differs": 2
+  },
+  "rand:lt1e6": {
+   "rows": 900,
+   "precision_equal": 900,
+   "freshness_equal": 900
+  },
+  "rand:zero": {
+   "rows": 900,
+   "precision_equal": 900,
+   "freshness_equal": 900
+  },
+  "recent": {
+   "rows": 835,
+   "precision_equal": 835,
+   "freshness_equal": 835
+  },
+  "top": {
+   "rows": 18915,
+   "precision_equal": 18909,
+   "freshness_equal": 18846,
+   "freshness_moved_after_H": 11,
+   "precision_mismatch": 6,
+   "freshness_differs": 58
+  }
+ },
+ "check_row_fields": ["contract", "address", "stratum", "row_block", "row_wei", "chain_at_row", "precision", "current_block", "current_wei", "chain_at_H", "freshness"],
+ "rows": [
+  ["0xaf88d065e77c8cc2239327c5edb3a432268e5831","0xc473e2aee3441bf9240be85eb122abb059a3b57c","top:USDC",520983405,"2309053997580","2309053997580","equal","520985486","2314450213123","2313894841542","moved_after_H"],
+  ["0xaf88d065e77c8cc2239327c5edb3a432268e5831","0x96daa0b8a5499ea9323421ed0cda06b345caab73","top:USDC",520984004,"454269144018","454269144018","equal","520985486","440442445858","440860809722","moved_after_H"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0x0f8ed32b62f7db020cf6dfddee850330e4d52549","top:USD₮0",5721265,"608186584220163876334389","0","mismatch","5721265","608186584220163876334389","0","differs"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0x4cbde312a27296c0df562e4e15d2ec3ffe8c0e3f","top:USD₮0",694634,"24364776705209599802562","0","mismatch","694634","24364776705209599802562","0","differs"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0x067ca1cd818e141c0553ef90ea3a25272a578deb","top:USD₮0",5633600,"1000202898326661242864","0","mismatch","5633600","1000202898326661242864","0","differs"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0x4901d5e1f1700d0dcda309e0c7da301745b0c01a","top:USD₮0",5638420,"182679720334358","50109976","mismatch","5638420","182679720334358","50109976","differs"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0xf17719d0a31afce4d88d57c83c4b2265f6a6b4cd","top:USD₮0",520984283,"66783987785358","66783987785358","equal","520985507","66776768706852","66777034938453","moved_after_H"],
+  ["0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9","0x51c72848c68a965f66fa7a88855f9f7784502a7f","top:USD₮0",520984013,"1200312064065","1200312064065","equal","520985486","1272857228187","1273461635547","moved_after_H"],
+  ["0x82af49447d8a07e3bd95bd0d56f35241523fbab1","0x11b4f66948af0d6d10c30d3146d704f93b78959e","top:WETH",447962,"11903894110566922448167","200000000000000","mismatch","447962","11903894110566922448167","200000000000000","differs"],
+  ["0x82af49447d8a07e3bd95bd0d56f35241523fbab1","0xc473e2aee3441bf9240be85eb122abb059a3b57c","top:WETH",520983405,"1193853653531813650918","1193853653531813650918","equal","520985486","1191499971797422241161","1191742171200841591295","moved_after_H"],
+  ["0x82af49447d8a07e3bd95bd0d56f35241523fbab1","0xc6f780497a95e246eb9449f5e4770916dcd6396a","top:WETH",520984366,"220572081568991830043","220572081568991830043","equal","520985502","218950704809794181190","218853780996568701446","moved_after_H"],
+  ["0x82af49447d8a07e3bd95bd0d56f35241523fbab1","0xc24f7d8e51a64dc1238880bd00bb961d54cbeb29","top:WETH",520984299,"117010588099026081457","117010588099026081457","equal","520985487","116514670524419765779","116719676425771921706","moved_after_H"],
+  ["0x82af49447d8a07e3bd95bd0d56f35241523fbab1","0x30c83aaecc7ceabea96b881a62729a1df366efd5","top:WETH",520984319,"84679668543506220816","84679668543506220816","equal","520985487","70039598874946087796","70564028284709428830","moved_after_H"],
+  ["0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f","0x94cfe86f99340d3c2643472040a9a723b42108f2","top:WBTC",16520336,"776854633","776854633","equal","16520336","776854633","0","differs"],
+  ["0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f","0x6938f149a2b1ca7f4737109ab7d0df0c50b69087","top:WBTC",520984350,"372977819","372977819","equal","520985486","382713851","381099023","moved_after_H"],
+  ["0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f","0x0d32a3bb04e8ff29f0974c9d3f3d85012a0b5d14","top:WBTC",520980144,"81286746","81286746","equal","520985480","80000022","81163229","moved_after_H"],
+  ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8","0x2545d56bea29c6e4f069b546d18aad153f6ae48e","top:USDC",5637237,"3386176233789282989","0","mismatch","5637237","3386176233789282989","0","differs"],
+  ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8","0x817a85858081de096c41881c1c9b9c122b80410a","top:USDC",16551119,"1625857130000","1625857130000","equal","16551119","1625857130000","0","differs"],
+  ["0xff970a61a04b1ca14834a43f5de4533ebddb5cc8","0x48d0261c904369b002bf99659dbd903c7442ae62","top:USDC",16534414,"9132274601","9132274601","equal","16534414","9132274601","0","differs"],
+  ["0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469","0xfbe36a60aaf0265a046a54ff42c793ff622c7c01","top:DIA",484874348,"601783100","601783100","equal","484874348","601783100","599783100","differs"],
+  ["0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469","0xb47f701f906ce4cbaa0aadb62c597108b3e4e4a9","top:DIA",496848574,"280550031","280550031","equal","496848574","280550031","279550031","differs"],
+  ["0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469","0x6a15f3f6d5c5d70f025c8c7a12a20730e826bc7a","top:DIA",520308446,"216886995","216886995","equal","520308446","216886995","215886995","differs"],
+  ["0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469","0xfcbfd1c41c40458bc3353d1906b6636b8803e3d8","top:DIA",515689718,"135083500","135083500","equal","515689718","135083500","134083500","differs"],
+  ["0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469","0x5585555e66233e56091e1e00d2be4229c5a21609","top:DIA",520462402,"81985412","81985412","equal","520462402","81985412","80985412","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xf109f437aa9d819ed28d3b87e0d309dd4c858638","top:USDG",510144875,"9994605981894","9994605981894","equal","510144875","9994605981894","7264772585806","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x264bd8291fae1d75db2c5f573b07faa6715997b5","top:USDG",520944640,"5081884305000","5081884305000","equal","520944640","5081884305000","5077800330022","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x26745351d7553788f5c2d4d5e93cfd65b643a3ad","top:USDG",519720631,"841251414744","841251414744","equal","519720631","841251414744","526147007208","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x496f94fd8daaf5b4fc85e0a8263e7e78639e6fdd","top:USDG",519632151,"189973819801","189973819801","equal","519632151","189973819801","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x8a9016d9b2b602c39e476381e2de0c61e76004dc","top:USDG",520915291,"99999763513","99999763513","equal","520915291","99999763513","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x35fb08ddf505e4e5ae3e5a23b9f3ef025d8cc3f0","top:USDG",519628916,"99990306689","99990306689","equal","519628916","99990306689","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xc19084c79c40a0112cf3ffe81bfe5acddc478bde","top:USDG",520307955,"86060304025","86060304025","equal","520307955","86060304025","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x1119c4ce8f56d96a51b5a38260fede037c7126f5","top:USDG",517412467,"80703550848","80703550848","equal","517412467","80703550848","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xffff67e0efb2ff5e32c62de6549314eff9df71ff","top:USDG",514938802,"50000000000","50000000000","equal","514938802","50000000000","1684042998","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x743d7b30661d65b41960bf6b5d1bb93cf7972a73","top:USDG",515371600,"49989330193","49989330193","equal","515371600","49989330193","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x6106cc9bfd7a70cc74585928fb09b3738888a7ec","top:USDG",519731770,"41000000000","41000000000","equal","519731770","41000000000","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xc037b6eefb2c4f7e64f996d18d10435b605ba6d4","top:USDG",520899825,"38604230948","38604230948","equal","520899825","38604230948","1000000","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x035ffbc217f859aaa2aacbd9467839b540341f7b","top:USDG",520731571,"30558471623","30558471623","equal","520731571","30558471623","99974253104","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xdbe595d0f5e52a69f7f551f2ccb07ba75d67f87f","top:USDG",520543145,"29000000000","29000000000","equal","520543145","29000000000","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x28cc933fecf280e720299b1258e8680355d8841f","top:USDG",505790128,"29000000000","29000000000","equal","505790128","29000000000","16616762629","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x5b01773138f17b38d1987558e576fa193db71a00","top:USDG",520717555,"28504362971","28504362971","equal","520717555","28504362971","27774915875","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x4587cb8139e4883341399610001cd2ec1052cb00","top:USDG",517863984,"22748124841","22748124841","equal","517863984","22748124841","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xbade2eef63b974d3774bd4dbe1139af62687f940","top:USDG",516189430,"14996540773","14996540773","equal","516189430","14996540773","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x4894119d33759ae74387bade1fc9a32cfbd293bb","top:USDG",514417915,"10008044096","10008044096","equal","514417915","10008044096","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xa37f352833240951ca89553b912c412d178bbf10","top:USDG",519627957,"9999146041","9999146041","equal","519627957","9999146041","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x0d6aa8c121be969452dff172f44e3304497c92a5","top:USDG",512305252,"9770533741","9770533741","equal","512305252","9770533741","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xfd611154c5222652e0bab6589c7c1b2c82501708","top:USDG",514886692,"4998752173","4998752173","equal","514886692","4998752173","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x399ff3fe3afdf1e5b97d8cbdf942310f937047cb","top:USDG",519702847,"4898476568","4898476568","equal","519702847","4898476568","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xfc6153516d74e93847ceeee4ef51f18c92eec0a3","top:USDG",519061479,"4716242831","4716242831","equal","519061479","4716242831","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xa57b92fc9f77f071bcc6dcd39080553a52a8aff9","top:USDG",520984100,"4095308845","4095308845","equal","520985518","2784558163","2784558164","moved_after_H"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x4b67c7f8893bd8fbc819fa57b9dd9dde0b03ccba","top:USDG",520294982,"3998919781","3998919781","equal","520294982","3998919781","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xb13d4f2f5fd926071bc3089c73dbfd6f371cc15b","top:USDG",520356022,"3461236452","3461236452","equal","520356022","3461236452","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x89273605975989a5840198f7420970a2bd770847","top:USDG",520246909,"3365753200","3365753200","equal","520246909","3365753200","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x481ebf12c52e1250b34bdba862ba91dbbfcda14e","top:USDG",520500862,"3000043271","3000043271","equal","520500862","3000043271","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x109fbdfbf7e7a7565a9b33e544f2b6f51e0d3b33","top:USDG",520362505,"2749939415","2749939415","equal","520362505","2749939415","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xd7450d16f3cf70bae78994ce61133f5134206859","top:USDG",514496163,"2498731269","2498731269","equal","514496163","2498731269","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xfa56a56ddc8af8b6d586b2d1edb0e79949bbeb8b","top:USDG",517521539,"2100866981","2100866981","equal","517521539","2100866981","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x8afb15d22fe36b51924c30f30d9de98977b4d323","top:USDG",515683078,"1999825752","1999825752","equal","515683078","1999825752","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x04c9947696edcc98536c6bdcb9e8dd83179d4cfe","top:USDG",519973960,"1999187639","1999187639","equal","519973960","1999187639","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x38474fab5fbcc6338ae741f4aedd6a9f568859ee","top:USDG",517259485,"1000965949","1000965949","equal","517259485","1000965949","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x85ac393addd65bcf6ab0999f2a5c064e867f255f","top:USDG",505790128,"1000000000","1000000000","equal","505790128","1000000000","5600116580","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xc5a8e9caee1490696ff670dee3c3fb8b2a55a2d8","top:USDG",514739572,"999913769","999913769","equal","514739572","999913769","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x54d58c4eeb294a0a4c4a642c7d79a6e195a5c3af","top:USDG",520926377,"995146205","995146205","equal","520926377","995146205","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xff64b2572a55a199ca0834ddfddcf294de069a7e","top:USDG",514533562,"202045443","202045443","equal","514533562","202045443","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x8918f029ce357837294d71b2270ed403aac0eec8","top:USDG",508824518,"199095972","199095972","equal","508824518","199095972","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x07ae8551be970cb1cca11dd7a11f47ae82e70e67","top:USDG",520227780,"185377168","185377168","equal","520227780","185377168","11266815112","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x8c6ffc5501aca218f5f60e140d2c2461092ec3e2","top:USDG",516661319,"157082274","157082274","equal","516661319","157082274","219082274","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x379fff81283daa1be48271a84e09d79bb944c2b3","top:USDG",520717555,"48174734","48174734","equal","520717555","48174734","0","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0xf8191d98ae98d2f7abdfb63a9b0b812b93c873aa","top:USDG",514772817,"10000000","10000000","equal","514772817","10000000","10086427","differs"],
+  ["0x004b506865409877c9fa29bfb1eba929984b9bbc","0x91fe06c6e9f97e7de4580a280e03046155f8e1e3","top:USDG",505596134,"1597141","1597141","equal","505596134","1597141","843404","differs"],
+  ["0xc45c879f096db38621cfa9b886b69483f6d24edb","0x1aeb167be6077057c3749d40e5e6a458c876a756","rand:1e6-1e12",36022827,"516116692457","516116692457","equal","36022827","516116692457","","unknown"],
+  ["0x625e7708f30ca75bfd92586e17077590c60eb4cd","0x1a258f501e1e36e0a7f7b8f3d75042ab1172a028","rand:1e6-1e12",21733420,"1000056","1000056","equal","21733420","1000056","156","differs"],
+  ["0x145f1508c506f73658800e7af4b8850318bfdc9b","0x1a63ae49ccdb1ec7f831085b44774ff0e9ad89d8","rand:1e6-1e12",156751735,"19834020","19834020","equal","156751735","19834020","1","differs"],
+  ["0x4386851d5854dbaf9151b892df477bb8b5e53bca","0x1ae189f36afcba508a5af7e7700afe273d9c4d14","rand:1e6-1e12",93041482,"1000000000","","unknown","93041482","1000000000","","unknown"],
+  ["0xd62eb0c07787af1c70bc0b6f20767e0d89f15670","0x1abf6e5778e6f8e28c415575d6c4cf277b5edd5d","rand:1e6-1e12",356463239,"2742556090","2742556090","equal","356463239","2742556090","0","differs"],
+  ["0xf9254b915908a069c421a8b8e8f2e8744f6ca234","0x1a9ab83c0d696c4ac215ecf06aa2d34f0fcdfb65","rand:1e12-1e18",63428178,"83184600624375","83184600624375","equal","63428178","83184600624375","","unknown"],
+  ["0xf9254b915908a069c421a8b8e8f2e8744f6ca234","0x1af7378650a36f821a305ccd1f8c1078b8054610","rand:1e12-1e18",63241226,"13002576622097250","13002576622097250","equal","63241226","13002576622097250","","unknown"],
+  ["0xafe909b1a5ed90d36f9ee1490fcb855645c00eb3","0x1adcf07389b1f6605c44a7683c50a5243829a92c","rand:1e12-1e18",88634397,"152768301245800008","152768301245800008","equal","88634397","152768301245800008","0","differs"],
+  ["0xded79501442546f376849c544a4235b129c9e01f","0x1ae538ba9936aa50ac066e4d90c3773a17749d90","rand:1e12-1e18",35437368,"3839465807125625","3839465807125625","equal","35437368","3839465807125625","","unknown"],
+  ["0xe50fa9b3c56ffb159cb0fca61f5c9d750e8128c8","0x1a3aceefd9c2635b1496fb451371b528330862f8","rand:1e12-1e18",9954257,"31017152513866","31017152513866","equal","9954257","31017152513866","33145710070479","differs"],
+  ["0xdfdb2566956ceb98b068e93911354fe30ef78013","0x1aa7818bfaf1761a8425f311ba179effbdf45742","rand:1e12-1e18",60326603,"379149469810564","379149469810564","equal","60326603","379149469810564","","unknown"],
+  ["0xd2bbc544879c399d3c77a40e8ea146dbc05c8bd5","0x1a01a533d09e6fed0fede10211dcff56bec9dc7e","rand:1e12-1e18",60369860,"21686160168586","21686160168586","equal","60369860","21686160168586","","unknown"],
+  ["0xc45c879f096db38621cfa9b886b69483f6d24edb","0x1ac0858151da2cfe19997085a15f67924c6edc32","rand:1e12-1e18",36027177,"250154412267743","250154412267743","equal","36027177","250154412267743","","unknown"],
+  ["0xe6c8d111337d0052b9d88bf5d7d55b7f8385acd3","0x1a795b47b01c5c459286284e0a8550aa7747a27e","rand:1e12-1e18",242143907,"200000000000000","200000000000000","equal","242143907","200000000000000","0","differs"],
+  ["0x88e2522158ecfcef56a2e28385fac79d33a585f9","0x1a470e7f6fbcba2cb56e7aa9fc50b1158c1b7d19","rand:1e12-1e18",34377162,"1951449418629100","1951449418629100","equal","34377162","1951449418629100","","unknown"],
+  ["0xb0bcb398d62980dbbedc102bc1ffeb0ae3622e11","0x1a503a0073606b0a158add146d10f61fb41ecc06","rand:1e12-1e18",60125025,"1128139510589931","1128139510589931","equal","60125025","1128139510589931","","unknown"],
+  ["0xdcdc1004d5c271adc048982d7eb900cc4f472333","0x1a0333e45b72c68b44e2063ec046e788744a3333","rand:1e12-1e18",198659757,"39212784854508718","39212784854508718","equal","198659757","39212784854508718","154211097700488848","differs"],
+  ["0xf99200ca53a2fd81079272b6d9d596e3ffa4df63","0x1a753e9b125567e5cfbc9e0568f81219a1ca4871","rand:1e12-1e18",33569422,"22168037000853","22168037000853","equal","33569422","22168037000853","","unknown"],
+  ["0x9f182f01ade8572ffd56d22bad6149a40cc2e9ea","0x1ae9093f2dca14fc4eee5d47ec43ad438f5ec8a3","rand:1e12-1e18",32700660,"609366999880768","609366999880768","equal","32700660","609366999880768","","unknown"],
+  ["0xf14b1793423a9643b8c8b601cc38af3e9e6aede6","0x1a8f6ffb68bab5d19f8d3faa1ec0e97c2a370e20","rand:1e12-1e18",65145448,"524783378744792","524783378744792","equal","65145448","524783378744792","","unknown"],
+  ["0xd2d1162512f927a7e282ef43a362659e4f2a728f","0x1a649948abb8fb2ee2fd77a440261e43918975a3","rand:ge1e18",233449736,"2418580562232394755","2418580562232394755","equal","233449736","2418580562232394755","0","differs"],
+  ["0xce5f24b7a95e9cba7df4b54e911b4a3dc8cdaf6f","0x1a0f05167152b824db9156d7da3355fdbf77d041","rand:ge1e18",13362937,"131442952693478606901","131442952693478606901","equal","13362937","131442952693478606901","0","differs"]
+ ],
+ "coverage": {
+  "random": {
+   "unknown": 480,
+   "served_equal": 1371,
+   "empty_zero_row": 1096,
+   "missing": 30,
+   "empty_no_row": 20,
+   "served_differs": 3
+  },
+  "top": {
+   "served_equal": 1068,
+   "empty_zero_row": 932
+  }
+ },
+ "coverage_misses": [
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x39bd20ebedd26d7d63775675a08a2b15bfbe4a4f","random","915645275","","","missing"],
+  ["0x128559450e68bf43165e0df93957cdb1c178cc34","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","6613740440000000000","","","missing"],
+  ["0x0e929101c4fa7c91eaa64d7216161ba3eee387fe","0x0d62f6a051f1c27511398246d52dbdb10140e5c7","random","6112411000000000000","","","missing"],
+  ["0x078f358208685046a11c85e8ad32895ded33a249","0x1aeb0a0d751ba435bab86e580930da172f44e23f","random","1","","","missing"],
+  ["0x1cdc2727ac5c448c1554f18085c9970befda8127","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","6799354220000000000","","","missing"],
+  ["0x724dc807b04555b71ed48a6896b6f41593b8c637","0xcfb02aa1d0320ed2801074dc533445d6b6dddf66","random","7","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x22cc21313a76d2357ad6e96bfa99c01f7eeefef2","random","700055132","","","missing"],
+  ["0x46b979440ac257151ee5a5bc9597b76386907fa1","0xe05af53f3906cf20460faeafb7baf25c511e5af6","random","262333183000000000","","","missing"],
+  ["0x078f358208685046a11c85e8ad32895ded33a249","0x8e1d39e8cfe537580141f228f2dbf270d0179ec8","random","4319151","","","missing"],
+  ["0x485cb1ed5662a911eba7f8547eb9e253cf43b8ae","0x928e5328036180d1587a97c55b75b3ea5ca0f348","random","1012243218787573912325","","","missing"],
+  ["0x8240affe697cde618ad05c3c8963f5bfe152650b","0x16464652f5dcd821f35fdf68873eaa4cde8f2111","random","2175153616327160982","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0xd42fbcf9a754079c4b8ec7df8e7e30392a8fae10","random","12455371088","","","missing"],
+  ["0xc18cd51b629960a9c73405eead4939f5b529f43c","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","905056812530000000000","","","missing"],
+  ["0xeabe4a3dee32d4f5f586eedf6e3c0a94b0e1320f","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","69684227580000000000","","","missing"],
+  ["0xfb00ac187a8eb5afae4eace434f493eb62672df7","0x96a6073f86a64b9370b01c1b50518399977c7b48","random","538490152","","","missing"],
+  ["0x436a085b2751cb87db270ffa66f8d698f87bec82","0xf465d8adf4071a2fbe1804c269f99da0c12e173c","random","34844986882342637307","","","missing"],
+  ["0x078f358208685046a11c85e8ad32895ded33a249","0x55fcdb2c36d4c5b190bf13359b792021f1661077","random","4562131","","","missing"],
+  ["0xfc4a96180d6ac0a7761b82b4f8d407f0cd23a21d","0x2bc5790275b7d4ccb14e593c5ec73c98a4c717e7","random","858214285616438356203","","","missing"],
+  ["0xe80c28a762f66bafe3cba5bd0e403d3769464391","0x44c7c4ab4757aa49b50a8082cb1649c51ef7bc43","random","53498865640000000000000","483801537","130767690000000000000","served_differs"],
+  ["0x4fc42d5bda2054da358a6c523073149bc94de668","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","14619883040930000000000","","","missing"],
+  ["0x4dafffddea93ddf1e0e7b61e844331455053ce5c","0x051ffcbc705e88c906e952e434f2125657a047c0","random","105062742745469316800","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x55d47ac66a7374958d3c444027baec16a9131a7a","random","617603982198","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x30f4a032f63df12e9d35d187c2e163acbc6c5f1c","random","3193127618","","","missing"],
+  ["0xed50e64a67951e84d9e85855cf13f34422253ab7","0xed9ab5bc05a0152b9dc2f7902e8369af7bc18771","random","59908906810000000000","","","missing"],
+  ["0x461b581077c04780c712f1df8b7a8f0d8b65c13c","0x6cc2316d26284451364b9dc60714b67d28f79f93","random","36696375458255860608","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x3a1b9226af7d67bcab6bee4ebd7b0817b9c7c775","random","2113967962","","","missing"],
+  ["0xf611aeb5013fd2c0511c9cd55c7dc5c1140741a6","0x9aa7fa1f5e814784d84c825b180b07737607688f","random","7578665280","","","missing"],
+  ["0x893cd19936e606b6beab03580af4518ec2bd0599","0xc9791e1a4a3bee42cc1711c87a0ce600a85d6105","random","508219620582331409472351690650","","","missing"],
+  ["0xd2d1162512f927a7e282ef43a362659e4f2a728f","0x9bb66dd4f838b67ce71b8af403d3efde102f27c4","random","1043290081083782853","503106839","33297329175492792","served_differs"],
+  ["0x485cb1ed5662a911eba7f8547eb9e253cf43b8ae","0x69bb29e2bf617bf74098d95054f72aee7999e4e3","random","214358534865831742","","","missing"],
+  ["0xdcbe9e05f2e1c90d54e174d7e45f3483ca5d6d9a","0x71445b6d62cda16032d90f44b8e8fc7c26cb1ed9","random","1000000000000000000","","","missing"],
+  ["0x724dc807b04555b71ed48a6896b6f41593b8c637","0xc4e6d2405f59fe0db37259fca81f6e8bd1140ee8","random","229332106","","","missing"],
+  ["0xbbd26812d977fee354b6cb200ab607e0b0ff2ae3","0x44c7c4ab4757aa49b50a8082cb1649c51ef7bc43","random","12387250000000000000","400225392","2016390000000000000","served_differs"]
+ ],
+ "supply": [{
+   "contract": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+   "symbol": "USDC",
+   "rows": "18685340",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "2463101366841181",
+   "supply_before": "2463101366841181",
+   "supply_after": "2463101366841181",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+   "symbol": "USD₮0",
+   "rows": "19181663",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "633551564826567730024327",
+   "supply_before": "820168150541533",
+   "supply_after": "820168150541533",
+   "sum_minus_supply": "633551564006399579482794",
+   "relative": "7.725e+08",
+   "verdict": "differs"
+  }, {
+   "contract": "0xace876e867ecf2c3d1b8097b160a666adce04cd0",
+   "symbol": "USD",
+   "rows": "242429",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "38347800735982",
+   "supply_before": "38347800735982",
+   "supply_after": "38347800735982",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+   "symbol": "WETH",
+   "rows": "2098163",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "125197674389441207139000",
+   "supply_before": "113291635209903638401948",
+   "supply_after": "113291635209903638401948",
+   "sum_minus_supply": "11906039179537568737052",
+   "relative": "1.051e-01",
+   "verdict": "differs"
+  }, {
+   "contract": "0x912ce59144191c1204e64559fe8253a0e49e6548",
+   "symbol": "ARB",
+   "rows": "5065465",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "9999998977610261816650915841",
+   "supply_before": "9999998977610261816650915825",
+   "supply_after": "9999998977610261816650915825",
+   "sum_minus_supply": "16",
+   "relative": "1.600e-27",
+   "verdict": "differs"
+  }, {
+   "contract": "0x1009c5c11cdd44bffeac3c70db7eb143df2faad1",
+   "symbol": "Up",
+   "rows": "332155",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "1000000000000000000000000000",
+   "supply_before": "1000000000000000000000000000",
+   "supply_after": "1000000000000000000000000000",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x33b49f2264e85bb124d2730dc180182717d436ae",
+   "symbol": "Dory",
+   "rows": "47002",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "657369984331181747324358",
+   "supply_before": "657369984331181747324358",
+   "supply_after": "657369984331181747324358",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+   "symbol": "WBTC",
+   "rows": "706000",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "736377588723",
+   "supply_before": "735581359910",
+   "supply_after": "735581359910",
+   "sum_minus_supply": "796228813",
+   "relative": "1.082e-03",
+   "verdict": "differs"
+  }, {
+   "contract": "0x0c06ccf38114ddfc35e07427b9424adcca9f44f8",
+   "symbol": "EURe",
+   "rows": "21373",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "5388537243683134984432406",
+   "supply_before": "5388537243683134984432406",
+   "supply_after": "5388537243683134984432406",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0xb40dbbb7931cfef8be73aeec6c67d3809bd4600b",
+   "symbol": "PPO",
+   "rows": "1428",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "979961656357429250455696318",
+   "supply_before": "979961656357429250455696318",
+   "supply_after": "979961656357429250455696318",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0xbe00f3db78688d9704bcb4e0a827aea3a9cc0d62",
+   "symbol": "USD24",
+   "rows": "169370",
+   "cursor_before": "520985577",
+   "cursor_after": "520985577",
+   "sum_balances": "26617158450",
+   "supply_before": "26617158450",
+   "supply_after": "26617158450",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
+   "symbol": "USDC",
+   "rows": "3540786",
+   "cursor_before": "520985577",
+   "cursor_after": "520985627",
+   "sum_balances": "3386224081049328904",
+   "supply_before": "46205262026839",
+   "supply_after": "46205262026839",
+   "sum_minus_supply": "3386177875787302065",
+   "relative": "7.329e+04",
+   "verdict": "differs"
+  }, {
+   "contract": "0xff7421d1f92882f3f86df8d880d751f75201c6da",
+   "symbol": "ECO",
+   "rows": "116658",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "2140000000000000000000000000",
+   "supply_before": "2140000000000000000000000000",
+   "supply_after": "2140000000000000000000000000",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x6efa9b8883dfb78fd75cd89d8474c44c3cbda469",
+   "symbol": "DIA",
+   "rows": "245471",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "6935839216437",
+   "supply_before": "7486907181866",
+   "supply_after": "7486907181866",
+   "sum_minus_supply": "-551067965429",
+   "relative": "-7.360e-02",
+   "verdict": "differs"
+  }, {
+   "contract": "0x374c5fb7979d5fdbaad2d95409e235e5cbdfd43c",
+   "symbol": "MLK",
+   "rows": "284291",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "98624541900000000",
+   "supply_before": "98624541900000000",
+   "supply_after": "98624541900000000",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x6694340fc020c5e6b96567843da2df01b2ce1eb6",
+   "symbol": "STG",
+   "rows": "1078777",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "8678711215868845846646118",
+   "supply_before": "8678711215868845846646118",
+   "supply_after": "8678711215868845846646118",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0xe796460adc7b6120a210459e09b78103fa3eec47",
+   "symbol": "BRT",
+   "rows": "68931",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "174384590016950360000000000",
+   "supply_before": "174384590016950360000000000",
+   "supply_after": "174384590016950360000000000",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x2c5d06f591d0d8cd43ac232c2b654475a142c7da",
+   "symbol": "EUR24",
+   "rows": "46064",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "22462299720",
+   "supply_before": "22462299720",
+   "supply_after": "22462299720",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }, {
+   "contract": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
+   "symbol": "USDG",
+   "rows": "2336",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "59080491927761",
+   "supply_before": "55273342581624",
+   "supply_after": "55273342581624",
+   "sum_minus_supply": "3807149346137",
+   "relative": "6.888e-02",
+   "verdict": "differs"
+  }, {
+   "contract": "0xe9f5a048103293aeeb05f1d986bb91ef38410d8e",
+   "symbol": "BTCM",
+   "rows": "215652",
+   "cursor_before": "520985627",
+   "cursor_after": "520985627",
+   "sum_balances": "21000000000000000000000000",
+   "supply_before": "21000000000000000000000000",
+   "supply_after": "21000000000000000000000000",
+   "sum_minus_supply": "0",
+   "relative": "0.000e+00",
+   "verdict": "equal"
+  }],
+ "etherscan": {
+  "es_eq_node/db_eq_es": 987,
+  "es_ne_node/db_ne_es": 10,
+  "es_eq_node/db_ne_es": 3
+ }
+}

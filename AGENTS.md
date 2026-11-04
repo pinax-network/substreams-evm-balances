@@ -27,7 +27,12 @@ never prints them. The second exception is `scripts/check-db-native-balances`
 (owner, 2026-11-03): a sampler and a Python script with no dependencies that
 check sampled rows of a native balances database against `eth_getBalance` at
 each row's block and, where Etherscan's free tier serves the chain, against
-Etherscan; read-only, and a live step like the first.
+Etherscan; read-only, and a live step like the first. Its ERC-20 counterpart,
+`scripts/check-db-erc20-balances` (owner, 2026-11-03), is one Python script
+with no dependencies that checks an ERC-20 balances database against
+`balanceOf` at each sampled row's block and at head, transfer recipients
+for missing rows, top tokens' `totalSupply()` and Etherscan; read-only, and
+a live step too.
 
 ## Production boundary
 

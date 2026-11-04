@@ -10,7 +10,8 @@ Token API serves today: `mainnet:evm-balances-erc20@v0.7.4` against
 > [!NOTE]
 > The sections up to [Open checks](#open-checks) cover Ethereum. BSC, added
 > on 2026-10-20, is in its own section, [BSC](#bsc), with the same
-> structure.
+> structure. All eight chains were checked against the chain and Etherscan
+> on 2026-11-03, in [their own section](#checks-against-the-chain-and-etherscan-2026-11-03).
 
 ## Summary
 
@@ -755,3 +756,97 @@ The real tokens (names are public token names, not from the databases):
   conclusion drawn from an absence of events.
 - 258 of the 2,804 new-older rows in the spam and dust tokens, not checked
   against events.
+
+## Checks against the chain and Etherscan (2026-11-03)
+
+The sections above measure the new databases against the RPC-era ones,
+which have errors of their own. On 2026-11-03 the cluster C ERC-20
+databases of all eight chains, `<chain>:evm-balances-erc20@v0.7.4`, were
+checked against the chain itself with
+[`scripts/check-db-erc20-balances`](../scripts/check-db-erc20-balances/). An
+ERC-20 row can be wrong at its own block, stale, or missing, and each step
+measures one of these:
+
+- **Rows.** The top 1,000 holders of the 20 tokens with the most distinct
+  senders in the last 24 h that the database holds rows for, 900 random
+  (contract, holder) pairs per raw-balance band (zero, under 1e6, 1e6 to
+  1e12, 1e12 to 1e18, 1e18 and up) and up to 900 rows written in the last
+  24 h, from the 0x1a address slice. Each row was read with `balanceOf` at
+  its own block, then at a fixed head block, the database cursor.
+- **Coverage.** 2,000 recipients of the top tokens and 3,000 of any token,
+  from the last 24 h of `<chain>:evm-transfers@v0.3.3`, a different
+  package: is there a row, and does it equal `balanceOf` at head.
+- **Supply.** Each top token's sum of rows against `totalSupply()` at the
+  cursor block.
+- **Etherscan.** On the five chains Etherscan's free tier serves, 1,000
+  pairs against Etherscan's `tokenbalance` and the Pinax node.
+
+Evidence, with every row and coverage miss that was not equal:
+[`chain-check-2026-11-03/`](../erc20/balances/docs/evidence/chain-check-2026-11-03/).
+
+| Chain | Head | Rows | Wrong at own block | Stale at head, top / all | Recipients served, top / all tokens | Supply equal, of 20 | Equal to Etherscan where it equals the node |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | --- |
+| Ethereum | 26,336,826 | 23,664 | 7 | 258 / 293 | 1,011 of 1,011 / 1,103 of 1,173 | 13 | 980 of 995 |
+| BSC | 131,501,984 | 21,404 | 1 | 0 / 11 | 1,313 of 1,313 / 1,213 of 2,475 | 19 | not on the free tier |
+| Base | 53,475,374 | 23,402 | 0 | 137 / 139 | 1,195 of 1,198 / 1,495 of 2,196 | 16 | not on the free tier |
+| Arbitrum One | 520,985,477 | 24,250 | 6 | 58 / 67 | 1,068 of 1,068 / 1,371 of 1,404 | 13 | 987 of 990 |
+| Optimism | 159,070,888 | 23,008 | 1 | 0 / 129 | 779 of 779 / 1,571 of 1,589 | 13 | not on the free tier |
+| Polygon | 96,690,116 | 21,404 | 2 | 2 / 7 | 1,157 of 1,157 / 1,310 of 1,872 | 16 | 987 of 987 |
+| Unichain | 62,992,354 | 21,435 | 0 | 0 / 1 | 1,554 of 1,554 / 2,226 of 2,230 | 19 | 996 of 997 |
+| HyperEVM | 50,308,739 | 23,597 | 0 | 0 / 10 | 1,082 of 1,118 / 1,242 of 1,303 | 17 | 992 of 994 |
+
+A recipient is served when it has a row equal to the chain; the
+denominator leaves out recipients that hold nothing on chain and calls that
+returned no word. "Stale at head" leaves out holders that moved between the
+cursor and the head read.
+
+- **The rows are right at their own block.** 17 of 182,164 rows were not.
+  Six are Arbitrum One's seeded pre-Nitro rows (below). Ethereum's seven
+  are in three tokens whose `balanceOf` adds to the stored word. BSC's,
+  Optimism's and Polygon's four are single rows, not attributed.
+- **Stale holders come from dropped contract-blocks.** AAVE on Ethereum
+  (258 top holders, among them the stkAAVE contract at its January 2024
+  balance; the token's rows sum to 2.57 M AAVE over supply), WUSD on Base
+  (138) and USDG on Arbitrum One (44) account for 440 of them, and every one
+  of the 440 has a transfer after its row's block. One Ethereum USDC holder
+  misses a 33,005 USDC credit at block 26,302,175 (2026-10-30), USDC's only
+  supply gap, so this still happens on the live sink. Why the blocks are
+  dropped is open, as [above](#contract-blocks-dropped-by-the-inference).
+  Optimism's other
+  stale rows are computed balances, led by the legacy ETH token
+  `0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000` and Aave v3 aTokens.
+- **Supply.** Most differences equal the token's zero-address balance,
+  which the package never emits, or a contract whose `totalSupply()` is not
+  the sum of balances, such as QNT's fixed cap. Four Arbitrum One tokens are
+  broken by the seed (below), and four Optimism tokens (USDT, bridged USDC,
+  DAI, WBTC) are short by balances carried through the November 2021
+  regenesis without events, about 108,000 USDT, 123,000 USDC, 169,000 DAI
+  and 1 WBTC, that neither database holds.
+- **Coverage.** Most unserved recipients are fake-airdrop tokens whose
+  `balanceOf` invents a balance for any address: 98% of BSC's misses and 54%
+  of Base's. Two gaps are new. Solady ERC-20s derive the balance slot from
+  the packed holder and a seed, which the inference does not read, so
+  Polygon's pUSD has no rows. A family of Base tokens deployed at
+  `0xb2000000…` addresses, which are EIP-7702-delegated accounts, has none
+  either; the cause is open. The rest are known exclusions: rebasing and
+  share tokens, Aave aTokens, MiniMe and Synthetix tokens.
+- **Etherscan** agrees with the Pinax node on 4,963 of 5,000 pairs; where
+  it does, the database differs on 0 to 15 pairs per chain, the stale AAVE
+  and USDG holders among them.
+
+### Stale seeded rows below the Extended start
+
+The six Arbitrum One rows wrong at their own block are seeded rows below
+Nitro, and the seed also held stale rows that were right at their block
+but changed before Nitro without the RPC era recording it: a holder of 608
+quadrillion USD₮0 and one of 3.4 trillion bridged USDC who held nothing,
+and 11,906 WETH and 7.96 WBTC in other rows. Optimism's seed had the same
+defect in 2 OP rows (1,687 OP) and many rows of computed tokens. Every
+seeded row of both chains was read at the last block before the start, and
+on 2026-11-04 the 486,837 differing rows were corrected in place
+([`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/),
+record
+[`pre-start-seed-fix-2026-11-04.json`](../erc20/balances/docs/evidence/pre-start-seed-fix-2026-11-04.json)).
+A sample of seeded pairs went from 29 of 1,000 on Arbitrum One and 70 of
+2,000 on Optimism wrong at that block to none, and USD₮0, bridged USDC,
+WBTC and OP now sum to their supply. Optimism's regenesis gap remains.
