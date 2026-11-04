@@ -33,7 +33,8 @@
 //!    their transaction, so a read of an unchanged holder is usually not
 //!    keyed.
 //!    Inner (nested) mappings are never chosen, nor a base whose own large
-//!    mismatches outnumber its exact votes.
+//!    mismatches outnumber its exact votes; since v0.7.5 a large mismatch
+//!    that is also rescaled (rule 4) does not count there.
 //! 4. The contract is excluded for the block when a persisted record or event
 //!    address is malformed, its code is removed or it self-destructs, writes to
 //!    one key are discontinuous, a traced `balanceOf` calls out or returns a
@@ -43,7 +44,10 @@
 //!    cut was possible (see [`cut_possible`]). A `balanceOf` input of more than
 //!    36 bytes is read as `balanceOf(input[16..36])`, as the ABI decoder reads
 //!    it; a shorter one, or a longer one with nonzero upper address bytes, only
-//!    vetoes. It is also excluded when a candidate holder's written word under
+//!    vetoes. Since v0.7.5 (owner, 2026-11-04) a read that returns the stored
+//!    word with its bits from some k >= 64 up cleared, the low field of a
+//!    packed word such as AaveTokenV3's (see [`high_cleared`]), leaves only
+//!    its holder without a row. It is also excluded when a candidate holder's written word under
 //!    the base has a written word one or two keys after it, a struct field
 //!    such as Curve BoostV2's `Point` (bias, slope, ts), unless the holder's
 //!    own keyed `balanceOf` traced after its last write shows the word. Since
@@ -52,12 +56,12 @@
 //!    holder's key under it with no call out, or in a non-reverted frame
 //!    returning the holder's stored word. The word is then a scaled balance
 //!    that `balanceOf` converts, such as the shares of Liquorice's
-//!    lending-pool tokens. Scaled reads play no other part. Since v0.7.4 it
-//!    is also excluded when a holder's net delta under the chosen base is
-//!    nonzero and differs from its flow by a factor of at least 1000 (see
-//!    [`rescaled`]): the word is kept in another unit for that holder, as
-//!    OUSD and OETH keep a rebasing holder's credits, while the exact votes
-//!    come from holders whose word is the balance.
+//!    lending-pool tokens. Scaled reads play no other part. A holder whose net
+//!    delta under the chosen base is nonzero and differs from its flow by a
+//!    factor of at least 1000 (see [`rescaled`]) keeps the word in another
+//!    unit, as OUSD and OETH keep a rebasing holder's credits, while the
+//!    exact votes come from holders whose word is the balance: v0.7.4
+//!    excluded the contract, and since v0.7.5 only that holder gets no row.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes and no other mapping
@@ -76,9 +80,12 @@
 //!    that returns the stored word without that bit does not contradict it
 //!    when the write that supplies the word only toggles bit 255 in a frame
 //!    whose `Blacklisted` or `UnBlacklisted` names the holder, and that holder
-//!    then gets no row. Any other masked read contradicts the stored word and
-//!    drops the contract for the block. Candidate holders without a write get
-//!    the value of a keyed `balanceOf` that read exactly the base.
+//!    then gets no row. Since v0.7.5 a holder whose writes after an explained
+//!    one in the block only toggle that flag in such frames gets the
+//!    explained word (see [`flagged_after`]). Candidate holders without a
+//!    write get the value of a keyed `balanceOf` that read exactly the base.
+//!    A word at or above 2^128 holds another field next to the balance: since
+//!    v0.7.5 its holder gets no row, and v0.7.4 dropped the contract.
 //!
 //! Writes and reads are in execution order: by ordinal, except in a
 //! recognized Polygon Bor state-sync transaction, whose depth-1 calls restart
@@ -688,7 +695,7 @@ fn flows<'a>(block: &'a eth::Block, writes: &BTreeMap<Addr, Vec<Write>>, doubt: 
 }
 
 /// Votes for one mapping base of one contract in one block.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Default)]
 struct Tally {
     /// Holder sides whose net persisted delta equals their net event flow;
     /// flows below 10^6 count only while the base has no mismatch.
@@ -697,9 +704,13 @@ struct Tally {
     mismatch: u32,
     /// Mismatches whose delta is at least a thousandth of the flow.
     large: u32,
-    /// Mismatches whose nonzero delta differs from the flow by a factor of at
-    /// least 1000 (see [`rescaled`]).
-    rescaled: u32,
+    /// Large mismatches that are also rescaled: they count against the base
+    /// only through their holders (see [`choose`]).
+    large_rescaled: u32,
+    /// Holders with a mismatch whose nonzero delta differs from the flow by a
+    /// factor of at least 1000 (see [`rescaled`]): their word is in another
+    /// unit, and they get no row (since v0.7.5).
+    rescaled: BTreeSet<Addr>,
     /// Exact votes for flows below 10^6.
     dust: u32,
     /// The base's slot has its own verified 64-byte preimage: an inner
@@ -889,8 +900,12 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
                 tally.dust += u32::from(f[1..] == [0; 4] && f[0] < 1_000_000);
             } else {
                 tally.mismatch += 1;
-                tally.large += u32::from(large(flow, &delta));
-                tally.rescaled += u32::from(rescaled(flow, &delta));
+                let (large, rescaled) = (large(flow, &delta), rescaled(flow, &delta));
+                tally.large += u32::from(large);
+                tally.large_rescaled += u32::from(large && rescaled);
+                if rescaled {
+                    tally.rescaled.insert(holder);
+                }
             }
         }
     }
@@ -903,7 +918,9 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
 /// The base every keyed `balanceOf` reads, if it has exact votes, or else
 /// the base with the most exact votes; a tie chooses none. Inner mappings
 /// (allowances) and bases with more large mismatches than exact votes (a
-/// packed word whose other field moves) are never chosen.
+/// packed word whose other field moves) are never chosen. Since v0.7.5 a
+/// large mismatch that is also rescaled does not count here: its holder is
+/// left without a row instead (see [`decide`]).
 fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
     let plain = |t: &Tally| t.exact > 0 && !t.nested;
     let base = 'base: {
@@ -931,7 +948,8 @@ fn choose(tallies: &BTreeMap<Base, Tally>, reads: &[Read]) -> Option<Base> {
         }
         best.filter(|_| !tied)?.0
     };
-    (tallies[&base].large <= tallies[&base].exact).then_some(base)
+    let t = &tallies[&base];
+    (t.large - t.large_rescaled <= t.exact).then_some(base)
 }
 
 /// A traced `balanceOf(holder)` or `scaledBalanceOf(holder)` call to a
@@ -1229,11 +1247,11 @@ fn decide(
     let (scaled, reads) = (&reads.scaled, &reads.balance);
     let base = choose(tallies, reads)?;
     // A holder whose word under the base moved a thousand times more or less
-    // than its flow keeps it in another unit: the base is not the balance of
-    // every holder, and the exact votes may come from those it is for.
-    if tallies[&base].rescaled > 0 {
-        return None;
-    }
+    // than its flow keeps it in another unit (a rebasing holder's credits, a
+    // packed word whose other field moved): the base is not that holder's
+    // balance. Since v0.7.5 (owner, 2026-11-04) that holder gets no row and
+    // the exact votes keep the others'; v0.7.4 dropped the contract.
+    let rescaled = &tallies[&base].rescaled;
     // A Tether admin event explains a holder's write in its frame when the
     // frame's net change of the holder's word equals the amount it states, and
     // a destruction also leaves the word at zero.
@@ -1292,13 +1310,20 @@ fn decide(
         let unmasked = std::array::from_fn::<u8, 32, _>(|i| value[i] | flag[i]);
         toggled && value[0] & 0x80 == 0 && *stored == unmasked && names.flags.contains(&(w.frame, *holder))
     };
-    let mut masked = BTreeSet::new();
+    // Holders whose read returned less than their stored word, with the
+    // values read: such a holder keeps a row only of exactly that value.
+    let mut masked = BTreeMap::<Addr, BTreeSet<Word>>::new();
     for r in reads.iter().filter(|r| r.persisted) {
         match by_key.get(&base.key(&r.holder)) {
             Some(ws) => match stored_at(ws, r) {
                 Some((_, s)) if s == r.value => {}
-                Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {
-                    masked.insert(r.holder);
+                // Since v0.7.5 (owner, 2026-11-04) a read of a rescaled
+                // holder, or one that returns the stored word with its bits
+                // from some k >= 64 up cleared (a packed word: AaveTokenV3
+                // keeps delegation state above a 104-bit balance), leaves
+                // that holder without a row instead of dropping the contract.
+                Some((w, s)) if masks(w, &s, &r.value, &r.holder) || rescaled.contains(&r.holder) || high_cleared(&s, &r.value) => {
+                    masked.entry(r.holder).or_default().insert(r.value);
                 }
                 Some(_) => return None,
                 None => {}
@@ -1318,7 +1343,7 @@ fn decide(
     }
     for holder in holders {
         let key = base.key(holder);
-        if let Some(last) = by_key.get(&key).and_then(|ws| ws.last()) {
+        if let Some((ws, last)) = by_key.get(&key).and_then(|ws| Some((ws, ws.last()?))) {
             // A third party's word changed with no balance event naming or
             // explaining it in that frame (a flag, an admin or a sync write)
             // needs its own read, traced after that write: a read before it
@@ -1335,13 +1360,16 @@ fn decide(
             // `balanceOf(self)` is its word less the shares still unlocking,
             // which fall with time and no write or event: even a row that a
             // read confirms goes stale in the next blocks.
-            let keep = if holder == token {
-                !base.vyper
+            let named = |w: &Write| names.named.contains(&(w.frame, *holder)) || explained(w.frame, holder);
+            let value = if holder == token {
+                (!base.vyper).then_some(last.new)
+            } else if let Some(value) = flagged_after(ws, holder, names, &named) {
+                Some(value)
             } else {
-                names.named.contains(&(last.frame, *holder)) || explained(last.frame, holder) || vouched
+                (named(last) || vouched).then_some(last.new)
             };
-            if keep {
-                values.insert(*holder, last.new);
+            if let Some(value) = value {
+                values.insert(*holder, value);
             }
         }
     }
@@ -1350,8 +1378,49 @@ fn decide(
     if shadowed {
         values.retain(|holder, _| read.contains_key(holder));
     }
-    values.retain(|holder, _| !masked.contains(holder));
+    values.retain(|holder, value| masked.get(holder).is_none_or(|read| read.iter().all(|r| r == value)));
+    values.retain(|holder, _| !rescaled.contains(holder));
     Some(values)
+}
+
+/// FiatToken v2.2's blacklist flag, bit 255 of a holder's word.
+const FLAG: Word = {
+    let mut flag = [0; 32];
+    flag[0] = 0x80;
+    flag
+};
+
+/// Since v0.7.5 (owner, 2026-11-04): the word an explained write left, when
+/// every later write of the holder in the block only toggles FiatToken
+/// v2.2's blacklist flag (bit 255) in a frame whose `Blacklisted` or
+/// `UnBlacklisted` names the holder, and the flag is clear in that word.
+/// FiatToken's `balanceOf` masks the flag, so the explained word is the
+/// balance: USDC's blacklist of a holder in the block that credited it.
+fn flagged_after(ws: &[&Write], holder: &Addr, names: &Names, named: &impl Fn(&Write) -> bool) -> Option<Word> {
+    let toggle = |w: &&&Write| std::array::from_fn::<u8, 32, _>(|i| w.old[i] ^ w.new[i]) == FLAG && names.flags.contains(&(w.frame, *holder));
+    let flags = ws.iter().rev().take_while(toggle).count();
+    let explained = ws.len().checked_sub(flags + 1).map(|i| ws[i])?;
+    (flags > 0 && explained.new[0] & 0x80 == 0 && named(explained)).then_some(explained.new)
+}
+
+/// `value` is `stored` with its bits from some `k >= 64` up cleared, and
+/// differs from it: the low field of a packed word, which its `balanceOf`
+/// returns.
+fn high_cleared(stored: &Word, value: &Word) -> bool {
+    value != stored
+        && (64..256).any(|k| {
+            let low: Word = std::array::from_fn(|i| {
+                let lsb = (31 - i) * 8;
+                if lsb + 8 <= k {
+                    stored[i]
+                } else if lsb >= k {
+                    0
+                } else {
+                    stored[i] & ((1u16 << (k - lsb)) - 1) as u8
+                }
+            });
+            low == *value
+        })
 }
 
 /// Inferred end-of-block balances, by `(contract, holder)`. `block_len` is
@@ -1403,14 +1472,13 @@ pub(crate) fn rows(block: &eth::Block, resolved: &eth::Block, block_len: usize) 
     for (token, t) in tallies.iter().filter(|(token, _)| !doubt.contains(*token)) {
         let token_reads = reads.get(token).unwrap_or(&unread);
         let names = named.get(token).unwrap_or(&nobody);
-        if let Some(values) = decide(token, t, &writes[token], token_reads, &candidates[token], names, &framed) {
+        if let Some(mut values) = decide(token, t, &writes[token], token_reads, &candidates[token], names, &framed) {
             // A balance word at or above 2^128 holds another field next to the
-            // balance (a packed timestamp, FiatToken v2.2's blacklist flag in
-            // bit 255) that did not move in the block, so the slot is not a
-            // plain balance: drop the token's rows for the block.
-            if values.values().any(|value| value[..16] != [0; 16]) {
-                continue;
-            }
+            // balance (a packed timestamp, AaveTokenV3's delegation state,
+            // FiatToken v2.2's blacklist flag in bit 255), so it is not that
+            // holder's balance. Since v0.7.5 (owner, 2026-11-04) that holder
+            // gets no row; v0.7.4 dropped the token's rows for the block.
+            values.retain(|_, value| value[..16] == [0; 16]);
             out.extend(values.into_iter().map(|(holder, value)| ((*token, holder), value)));
         }
     }

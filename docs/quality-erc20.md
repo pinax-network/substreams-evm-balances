@@ -439,7 +439,26 @@ Stale holders per token, from the table below.
 
 For HEX, sUSDe and AAVE, the event-implied balance equals the RPC-era value
 for 97% to 99% of these holders, and every one has an event after the new
-row. Why the blocks were dropped is not established.
+row. Why the blocks were dropped is not established for HEX, sUSDe and
+TUSD.
+
+**Causes found on 2026-11-04.** Replaying the blocks of stale holders from
+the [chain check](#checks-against-the-chain-and-etherscan-2026-11-03)
+through the package, with a reason recorded at every drop, showed that each
+token drops for a reason of its storage layout, the same in every sampled
+block, and never for a producer or sink fault:
+
+| Token | What the contract stores | Rule that dropped it | Sampled blocks | Since v0.7.5 |
+| --- | --- | --- | ---: | --- |
+| AAVE (Ethereum) | AaveTokenV3 keeps a holder's delegation mode in the word's top byte and delegated power above its 104-bit balance | a word at or above 2^128, or a `balanceOf` that returns the word without those bits, dropped the token | 7 of 7 | only that holder gets no row |
+| USDG (Arbitrum One) | some accounts keep the balance in the low 64 bits, with a timestamp and an accumulator above it | the account's word moves about 2^122 times its flow (rescaled), or two such mismatches outvote one exact vote | 7 of 7 | only that account gets no row |
+| WUSD (Base) | a per-holder deposit total and a checkpoint struct besides the balance, both moving on mint and burn | a tie between the balance and the deposit total, or shadowing by the checkpoint (rules 3 and 5) | 7 of 7 | unchanged |
+| USDC (Ethereum) | Circle blacklisted a holder in the block that credited it 33,005.12 USDC | the flag write, unexplained, left the holder at its earlier 0 | 1 of 1 | the holder gets the credited word |
+
+Holders whose word packs those fields still get no row in v0.7.5: AAVE's
+delegating holders and delegatees (the stkAAVE contract among them) and
+USDG's packed accounts. WUSD stays dropped in blocks with only one or two
+holders' mints or burns ([limits](../erc20/balances/README.md#limits)).
 
 ### Whole tokens missing
 
@@ -810,8 +829,9 @@ cursor and the head read.
   (138) and USDG on Arbitrum One (44) account for 440 of them, and every one
   of the 440 has a transfer after its row's block. One Ethereum USDC holder
   misses a 33,005 USDC credit at block 26,302,175 (2026-10-30), USDC's only
-  supply gap, so this still happens on the live sink. Why the blocks are
-  dropped is open, as [above](#contract-blocks-dropped-by-the-inference).
+  supply gap, so this still happens on the live sink. The causes were
+  found on 2026-11-04 and most are fixed in v0.7.5
+  ([above](#contract-blocks-dropped-by-the-inference)).
   Optimism's other
   stale rows are computed balances, led by the legacy ETH token
   `0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000` and Aave v3 aTokens.

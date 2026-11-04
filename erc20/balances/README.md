@@ -98,7 +98,11 @@ longer recorded preimages are never decoded. Per block and per contract
    [producer releases](#producer-releases).
    Inner mappings (with their own 64-byte preimage, such as allowances) and
    mappings with more large mismatches than exact votes (a packed word whose
-   other field moves) are never chosen.
+   other field moves) are never chosen. Since v0.7.5 (owner, 2026-11-04) a
+   large mismatch whose delta is also rescaled (rule 4) counts only against
+   its holder, which gets no row: USDG keeps some accounts' balance in the low
+   64 bits of a word with a timestamp and an accumulator above it, and two
+   such accounts outvoted one exact vote.
 4. **Exclusions**: malformed records or event addresses; removed code or a
    self-destruct; discontinuous writes to a key; a traced `balanceOf(holder)`
    that calls another contract (a beacon `implementation()` lookup followed by
@@ -106,7 +110,12 @@ longer recorded preimages are never decoded. Per block and per contract
    ordinal, or a keyed one that reads another holder mapping; a successful
    `balanceOf` call to the contract that keeps only its 4-byte selector or has
    no return data, the shape a producer leaves when it cuts a call, where a
-   cut was possible ([producer releases](#producer-releases)). A `balanceOf`
+   cut was possible ([producer releases](#producer-releases)). Since v0.7.5
+   (owner, 2026-11-04) a read that returns the stored word with its bits from
+   some k >= 64 up cleared, the low field of a packed word, leaves only its
+   holder without a row: AaveTokenV3 (AAVE) keeps a holder's delegation mode
+   in the word's top byte and delegated power above its 104-bit balance, and
+   its `balanceOf` returns the balance. A `balanceOf`
    input of more than 36 bytes is read as `balanceOf(input[16..36])`, as the
    ABI decoder reads it; a shorter one, or a longer one with nonzero upper
    address bytes, only vetoes. Since v0.7.4, a candidate's written word under
@@ -131,7 +140,9 @@ longer recorded preimages are never decoded. Per block and per contract
    about 1000 times the RPC era's `balanceOf`. Since v0.7.4 a holder whose net
    delta under the chosen base is nonzero and differs from its flow by a
    factor of at least 1000 (`|delta| >= 1000 |flow|` or
-   `1000 |delta| <= |flow|`) also excludes the contract: the word is in
+   `1000 |delta| <= |flow|`) also excluded the contract; since v0.7.5 (owner,
+   2026-11-04) only that holder gets no row, and the exact votes keep the
+   others'. The word is in
    another unit for that holder, as Origin's OUSD and OETH keep a rebasing
    holder's credits (about 6.1e8 and 8.5e8 per token), while the exact votes
    come from non-rebasing accounts, whose credits are their balance. It
@@ -141,7 +152,8 @@ longer recorded preimages are never decoded. Per block and per contract
    removes 7 rows: the two rebasing holders' credits, which v0.7.3 emitted at
    6.09e8 and 8.54e8 times the RPC era's value, and the rows of the tokens'
    non-rebasing holders, 4 of which equal the RPC era at the block (the fifth
-   has no RPC-era bar there).
+   has no RPC-era bar there). v0.7.5 gives those five rows back, each equal to
+   `balanceOf` at the block.
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
@@ -155,7 +167,10 @@ longer recorded preimages are never decoded. Per block and per contract
    blacklist flag, which its `balanceOf` masks, is never vouched this way:
    since v0.7.4 a read that returns the flagged word without the flag leaves
    that holder without a row instead of dropping the token
-   ([FiatToken blacklists](#limits)). Since v0.7.4 a Tether `Issue`/`Redeem`
+   ([FiatToken blacklists](#limits)). Since v0.7.5 (owner, 2026-11-04) a
+   holder whose writes after an explained one in the block only toggle that
+   flag, each in a frame whose `Blacklisted` or `UnBlacklisted` names it, gets
+   the explained word, which `balanceOf` returns. Since v0.7.4 a Tether `Issue`/`Redeem`
    (for the frame's sender) or `DestroyedBlackFunds` in the frame also
    explains the write when its amount equals the frame's net change of the
    holder's word, a destruction also leaving it at zero. The contract's own
@@ -215,8 +230,15 @@ balance that did not move in the block, such as a packed timestamp or
 FiatToken v2.2's blacklist flag in bit 255, so the transfer deltas still match
 but the word is not the balance. A live check against `balanceOf`
 (`scripts/check-live-balances.ts`, 2026-10-14) found such words in 3 of 768
-contracts over 100 Ethereum blocks and 1 of 830 over 300 Base blocks. A token
-whose real supply reaches 2^128 base units also loses its rows.
+contracts over 100 Ethereum blocks and 1 of 830 over 300 Base blocks. Since
+v0.7.5 (owner, 2026-11-04) such a word leaves only its holder without a row,
+and the contract keeps the others. AaveTokenV3 keeps a delegating holder's
+delegation mode in the word's top byte and a delegatee's delegated power
+above its 104-bit balance, so v0.7.4 dropped AAVE in every block that wrote
+such a word, the stkAAVE contract's included; on 2026-11-03, 258 of AAVE's
+top 1,000 holders were stale for that reason
+([ERC-20 quality](../../docs/quality-erc20.md#contract-blocks-dropped-by-the-inference)).
+A holder whose real balance reaches 2^128 base units gets no row.
 
 Since v0.7.3 the embedded [persistence rules](src/persist.rs), like
 [`common/persist`](../../common/persist), recover the authorization boundary of
@@ -346,8 +368,8 @@ and holders.
   stored delta vote exactly for that word, and their rows are wrong. A traced
   `balanceOf` in the block drops them, because it calls out or contradicts
   the word, and since v0.7.4 so does a traced `scaledBalanceOf` that reads
-  the word, or a holder whose word moves a thousand times more or less than
-  its flow (rule 4). Otherwise nothing in the block separates them from a
+  the word; a holder whose word moves a thousand times more or less than its
+  flow gets no row (rule 4; v0.7.4 dropped the token). Otherwise nothing in the block separates them from a
   plain token without a contract list, a code-hash list or RPC, all outside
   this package. Liquorice's lending-pool tokens (LLC* locked collateral, LD*
   debt) store and transfer shares, and their `balanceOf` is
@@ -367,7 +389,7 @@ and holders.
   | Shares × internal rate | gMOVE `0xc78dfe95…`, mMOVE `0x248c647d…`, fstMOVE `0xc7b26dbf…` | `_shares × shareRate() / BASE` | 437/618 (437), 143/145 (143), 280/358 (280) |
   | | Bracket brETH `0x3588e6cb…`, BBOR1 `0x7a859b5a…` | `convertToAssets(sharesOf(a), assetsPerShare())` | 548/567 (545), 407/407 (405) |
   | | Amplol `0xeadf1de2…` | `super.balanceOf × tvlBase() / 1e18` | 1193/2737 (1192) |
-  | Mixed credits (since v0.7.4 dropped in a block where a rebasing holder moves, rule 4) | OUSD `0x2a8e1e67…`, OETH `0x856c4efb…` | credits × 1e18 / credits per token (1e18 for non-rebasing accounts) | 526/761 (120), 502/884 (156) |
+  | Mixed credits (since v0.7.5 a rebasing holder that moves gets no row, rule 4; v0.7.4 dropped the token for the block) | OUSD `0x2a8e1e67…`, OETH `0x856c4efb…` | credits × 1e18 / credits per token (1e18 for non-rebasing accounts) | 526/761 (120), 502/884 (156) |
   | Time or vesting | DBR `0xad038eb6…` | balance − accrued dues − debt × elapsed / 365 days | 630/1149 (198) |
   | | DICK `0xfdca7994…`, BENCH `0xf4e21623…`, ONE DAY `0xe216daf9…` (ERC-7660) | balance + releasable | 105/175 (76), 663/783 (267), 15/17 (13) |
 - **Certification by exact votes alone.** When the real balance key is
@@ -405,10 +427,22 @@ and holders.
   `UnBlacklisted` naming the holder. The read still checks the other 255
   bits; the holder gets no row in that block, and the token keeps its other
   rows. In v0.7.3 such a read dropped all of the token's rows for the block.
-  Any other masked flag still does: holders that changed in the block keep
-  their earlier value until a later block emits them. Without such a read,
-  the flagged holder's write is unexplained and only that holder stays
-  unknown.
+  Since v0.7.5 any other read that clears high bits of the word leaves only
+  its holder without a row (rule 4); v0.7.4 dropped the token for the block.
+  Without such a read, the flagged holder's write is unexplained and only
+  that holder stays unknown, except since v0.7.5 when an explained write of
+  the holder precedes the flag write in the block: the holder then gets that
+  word (rule 6). On 2026-10-30 Circle blacklisted a holder in the block that
+  credited it 33,005.12 USDC (Ethereum block 26,302,175), and v0.7.4 left it
+  at its earlier 0.
+- **Packed balance words.** A holder whose word packs other fields above the
+  balance gets no row while those fields are nonzero (rules 3 and 4): AAVE's
+  delegating holders and delegatees, the stkAAVE contract among them, and
+  USDG's accounts with a timestamp and an accumulator. Their rows stay at the
+  last value a block emitted. Reading the low field would need the field's
+  width, which only a layout gives. A word whose other fields happen to sit
+  below bit 128, such as an AAVE delegatee's power under 0.17 AAVE, is
+  emitted whole when its holder's transfers vote exactly, as before v0.7.5.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
   ([native](../../native/balances/README.md#execution-order-v078)). Until
@@ -448,7 +482,7 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.4.spkg`
+`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.5.spkg`
 (from CI's artifact), not live-qualified. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
@@ -484,7 +518,19 @@ RPC-era 1-minute bar at their block equal it; the other 37,534 were not
 compared, among them 31,555 of the rows v0.7.3 also gives and 360 of the
 481 Vyper rows. Because its rows differ
 from v0.7.3's for past blocks, it is written to a new database,
-`<chain>:evm-balances-erc20@v0.7.4`, by a full resync. Before v0.7.0 it was
+`<chain>:evm-balances-erc20@v0.7.4`, by a full resync. v0.7.5 (owner,
+2026-11-04) addresses the stale holders that the chain check of 2026-11-03
+found ([ERC-20 quality](../../docs/quality-erc20.md#contract-blocks-dropped-by-the-inference)):
+a word at or above 2^128, a rescaled delta and a read that clears the word's
+high bits leave only their holder without a row, rescaled holders' large
+mismatches no longer reject the base, and a FiatToken blacklist after an
+explained write keeps that write's word (rules 3, 4 and 6). On the 24 blocks
+of those stale holders, the 43 random recent blocks of six chains checked on
+2026-11-04 and every committed fixture, it keeps every row of v0.7.4 with
+the same value and adds 51, each equal to `balanceOf` at its block: 30 AAVE,
+14 USDG, 5 OUSD and OETH, 1 USDC and 1 Base token whose own word holds an
+address. It is written to `<chain>:evm-balances-erc20@v0.7.5`, by a full
+resync. Before v0.7.0 it was
 `erc20_balances`:
 `spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions skip
 v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf generation
@@ -533,7 +579,13 @@ whose vault gets no row of its own, even when a read after the report is
 added, and the Liquorice transaction of Ethereum block 25,852,210, whose two
 share tokens get no row because the pool's `scaledBalanceOf` calls read
 their words, and two blocks of OUSD and OETH whose rebasing holder's
-credits drop the token. The same test reads two
+credits drop the token. The v0.7.5 captures in
+[`tests/fixtures/v075/`](tests/fixtures/v075/), with
+[`cases.json`](tests/fixtures/v075/cases.json), are two AAVE blocks (stkAAVE's
+delegated word, a read that clears a delegating holder's top byte), two
+Arbitrum One USDG blocks with packed accounts and the USDC blacklist after a
+credit; each row that equals the full block's equals `balanceOf` at the
+block. The same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
 deposit and a withdrawal without a `Transfer`.

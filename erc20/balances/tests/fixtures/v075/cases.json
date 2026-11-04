@@ -1,0 +1,422 @@
+{
+ "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-11-04 for the v0.7.5 investigation of the stale holders that the 2026-11-03 chain check found (docs/quality-erc20.md).",
+ "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits. A case whose kept_transactions are all of the block's is the source block itself.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.5 gives it; added_since_v074 lists the rows v0.7.4 does not emit on the fixture (it emits every other row identically). Each row equals the row v0.7.5 gives for the same pair on the full source block, except the pairs in differs_on_full_block (with the full block's value), which a transaction the fixture omits moves later in the block.",
+ "chain_values": "Read-only, 2026-11-04: balanceOf(holder) of the contract at the block from the Pinax archive RPC (eth_call), for every fixture row that equals the full block's. Each equals the row.",
+ "rules": {
+  "R1": "since v0.7.5, a holder whose word is at or above 2^128, whose delta under the base is rescaled, or whose balanceOf returns the stored word with its bits from some k >= 64 up cleared gets no row; the contract keeps the others (v0.7.4 dropped it for the block), and rescaled holders' large mismatches do not count against the base",
+  "R4": "since v0.7.5, a holder whose later writes in the block only toggle FiatToken v2.2's blacklist flag (bit 255) in frames whose Blacklisted or UnBlacklisted names it gets the word its explained write left"
+ },
+ "cases": [
+  {
+   "file": "eth-26302175-usdc-blacklist-after-credit.pb",
+   "chain": "ethereum",
+   "block": 26302175,
+   "block_hash": "0xecfea9ec58b4e79b37b1885da82cec58e16a09646d7a83749477d101dbffb113",
+   "ver": 5,
+   "source_block_sha256": "4728b51010644ed2442e8554be51a428b84119fc3a1a38245a17fc2368e60f05",
+   "fixture_sha256": "3cbe64bfca5604137b62c9248e29c70b938a2f6fbabab1523920e47046a87bc0",
+   "token": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+   "kept_transactions": [
+    1,
+    188
+   ],
+   "selection": "transaction 1, the credit of 33005117139 USDC to 0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb through a Uniswap v2 swap, and transaction 188, Circle's blacklist(0xb3ddec0c…), which sets bit 255 of its word; the block's other USDC transactions are omitted",
+   "rule": "R4",
+   "demonstrates": "FiatToken v2.2 blacklists a holder in the block that credited it: the flag write toggles only bit 255 in a frame whose Blacklisted names the holder, after the Transfer's explained write. v0.7.4 left the holder without a row (an unexplained last write), so its row of 0 at block 26302172 stayed; v0.7.5 gives the credited word, which balanceOf returns",
+   "rows": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x1e496fae4613b4e9c4f8fc31826812cdcbd03a90": "183103997499803723722589",
+     "0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb": "6882351933833233228034933"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x1e496fae4613b4e9c4f8fc31826812cdcbd03a90": "97352709245",
+     "0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb": "33005117139"
+    }
+   },
+   "added_since_v074": {
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb": "33005117139"
+    }
+   },
+   "differs_on_full_block": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x1e496fae4613b4e9c4f8fc31826812cdcbd03a90": "133960821104303370760029"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x1e496fae4613b4e9c4f8fc31826812cdcbd03a90": "133180447613"
+    }
+   },
+   "chain_values": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb": "6882351933833233228034933"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0xb3ddec0ccc5c3ba733fcdf5a15f98c95ec5a5fdb": "33005117139"
+    }
+   }
+  },
+  {
+   "file": "eth-26331811-aave-delegated-words.pb",
+   "chain": "ethereum",
+   "block": 26331811,
+   "block_hash": "0x10d4871e90178dbb09bcede1ca6c8b8b8da2c75736fc85a99367ecd3ae2306e9",
+   "ver": 5,
+   "source_block_sha256": "c47e6134fe10b90223c6fc25b8ace85d95080bb6f5bbcfa0f293bf1d37500c09",
+   "fixture_sha256": "acce6466f785cef0ac8c6ac8f0af693120678beb72d2ee319f467fec5d783ad6",
+   "token": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+   "kept_transactions": [
+    42,
+    121
+   ],
+   "selection": "transaction 42, a stake into stkAAVE (0x4da27a54…), whose AAVE word carries delegated voting and proposition power above its 104-bit balance, and transaction 121, two AAVE transfers of 0xffc97d72…, a stale holder of the 2026-11-03 chain check",
+   "rule": "R1",
+   "demonstrates": "AaveTokenV3 packs delegation state above a 104-bit balance: stkAAVE's word is at or above 2^128. v0.7.4 dropped AAVE for the block; v0.7.5 leaves only stkAAVE without a row",
+   "rows": {
+    "0x6b175474e89094c44da98b954eedeac495271d0f": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "342971740243946836132289",
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "2013718510200",
+     "0x028171bca77440897b824ca71d1c56cac55b68a3": "6580037417803951507822810",
+     "0x60594a405d53811d3bc4766596efd80fd545a270": "498845284352310521791069",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "101647467539618633730979"
+    },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "14689746646536",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2590313492872434912961",
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "4120877804168201336",
+     "0xffc97d72e13e01096502cb8eb52dee56f74dad7b": "4486488592204925489333"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "283818152688477015",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "40645406824998765382",
+     "0x60594a405d53811d3bc4766596efd80fd545a270": "231752316209176958140",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "1160081119121834994309"
+    }
+   },
+   "added_since_v074": {
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "14689746646536",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2590313492872434912961",
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "4120877804168201336",
+     "0xffc97d72e13e01096502cb8eb52dee56f74dad7b": "4486488592204925489333"
+    }
+   },
+   "chain_values": {
+    "0x6b175474e89094c44da98b954eedeac495271d0f": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "342971740243946836132289",
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "2013718510200",
+     "0x028171bca77440897b824ca71d1c56cac55b68a3": "6580037417803951507822810",
+     "0x60594a405d53811d3bc4766596efd80fd545a270": "498845284352310521791069",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "101647467539618633730979"
+    },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "14689746646536",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2590313492872434912961",
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "4120877804168201336",
+     "0xffc97d72e13e01096502cb8eb52dee56f74dad7b": "4486488592204925489333"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x00acd5005200e7009beb000000e35e1e002b5565": "283818152688477015",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "40645406824998765382",
+     "0x60594a405d53811d3bc4766596efd80fd545a270": "231752316209176958140",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "1160081119121834994309"
+    }
+   }
+  },
+  {
+   "file": "eth-26336181-aave-masked-read.pb",
+   "chain": "ethereum",
+   "block": 26336181,
+   "block_hash": "0xbd81f15867bf20bdbcbe8cd8bfcc6a49fd487bfd6a4b246440b5af1ce021ce9a",
+   "ver": 5,
+   "source_block_sha256": "dcfc43a5807ce12f49e41e6c7a68d58519c797de202658a499c13ce991b22ec0",
+   "fixture_sha256": "a6a6770e4e767d605b4acbeb0c04957ea8a847f060fdde7a088a922dc83aaef6",
+   "token": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+   "kept_transactions": [
+    60,
+    174,
+    188
+   ],
+   "selection": "transaction 60, which credits AAVE to 0x1494ca1f…, whose word has delegation mode 3 in its top byte, after a balanceOf of it returns the word's low 104 bits; transaction 188, an AAVE transfer of 0x9b0c45d4…, a stale holder of the 2026-11-03 chain check; and transaction 174, which moves USDC and WETH of a pool that transaction 60 also moves",
+   "rule": "R1",
+   "demonstrates": "a balanceOf of AAVE that returns the stored word with its high bits cleared: v0.7.4 took it as a contradiction and dropped AAVE for the block; v0.7.5 leaves only that holder without a row",
+   "rows": {
+    "0x085780639cc2cacd35e474e71f4d000e2405d8f6": {
+     "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": "3488559003473365068402105",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe3fa9e3ec7ee6358dd6b4c53f9ee9e38cf2faca6": "44766919891445860087808"
+    },
+    "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": {
+     "0x4d5ef58aac27d99935e5b6b4a6778ff292059991": "7265896468965743384095",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "71511679957011663904",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "195813361040"
+    },
+    "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "924368125258354485589222",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "213284933325093853716739",
+     "0xb86f8e45e12bff145fa4e23fa173a1f09dcd1351": "2407161736672077907915",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "58063413224072728533",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "860537952989"
+    },
+    "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": {
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0"
+    },
+    "0x57e114b691db790c35207b2e685d4a43181e6061": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "1957999703763878220335229",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "2081368065267828640135331",
+     "0xc445b096f37cd1de304c61d8c368521974695f80": "157767830992799783533263",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "9326350213843"
+    },
+    "0x6982508145454ce325ddbe47a25d4ec3d2311933": {
+     "0x111111125421ca6dc452d289314280a0f8842a65": "0",
+     "0x11950d141ecb863f01007add7d1a342041227b58": "536867291338239471027343649532",
+     "0x64da6538555a848fb4bbf9ebdc5e6eca4991bcdd": "2013963144439787940019406"
+    },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2635575916339644681790",
+     "0x9b0c45d46d386cedd98873168c36efd0dcba8d46": "7386161499357200000024",
+     "0xb23360ccdd9ed1b15d45e5d3824bb409c8d7c460": "3600225775990427012172",
+     "0xb983153f242aed756ba7b6f03536a6fbab31779a": "498985037918220200401",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "15866664943877093101177",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "192324781050225"
+    },
+    "0x808507121b80c02388fad14726482e061b8da827": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "267045453360522450210284",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "131008873253866090107856",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "270238643918560557907",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "90955130871"
+    },
+    "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": {
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "700424356921778867896",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "10305908272449979416",
+     "0xc2adda861f89bbb333c90c492cb837741916a225": "428666397030620116432",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "154328574"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x111116058b9828cdcdd810c502b925c14f34ca11": "1",
+     "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": "4508713695881",
+     "0x90cbe4bdd538d6e9b379bff5fe72c3d67a521de5": "923096001",
+     "0xa66b23d9a8a46c284fa5b3f2e2b59eb5cc3817f4": "38746034907",
+     "0xb86f8e45e12bff145fa4e23fa173a1f09dcd1351": "35980018676",
+     "0xb983153f242aed756ba7b6f03536a6fbab31779a": "57231767373",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "261813978956",
+     "0xc445b096f37cd1de304c61d8c368521974695f80": "39272253825",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe0554a476a092703abdb3ef35c80e0d76d32939f": "2970706352956",
+     "0xe3fa9e3ec7ee6358dd6b4c53f9ee9e38cf2faca6": "136848003168"
+    },
+    "0xc00e94cb662c3520282e6f5717214004a7f26888": {
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "7105299815832477222987",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "190626413606534287692",
+     "0xcffdded873554f362ac02f8fb1f02e5ada10516f": "3475261940272971581076",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "1565505196"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x111116058b9828cdcdd810c502b925c14f34ca11": "1",
+     "0x11950d141ecb863f01007add7d1a342041227b58": "64562839050030817620",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "38254985507076761543",
+     "0x4d5ef58aac27d99935e5b6b4a6778ff292059991": "175669503445041847953",
+     "0xc2adda861f89bbb333c90c492cb837741916a225": "282058734993976900399",
+     "0xcfecc1c9f3cb6190cb1ff7f65a130bfbe5107d38": "3330747800174756461",
+     "0xcffdded873554f362ac02f8fb1f02e5ada10516f": "30091526597812562907",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe0554a476a092703abdb3ef35c80e0d76d32939f": "2860019212345712601251",
+     "0xe42318ea3b998e8355a3da364eb9d48ec725eb45": "13162596182771592989"
+    },
+    "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "139768666827552066000721",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "15565112665426306209158",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "3429939808",
+     "0xe42318ea3b998e8355a3da364eb9d48ec725eb45": "181329591941904846193819"
+    }
+   },
+   "added_since_v074": {
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2635575916339644681790",
+     "0x9b0c45d46d386cedd98873168c36efd0dcba8d46": "7386161499357200000024",
+     "0xb23360ccdd9ed1b15d45e5d3824bb409c8d7c460": "3600225775990427012172",
+     "0xb983153f242aed756ba7b6f03536a6fbab31779a": "498985037918220200401",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "15866664943877093101177",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "192324781050225"
+    }
+   },
+   "chain_values": {
+    "0x085780639cc2cacd35e474e71f4d000e2405d8f6": {
+     "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": "3488559003473365068402105",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe3fa9e3ec7ee6358dd6b4c53f9ee9e38cf2faca6": "44766919891445860087808"
+    },
+    "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": {
+     "0x4d5ef58aac27d99935e5b6b4a6778ff292059991": "7265896468965743384095",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "71511679957011663904",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "195813361040"
+    },
+    "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "924368125258354485589222",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "213284933325093853716739",
+     "0xb86f8e45e12bff145fa4e23fa173a1f09dcd1351": "2407161736672077907915",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "58063413224072728533",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "860537952989"
+    },
+    "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": {
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0"
+    },
+    "0x57e114b691db790c35207b2e685d4a43181e6061": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "1957999703763878220335229",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "2081368065267828640135331",
+     "0xc445b096f37cd1de304c61d8c368521974695f80": "157767830992799783533263",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "9326350213843"
+    },
+    "0x6982508145454ce325ddbe47a25d4ec3d2311933": {
+     "0x111111125421ca6dc452d289314280a0f8842a65": "0",
+     "0x11950d141ecb863f01007add7d1a342041227b58": "536867291338239471027343649532",
+     "0x64da6538555a848fb4bbf9ebdc5e6eca4991bcdd": "2013963144439787940019406"
+    },
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9": {
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "2635575916339644681790",
+     "0x9b0c45d46d386cedd98873168c36efd0dcba8d46": "7386161499357200000024",
+     "0xb23360ccdd9ed1b15d45e5d3824bb409c8d7c460": "3600225775990427012172",
+     "0xb983153f242aed756ba7b6f03536a6fbab31779a": "498985037918220200401",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "15866664943877093101177",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "192324781050225"
+    },
+    "0x808507121b80c02388fad14726482e061b8da827": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "267045453360522450210284",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "131008873253866090107856",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "270238643918560557907",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "90955130871"
+    },
+    "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": {
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "700424356921778867896",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "10305908272449979416",
+     "0xc2adda861f89bbb333c90c492cb837741916a225": "428666397030620116432",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "154328574"
+    },
+    "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+     "0x111116058b9828cdcdd810c502b925c14f34ca11": "1",
+     "0x5018be882dcce5e3f2f3b0913ae2096b9b3fb61f": "4508713695881",
+     "0x90cbe4bdd538d6e9b379bff5fe72c3d67a521de5": "923096001",
+     "0xa66b23d9a8a46c284fa5b3f2e2b59eb5cc3817f4": "38746034907",
+     "0xb86f8e45e12bff145fa4e23fa173a1f09dcd1351": "35980018676",
+     "0xb983153f242aed756ba7b6f03536a6fbab31779a": "57231767373",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "261813978956",
+     "0xc445b096f37cd1de304c61d8c368521974695f80": "39272253825",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe0554a476a092703abdb3ef35c80e0d76d32939f": "2970706352956",
+     "0xe3fa9e3ec7ee6358dd6b4c53f9ee9e38cf2faca6": "136848003168"
+    },
+    "0xc00e94cb662c3520282e6f5717214004a7f26888": {
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "7105299815832477222987",
+     "0xba12222222228d8ba445958a75a0704d566bf2c8": "190626413606534287692",
+     "0xcffdded873554f362ac02f8fb1f02e5ada10516f": "3475261940272971581076",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "1565505196"
+    },
+    "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
+     "0x111116058b9828cdcdd810c502b925c14f34ca11": "1",
+     "0x11950d141ecb863f01007add7d1a342041227b58": "64562839050030817620",
+     "0x4674abc5796e1334b5075326b39b748bee9eaa34": "38254985507076761543",
+     "0x4d5ef58aac27d99935e5b6b4a6778ff292059991": "175669503445041847953",
+     "0xc2adda861f89bbb333c90c492cb837741916a225": "282058734993976900399",
+     "0xcfecc1c9f3cb6190cb1ff7f65a130bfbe5107d38": "3330747800174756461",
+     "0xcffdded873554f362ac02f8fb1f02e5ada10516f": "30091526597812562907",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "0",
+     "0xe0554a476a092703abdb3ef35c80e0d76d32939f": "2860019212345712601251",
+     "0xe42318ea3b998e8355a3da364eb9d48ec725eb45": "13162596182771592989"
+    },
+    "0xd33526068d116ce69f19a9ee46f0bd304f21a51f": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "139768666827552066000721",
+     "0x1494ca1f11d487c2bbe4543e90080aeba4ba3c2b": "15565112665426306209158",
+     "0xd1c6aca7ea7ed44e1873dafa054c28ceb690c7eb": "3429939808",
+     "0xe42318ea3b998e8355a3da364eb9d48ec725eb45": "181329591941904846193819"
+    }
+   }
+  },
+  {
+   "file": "arbitrum-520926627-usdg-packed-account.pb",
+   "chain": "arbitrum-one",
+   "block": 520926627,
+   "block_hash": "0xcb5671cc2119dff6ad1f4edf884fb85ccf8f38d24ca50485f82af840d859937f",
+   "ver": 5,
+   "source_block_sha256": "5dbb31a0c59932983b6f3d27c1f69ee6e7f12694a2de3235470681c275425a71",
+   "fixture_sha256": "5dbb31a0c59932983b6f3d27c1f69ee6e7f12694a2de3235470681c275425a71",
+   "token": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
+   "kept_transactions": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "selection": "the whole block",
+   "rule": "R1",
+   "demonstrates": "USDG keeps some accounts' balance in the low 64 bits of a word with a timestamp and an accumulator above it: the recipient of a transferFrom, 0x26745351…, moves its word about 2^122 times its flow. v0.7.4 dropped USDG for the block (a rescaled holder); v0.7.5 leaves only that holder without a row and gives the sender's 0",
+   "rows": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x54d58c4eeb294a0a4c4a642c7d79a6e195a5c3af": "0"
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+     "0x1794fe17eb780619fad46baf80f7628f7495378b": "6690488980",
+     "0x22e7c93fcf72b9a72a6b98db617a788df1b15ed3": "50645",
+     "0xa99a8a7ce5d8df157e337371bc80b7be79708517": "49692"
+    }
+   },
+   "added_since_v074": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x54d58c4eeb294a0a4c4a642c7d79a6e195a5c3af": "0"
+    }
+   },
+   "chain_values": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x54d58c4eeb294a0a4c4a642c7d79a6e195a5c3af": "0"
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+     "0x1794fe17eb780619fad46baf80f7628f7495378b": "6690488980",
+     "0x22e7c93fcf72b9a72a6b98db617a788df1b15ed3": "50645",
+     "0xa99a8a7ce5d8df157e337371bc80b7be79708517": "49692"
+    }
+   }
+  },
+  {
+   "file": "arbitrum-519632181-usdg-packed-accounts.pb",
+   "chain": "arbitrum-one",
+   "block": 519632181,
+   "block_hash": "0x33fc989ed43cb93cc0c0efa8bcfd79c523c4815cae875c382b5548e04a6e29a3",
+   "ver": 5,
+   "source_block_sha256": "85de361a9e4bd3fed3164c111e19a182bdf8d90819b4cd36092aa85d1c3c98fd",
+   "fixture_sha256": "85de361a9e4bd3fed3164c111e19a182bdf8d90819b4cd36092aa85d1c3c98fd",
+   "token": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
+   "kept_transactions": [
+    0,
+    1,
+    2
+   ],
+   "selection": "the whole block",
+   "rule": "R1",
+   "demonstrates": "two packed USDG accounts give two large rescaled mismatches against one exact vote: v0.7.4 chose no base (more large mismatches than exact votes); v0.7.5 does not count rescaled holders' large mismatches against the base, leaves both without a row and gives the exact holder's word",
+   "rows": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x496f94fd8daaf5b4fc85e0a8263e7e78639e6fdd": "0"
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+     "0x6a778ef1e2f9775c7c9acb803329f0db5bfd59d0": "4689230",
+     "0x6bfd3eee1d26b5fe80d7ca234877416ca9d5b2d0": "0",
+     "0x86512eb845aefe2f341764ec4afe0147ff41ad70": "88850069"
+    }
+   },
+   "added_since_v074": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x496f94fd8daaf5b4fc85e0a8263e7e78639e6fdd": "0"
+    }
+   },
+   "chain_values": {
+    "0x004b506865409877c9fa29bfb1eba929984b9bbc": {
+     "0x496f94fd8daaf5b4fc85e0a8263e7e78639e6fdd": "0"
+    },
+    "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
+     "0x6a778ef1e2f9775c7c9acb803329f0db5bfd59d0": "4689230",
+     "0x6bfd3eee1d26b5fe80d7ca234877416ca9d5b2d0": "0",
+     "0x86512eb845aefe2f341764ec4afe0147ff41ad70": "88850069"
+    }
+   }
+  }
+ ]
+}
