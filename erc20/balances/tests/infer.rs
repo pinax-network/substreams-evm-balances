@@ -611,11 +611,12 @@ fn scaled_reads_of_the_chosen_mapping_drop_the_token() {
 /// A holder whose word under the chosen base moves by a nonzero delta a
 /// thousand times more or less than its flow keeps the word in another unit,
 /// as OUSD and OETH keep a rebasing holder's credits, while the exact votes of
-/// the other holders (non-rebasing accounts) chose the base: the token is
-/// dropped for the block. Below that factor the mismatch only counts against
-/// the base, as before.
+/// the other holders (non-rebasing accounts) chose the base. Since v0.7.5
+/// (owner, 2026-11-04) that holder gets no row and the token keeps the
+/// others; v0.7.4 dropped the token for the block. Below that factor the
+/// mismatch only counts against the base, as before.
 #[test]
-fn thousandfold_mismatches_under_the_base_drop_the_token() {
+fn thousandfold_mismatches_under_the_base_leave_their_holder_without_a_row() {
     let mut first = root();
     first.logs = vec![transfer(A, B, 30 * U)];
     store(&mut first, A, BASE, 100 * U, 70 * U, 10);
@@ -629,11 +630,13 @@ fn thousandfold_mismatches_under_the_base_drop_the_token() {
         rows(&block(vec![vec![first.clone()], vec![second]]))
     };
     let kept = |c: u64| vec![r(A, 70 * U), r(B, 25 * U), r(C, c)];
-    // A thousand times the flow, or a thousandth of it, drops the token.
-    assert!(with(BASE, 0, 10_000 * U).is_empty());
-    assert!(with(BASE, 10_000 * U, 0).is_empty());
-    assert!(with(BASE, 0, 10 * U / 1000).is_empty());
-    assert!(with(BASE, 5 * U, 5 * U + 10_000).is_empty());
+    // A thousand times the flow, or a thousandth of it, leaves C without a
+    // row.
+    let others = vec![r(A, 70 * U), r(B, 25 * U)];
+    assert_eq!(with(BASE, 0, 10_000 * U), others);
+    assert_eq!(with(BASE, 10_000 * U, 0), others);
+    assert_eq!(with(BASE, 0, 10 * U / 1000), others);
+    assert_eq!(with(BASE, 5 * U, 5 * U + 10_000), others);
     // Just inside either factor, the mismatched word is still emitted.
     assert_eq!(with(BASE, 0, 9_999 * U), kept(9_999 * U));
     assert_eq!(with(BASE, 0, 10 * U / 1000 + 1), kept(10 * U / 1000 + 1));
@@ -644,15 +647,35 @@ fn thousandfold_mismatches_under_the_base_drop_the_token() {
     store(&mut zero, C, BASE, 7 * U, 8 * U, 21);
     store(&mut zero, C, BASE, 8 * U, 7 * U, 22);
     assert_eq!(rows(&block(vec![vec![first.clone()], vec![zero]])), kept(7 * U));
-    // Under another mapping it does not drop the token: C has no word under
-    // the base, so no row.
-    assert_eq!(with(4, 0, 10_000 * U), vec![r(A, 70 * U), r(B, 25 * U)]);
+    // Under another mapping C has no word under the base, so no row either.
+    assert_eq!(with(4, 0, 10_000 * U), others);
     // A dust flow counts too.
     let mut dust = root();
     dust.logs = vec![transfer(B, C, 1)];
     store(&mut dust, B, BASE, 35 * U, 35 * U - 1, 20);
     store(&mut dust, C, BASE, 0, 1000, 21);
-    assert!(rows(&block(vec![vec![first], vec![dust]])).is_empty());
+    assert_eq!(rows(&block(vec![vec![first.clone()], vec![dust]])), vec![r(A, 70 * U), r(B, 35 * U - 1)]);
+    // A read of C that contradicts its word no longer drops the token.
+    let mut second = root();
+    second.logs = vec![transfer(B, C, 10 * U)];
+    store(&mut second, B, BASE, 35 * U, 25 * U, 20);
+    store(&mut second, C, BASE, 0, 10_000 * U, 21);
+    let read = router(vec![balance_of(2, C, BASE, 10 * U, 50)]);
+    assert_eq!(rows(&block(vec![vec![first], vec![second], read])), others);
+    // Since v0.7.5 rescaled holders' large mismatches do not count against
+    // the base (packed accounts of USDG): two of them against one exact vote
+    // leave A's row. Two large mismatches that are not rescaled still reject
+    // the base.
+    let spread = |b: u64, c: u64| {
+        let mut t = root();
+        t.logs = vec![transfer(A, B, 30 * U), transfer(A, C, 20 * U)];
+        store(&mut t, A, BASE, 100 * U, 50 * U, 10);
+        store(&mut t, B, BASE, 0, b, 11);
+        store(&mut t, C, BASE, 0, c, 12);
+        rows(&block(vec![vec![t]]))
+    };
+    assert_eq!(spread(300_000 * U, 200_000 * U), vec![r(A, 50 * U)]);
+    assert!(spread(60 * U, 40 * U).is_empty());
 }
 
 /// A reflection-style second mapping (`rOwned`) that moves with the flows
@@ -940,10 +963,12 @@ fn packed_words_whose_other_field_moves_are_not_chosen() {
 }
 
 /// A word at or above 2^128 is not a plain balance: another field shares the
-/// slot and did not move in the block (a packed timestamp, FiatToken v2.2's
-/// blacklist flag in bit 255). The token's rows for the block are dropped.
+/// slot (a packed timestamp, AaveTokenV3's delegation state, FiatToken v2.2's
+/// blacklist flag in bit 255). Since v0.7.5 (owner, 2026-11-04) that holder
+/// gets no row and the token keeps the others; v0.7.4 dropped the token's
+/// rows for the block.
 #[test]
-fn words_at_or_above_2_pow_128_drop_the_token() {
+fn words_at_or_above_2_pow_128_leave_their_holder_without_a_row() {
     let with = |byte: usize, set: u8, value: u64| {
         let mut out = w(value);
         out[byte] = set;
@@ -959,9 +984,9 @@ fn words_at_or_above_2_pow_128_drop_the_token() {
     // Every holder's word carries the other field.
     let b = transfer_of((with(0, 1, 100), with(0, 1, 70)), (with(0, 1, 5), with(0, 1, 35)));
     assert!(rows(&b).is_empty());
-    // One holder's flag drops the token's other rows in the block too.
+    // One holder's flag leaves only that holder without a row.
     let b = transfer_of((with(0, 0x80, 100), with(0, 0x80, 70)), (w(5), w(35)));
-    assert!(rows(&b).is_empty());
+    assert_eq!(rows(&b), vec![(B[0], "35".to_string())]);
     // A word just below 2^128 is kept.
     let b = transfer_of((with(16, 1, 100), with(16, 1, 70)), (with(16, 1, 5), with(16, 1, 35)));
     let high = 1u128 << 120;
@@ -989,14 +1014,68 @@ fn unexplained_writes_need_the_holders_own_read() {
     store_word(&mut flag, C, BASE, w(50 * U), flagged, 20);
     assert_eq!(rows(&block(vec![vec![simple()], vec![flag.clone()]])), vec![r(A, 70), r(B, 35)]);
     // A read of C after the flag returns the masked word: C gets no row, the
-    // token keeps its others. The read still checks the other 255 bits, and
-    // a flag write without the event stays a contradiction.
+    // token keeps its others. The read still checks the other 255 bits. Since
+    // v0.7.5 (owner, 2026-11-04) a flag write without the event is read as a
+    // packed word whose high bits the read clears, with the same outcome;
+    // v0.7.4 took it as a contradiction and dropped the token.
     let masked = |value: u64| router(vec![balance_of(2, C, BASE, value, 50)]);
     assert_eq!(rows(&block(vec![vec![simple()], vec![flag.clone()], masked(50 * U)])), vec![r(A, 70), r(B, 35)]);
     assert!(rows(&block(vec![vec![simple()], vec![flag.clone()], masked(49 * U)])).is_empty());
     let mut silent = flag.clone();
     silent.logs.clear();
-    assert!(rows(&block(vec![vec![simple()], vec![silent], masked(50 * U)])).is_empty());
+    assert_eq!(
+        rows(&block(vec![vec![simple()], vec![silent.clone()], masked(50 * U)])),
+        vec![r(A, 70), r(B, 35)]
+    );
+    // Since v0.7.5 (owner, 2026-11-04): a blacklist after C's credit in the
+    // block keeps the word the credit left, the balance that FiatToken's
+    // `balanceOf` returns. A later read of that value agrees; a read of
+    // another value still contradicts the word, and without the event the
+    // flag write stays unexplained.
+    let mut credit = root();
+    credit.logs = vec![transfer(B, C, 10)];
+    store(&mut credit, B, BASE, 35, 25, 15);
+    store_word(&mut credit, C, BASE, w(50 * U - 10), w(50 * U), 16);
+    let after = |flag: &eth::Call, extra: Vec<Vec<eth::Call>>| rows(&block([vec![vec![simple()], vec![credit.clone()], vec![flag.clone()]], extra].concat()));
+    let credited = vec![r(A, 70), r(B, 25), r(C, 50 * U)];
+    assert_eq!(after(&flag, vec![]), credited);
+    assert_eq!(after(&flag, vec![masked(50 * U)]), credited);
+    assert!(after(&flag, vec![masked(49 * U)]).is_empty());
+    assert_eq!(after(&silent, vec![]), vec![r(A, 70), r(B, 25)]);
+    // A masked read is checked against the word stored where it runs, not
+    // against the holder's final word: credit C to 50U, blacklist, read 50U,
+    // unblacklist, credit C to 50U + 10 and blacklist again gives the last
+    // credit's word.
+    let flagged = |v: u64| {
+        let mut out = w(v);
+        out[0] |= 0x80;
+        out
+    };
+    let toggle = |topic: &str, old: Vec<u8>, new: Vec<u8>, ordinal: u64| {
+        let mut c = root();
+        c.logs = vec![eth::Log {
+            address: TOKEN.to_vec(),
+            topics: vec![hex::decode(topic).unwrap(), pad(&C)],
+            ..Default::default()
+        }];
+        store_word(&mut c, C, BASE, old, new, ordinal);
+        vec![c]
+    };
+    const UNBLACKLISTED: &str = "117e3210bb9aa7d9baff172026820255c6f6c30ba8999d1c2fd88e2848137c4e";
+    let mut second = root();
+    second.logs = vec![transfer(B, C, 10)];
+    store(&mut second, B, BASE, 25, 15, 35);
+    store_word(&mut second, C, BASE, w(50 * U), w(50 * U + 10), 36);
+    let txs = vec![
+        vec![simple()],
+        vec![credit.clone()],
+        toggle(BLACKLISTED, w(50 * U), flagged(50 * U), 20),
+        router(vec![balance_of(2, C, BASE, 50 * U, 25)]),
+        toggle(UNBLACKLISTED, flagged(50 * U), w(50 * U), 30),
+        vec![second],
+        toggle(BLACKLISTED, w(50 * U + 10), flagged(50 * U + 10), 40),
+    ];
+    assert_eq!(rows(&block(txs)), vec![r(A, 70), r(B, 15), r(C, 50 * U + 10)]);
     // A read before `unBlacklist(C)` saw the flagged word, masked.
     let mut unflag = root();
     unflag.logs = vec![eth::Log {
@@ -1123,8 +1202,8 @@ fn tether_admin_events_explain_exact_writes() {
     let mut both = redeemed;
     both.logs.insert(0, transfer(OWNER, [0; 20], 5 * U));
     assert_eq!(rows(&block(vec![vec![both]])), vec![r(OWNER, 10 * U)]);
-    // Accepted: an explained word at or above 2^128 drops the token's rows,
-    // as any emitted word does.
+    // An explained word at or above 2^128 leaves its holder without a row, as
+    // any emitted word does (since v0.7.5; v0.7.4 dropped the token).
     let high = |v: u64| {
         let mut out = w(v);
         out[0] = 1;
@@ -1133,7 +1212,7 @@ fn tether_admin_events_explain_exact_writes() {
     let mut packed = admin(issue(5 * U), OWNER, 0, 0, (100 * U, 105 * U));
     packed.storage_changes.remove(0);
     store_word(&mut packed, OWNER, BASE, high(10 * U), high(15 * U), 20);
-    assert!(with(vec![packed]).is_empty());
+    assert_eq!(with(vec![packed]), simple_rows);
 }
 
 /// Lido stETH's `ExternalSharesBurnt(uint256)` adds the emitting frame's
@@ -1788,6 +1867,50 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
     }
 }
 
+/// The v0.7.5 captures in `fixtures/v075/`: blocks of stale holders that the
+/// 2026-11-03 chain check found, cut to the transactions of one rule or kept
+/// whole, with provenance in `cases.json`. AAVE (a word at or above 2^128, a
+/// read that clears the word's high bits), USDG (rescaled packed accounts)
+/// and USDC (a blacklist after a credit in the block) keep rows that v0.7.4
+/// dropped. Each fixture gives exactly its recorded rows; those that equal
+/// the full block's equal `balanceOf` at the block, and the case's token has
+/// rows v0.7.4 does not give.
+#[test]
+fn captured_v075_blocks_match_their_rows_and_same_block_balance_of() {
+    use sha2::Digest;
+    use std::collections::BTreeMap;
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/v075");
+    let cases: serde_json::Value = serde_json::from_str(include_str!("fixtures/v075/cases.json")).unwrap();
+    for case in cases["cases"].as_array().unwrap() {
+        let file = case["file"].as_str().unwrap();
+        let bytes = std::fs::read(format!("{dir}/{file}")).unwrap();
+        assert_eq!(hex::encode(sha2::Sha256::digest(&bytes)), case["fixture_sha256"], "{file}");
+        let block = eth::Block::decode_from_slice(&bytes).unwrap();
+        assert_eq!(
+            (block.number, format!("0x{}", hex::encode(&block.hash))),
+            (case["block"].as_u64().unwrap(), case["block_hash"].as_str().unwrap().to_string())
+        );
+        let kept: Vec<u32> = block.transaction_traces.iter().map(|tx| tx.index).collect();
+        assert_eq!(serde_json::json!(kept), case["kept_transactions"], "{file}");
+        let mut ours = BTreeMap::<String, BTreeMap<String, String>>::new();
+        for b in run(&block).unwrap().balances {
+            let contract = format!("0x{}", hex::encode(b.contract.unwrap()));
+            ours.entry(contract).or_default().insert(format!("0x{}", hex::encode(b.address)), b.amount);
+        }
+        assert_eq!(serde_json::json!(ours), case["rows"], "{file}");
+        let row = |contract: &str, holder: &str| ours.get(contract).and_then(|t| t.get(holder)).cloned();
+        for key in ["chain_values", "added_since_v074"] {
+            for (contract, values) in case[key].as_object().unwrap() {
+                for (holder, value) in values.as_object().unwrap() {
+                    assert_eq!(row(contract, holder).as_deref(), value.as_str(), "{file} {key} {contract} {holder}");
+                }
+            }
+        }
+        let token = case["token"].as_str().unwrap();
+        assert!(case["added_since_v074"][token].as_object().is_some_and(|added| !added.is_empty()), "{file}");
+    }
+}
+
 /// Captured Ethereum block 26,174,479, transaction 178
 /// (`fixtures/v074/eth-26174479-scrvusd-report.pb`): a report of scrvUSD, a
 /// Yearn v3 vault (Vyper), writes the vault's own word, 5480155112664263237347
@@ -1899,12 +2022,13 @@ fn captured_liquorice_share_tokens_get_no_rows() {
 /// a rebasing holder: OUSD `0x6e3fddab…` receives 64746254124984710421885
 /// for 39446154778387942038879160434345 credits, and OETH `0x6a059587…` sends
 /// 41864840289475 for 35753149851027605918364. v0.7.3 emitted their credits,
-/// where the RPC era reads 283386425981817071165976 and 244087121381851; the
-/// thousandfold mismatch now drops both tokens for the block, with the rows
-/// of their non-rebasing holders. The block's other tokens keep their rows.
-/// Made exact, the rebasing holder's write brings the token's rows back.
+/// where the RPC era reads 283386425981817071165976 and 244087121381851; in
+/// v0.7.4 the thousandfold mismatch dropped both tokens for the block, with
+/// the rows of their non-rebasing holders. Since v0.7.5 (owner, 2026-11-04)
+/// only the rebasing holder gets no row: the non-rebasing holders keep the
+/// rows that the rebasing holder's write, made exact, gives besides its own.
 #[test]
-fn captured_rebasing_holders_drop_ousd_and_oeth() {
+fn captured_rebasing_holders_get_no_ousd_or_oeth_row() {
     struct Case {
         bytes: &'static [u8],
         token: &'static str,
@@ -1938,8 +2062,9 @@ fn captured_rebasing_holders_drop_ousd_and_oeth() {
     };
     for case in cases {
         let block = eth::Block::decode_from_slice(case.bytes).unwrap();
-        let others = all(&block);
-        assert!(!others.is_empty() && others.iter().all(|r| r.0 != case.token), "{}", case.token);
+        let original = all(&block);
+        let of_token = |rows: &[(String, String, String)]| rows.iter().filter(|r| r.0 == case.token).cloned().collect::<Vec<_>>();
+        assert!(of_token(&original).iter().all(|r| r.1 != case.holder), "{}", case.token);
         // The rebasing holder's credits under slot 157 move far more than the
         // flow; set them to move by exactly the flow.
         let mut pre = [0u8; 64];
@@ -1960,10 +2085,12 @@ fn captured_rebasing_holders_drop_ousd_and_oeth() {
         }
         assert_eq!(written, 1);
         let restored = all(&exact);
-        let token: Vec<_> = restored.iter().filter(|r| r.0 == case.token).collect();
+        let token = of_token(&restored);
         assert_eq!(token.len(), case.rows, "{}", case.token);
         assert!(token.iter().any(|r| r.1 == case.holder));
-        assert_eq!(restored.len(), others.len() + case.rows);
+        let without: Vec<_> = token.iter().filter(|r| r.1 != case.holder).cloned().collect();
+        assert_eq!(of_token(&original), without, "{}", case.token);
+        assert_eq!(restored.len(), original.len() + 1);
     }
 }
 

@@ -58,7 +58,11 @@ a live step too.
   after the one retry that v0.7.4 takes outside them, as native v0.7.9 does,
   with a failed SetCode transaction's unapplicable self-authorization marked
   discarded; inference never fails a block and drops a contract's rows for
-  the block on any doubt.
+  the block on any doubt about the contract. Since v0.7.5 (owner,
+  2026-11-04) a doubt about one holder's word, a word at or above 2^128, a
+  delta a thousand times off its flow or a `balanceOf` that clears the
+  word's high bits, drops only that holder's row, and a FiatToken blacklist
+  flag written after an explained transfer keeps the transfer's word.
   Undetected computed balances remain possible: its rows are measured, not
   qualified. Its candidates are the RPC reference's `(contract, holder)`
   pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender

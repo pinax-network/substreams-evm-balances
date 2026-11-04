@@ -1,7 +1,7 @@
 {
  "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-10-17 for the v0.7.4 investigation. A case with a provenance field is an earlier capture described there.",
  "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits.",
- "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block (except for the earlier captures, whose full blocks are not kept); added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.4 gives it, except where added_since_v074 lists the rows v0.7.5 adds (fixtures/v075/cases.json, rule R1); v0.7.5 gives every other row identically. Each fixture row was checked offline to equal the row v0.7.4 gives for the same pair on the full source block (except for the earlier captures, whose full blocks are not kept); added_since_v073 lists the pairs v0.7.3 does not emit on the fixture.",
  "rpc_era": "Read-only, 2026-10-17: the RPC-era database (mainnet:, bsc: or polygon:evm-balances@v0.3.3), table historical_erc20_balances_state, interval_min = 1. For each fixture row, the 1-minute bar of the block's minute is read at the block when the bar starts (open) or ends (close) there; holders without such a bar are not listed. A case's rpc_era.method, where present, replaces this method.",
  "keyed": "A calls entry's keyed, where present, states whether the call or its DELEGATECALL members record a verified 64-byte preimage of pad(input[16..36]) in either key order (pad(holder) || slot or slot || pad(holder)), so whether v0.7.4 reads it as keyed.",
  "cases": [
@@ -3331,7 +3331,7 @@
    ],
    "selection": "transaction 58, the block's only OUSD transaction; the USDC and USDT rows of 0x000000000004444c... (the Uniswap v4 PoolManager), which later transactions of the block change, are its words after transaction 58, not the block's",
    "rule": "R3",
-   "demonstrates": "a CoW settlement (0x9008d19f...) moves OUSD from the non-rebasing accounts 0x000000000004444c..., 0xdbdc27b6... and 0x6d18e1a7... to itself (calls 108, 135, 181) and from itself to the rebasing holder 0x6e3fddab... (call 183); OUSD (Origin, proxy 0x2a8e1e67..., implementation 0xa7b7c59a...) keeps credits under slot 157, the balance for a non-rebasing account and about 6.09e8 times it for a rebasing one. The non-rebasing sides vote exactly for slot 157; 0x6e3fddab... receives 64746254124984710421885 for 39446154778387942038879160434345 credits. v0.7.3 emitted its credits; since R3 the thousandfold mismatch drops OUSD for the block, with the rows of its four non-rebasing holders",
+   "demonstrates": "a CoW settlement (0x9008d19f...) moves OUSD from the non-rebasing accounts 0x000000000004444c..., 0xdbdc27b6... and 0x6d18e1a7... to itself (calls 108, 135, 181) and from itself to the rebasing holder 0x6e3fddab... (call 183); OUSD (Origin, proxy 0x2a8e1e67..., implementation 0xa7b7c59a...) keeps credits under slot 157, the balance for a non-rebasing account and about 6.09e8 times it for a rebasing one. The non-rebasing sides vote exactly for slot 157; 0x6e3fddab... receives 64746254124984710421885 for 39446154778387942038879160434345 credits. v0.7.3 emitted its credits; in v0.7.4 (R3) the thousandfold mismatch dropped OUSD for the block, with the rows of its four non-rebasing holders; since v0.7.5 (R1 of fixtures/v075) only 0x6e3fddab... gets no row, and the four keep theirs (added_since_v074), each equal to balanceOf at the block (Pinax archive RPC, 2026-11-04)",
    "calls": [
     {
      "tx": 58,
@@ -3347,6 +3347,12 @@
     }
    ],
    "rows": {
+    "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "20548144781148038484172",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+    },
     "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
      "0x000000000004444c5dc75cb358380d2e3de08a90": "769584542039751750654685",
      "0x52aa899454998be5b000ad077a46bbe360f4e497": "477873719538548020765707",
@@ -3425,6 +3431,14 @@
      }
     },
     "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   },
+   "added_since_v074": {
+    "0x2a8e1e676ec238d8a992307b495b45b3feaa5e86": {
+     "0x000000000004444c5dc75cb358380d2e3de08a90": "20548144781148038484172",
+     "0x6d18e1a7faeb1f0467a77c0d293872ab685426dc": "481099278529358385809251",
+     "0x9008d19f58aabd9ed0d60971565aa8510560ab41": "18034074019049773855",
+     "0xdbdc27b649239f9c5afdc92e57c2601a0ce71a89": "18455284236453077003616"
+    }
    }
   },
   {
@@ -3441,7 +3455,7 @@
    ],
    "selection": "transaction 308, the block's only OETH transaction",
    "rule": "R3",
-   "demonstrates": "the rebasing holder 0x6a059587... (the transaction's sender) swaps 41864840289475 OETH through the Uniswap router 0x68b34658... into the pool 0x52299416..., a non-rebasing account (call 9, OETH proxy 0x856c4efb..., implementation 0xd86756db...); the pool's word under slot 157 votes exactly, and its keyed balanceOf (calls 5 and 10) returns its word, while 0x6a059587... gives 35753149851027605918364 credits, about 8.54e8 times the flow. v0.7.3 emitted those credits; since R3 the thousandfold mismatch drops OETH for the block, with the pool's row",
+   "demonstrates": "the rebasing holder 0x6a059587... (the transaction's sender) swaps 41864840289475 OETH through the Uniswap router 0x68b34658... into the pool 0x52299416..., a non-rebasing account (call 9, OETH proxy 0x856c4efb..., implementation 0xd86756db...); the pool's word under slot 157 votes exactly, and its keyed balanceOf (calls 5 and 10) returns its word, while 0x6a059587... gives 35753149851027605918364 credits, about 8.54e8 times the flow. v0.7.3 emitted those credits; in v0.7.4 (R3) the thousandfold mismatch dropped OETH for the block, with the pool's row; since v0.7.5 (R1 of fixtures/v075) only 0x6a059587... gets no row, and the pool keeps its row (added_since_v074), equal to balanceOf at the block (Pinax archive RPC, 2026-11-04)",
    "calls": [
     {
      "tx": 308,
@@ -3459,6 +3473,9 @@
     }
    ],
    "rows": {
+    "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+     "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151"
+    },
     "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": {
      "0x52299416c469843f4e0d54688099966a6c7d720f": "1808148704327265",
      "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45": "0"
@@ -3492,6 +3509,11 @@
      }
     },
     "method": "Read-only, 2026-10-18, by the method above, for every row of the full block; the fixture rows whose pair has a bar opening or closing at the block are listed, and each equals it. dropped gives the RPC-era values at the block of the pairs that v0.7.3 emitted for the token (v073) and R3 no longer emits: only the rebasing holder's differs from its v0.7.3 row. OUSD's 0x000000000004444c... has a bar from 26197321 to 26197323, so no value at the block, and is not listed."
+   },
+   "added_since_v074": {
+    "0x856c4efb76c1d1ae02e20ceb03a2a6a08b0b8dc3": {
+     "0x52299416c469843f4e0d54688099966a6c7d720f": "73849895012455151"
+    }
    }
   }
  ],
