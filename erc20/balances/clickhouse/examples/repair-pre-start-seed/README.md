@@ -63,19 +63,25 @@ environment and never print them. Each works in a directory per chain.
    blocks.
 5. **Apply** with admin credentials, from the chain directory, one step at a
    time:
-   `CHAIN=<chain> CH_URL=... CH_USER=... CH_PASSWORD=... ../apply.sh create|check|bars|rows|verify|drop`.
+   `CHAIN=<chain> CH_URL=... CH_USER=... CH_PASSWORD=... ../apply.sh create|check|bars|progress|rows|verify|drop`.
    `create` loads the rows into a replicated staging table created
    `ON CLUSTER`. `check` shows the counts; every staging pair should still
-   be current below S. `bars` deletes the history bars in the corrected
-   rows' windows below the hour after S-1 with one mutation on the
+   be current below S. `bars` submits the deletion of the history bars in
+   the corrected rows' windows below the hour after S-1, one mutation on the
    replicated state table (`allow_nondeterministic_mutations=1`, since the
    subquery reads the replicated staging table, after checking that both
-   replicas hold the same staging rows; `mutations_sync=2`). `rows` inserts
-   the corrected rows into `erc20_balances`, and the existing materialized
-   view rebuilds their 1h, 4h, 1d and 1w bars. A corrected row carries the
-   seeded row's block or S-1, so it supersedes the seeded row in the
-   `ReplacingMergeTree`. A pair the live sink writes meanwhile holds a
-   newer row and is untouched.
+   replicas hold the same staging rows), and returns. The mutation rewrites
+   the whole state table on each replica: on Arbitrum One, 2.06 billion
+   rows, it ran for hours. `progress` shows the bars still to delete and
+   the mutation's state on each replica. `rows` inserts the corrected rows
+   into `erc20_balances`, and the existing materialized view rebuilds their
+   1h, 4h, 1d and 1w bars; it is safe while the mutation runs, which only
+   touches parts that existed when it was submitted. A corrected row carries
+   the seeded row's block or S-1, so it supersedes the seeded row in the
+   `ReplacingMergeTree`, the later insert winning a tie on reads with
+   `FINAL` and at the next merge. A pair the live sink writes meanwhile
+   holds a newer row and is untouched. `drop` refuses while a mutation on
+   the state table is not done, since its subquery reads the staging table.
 6. **Check the database**: `check_rows.py <chain-dir> <S> <n>` (with
    `CHAIN`, `RPC_ID` and read-only ClickHouse access) samples seeded pairs,
    reads their current rows, and compares each row still current below S
