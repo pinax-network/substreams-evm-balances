@@ -1,0 +1,543 @@
+{
+ "observed_on": "2026-11-03",
+ "method": "scripts/check-db-erc20-balances (erc20check.py)",
+ "scope": "Sampled rows of each <chain>:evm-balances-erc20@v0.7.4 database on cluster C checked with balanceOf at the row block and at a fixed head block (the database cursor), recipients of the last 24 h of ERC-20 transfers from <chain>:evm-transfers@v0.3.3 checked for a row, the 20 top tokens sum against totalSupply(), and on the Etherscan free-tier chains 1,000 pairs against Etherscan tokenbalance. Read-only.",
+ "sample": "top 1,000 holders of the 20 tokens with the most distinct senders in 24 h that the database holds rows for, plus 900 random (contract, holder) pairs per raw-balance band (zero, <1e6, 1e6-1e12, 1e12-1e18, >=1e18) and up to 900 rows written in the last 24 h, from the 0x1a address slice",
+ "chains": {
+  "mainnet": {
+   "database": "mainnet:evm-balances-erc20@v0.7.4",
+   "head_block_H": 26336826,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 888,
+     "freshness_differs": 12,
+     "precision_mismatch": 1
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 895,
+     "freshness_equal": 890,
+     "precision_mismatch": 5,
+     "freshness_differs": 10
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 887,
+     "freshness_unknown": 2,
+     "freshness_differs": 11,
+     "precision_mismatch": 1
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "recent": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 897,
+     "freshness_differs": 1,
+     "freshness_moved_after_H": 2
+    },
+    "top": {
+     "rows": 18264,
+     "precision_equal": 18264,
+     "freshness_equal": 17958,
+     "freshness_moved_after_H": 48,
+     "freshness_differs": 258
+    }
+   },
+   "coverage": {
+    "random": {
+     "empty_no_row": 201,
+     "served_equal": 1103,
+     "unknown": 692,
+     "empty_zero_row": 934,
+     "missing": 65,
+     "served_differs": 5
+    },
+    "top": {
+     "served_equal": 1011,
+     "empty_zero_row": 989
+    }
+   },
+   "etherscan": {
+    "es_eq_node/db_eq_es": 980,
+    "es_ne_node/db_ne_es": 5,
+    "es_eq_node/db_ne_es": 15
+   }
+  },
+  "bsc": {
+   "database": "bsc:evm-balances-erc20@v0.7.4",
+   "head_block_H": 131501984,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 896,
+     "freshness_differs": 4,
+     "precision_mismatch": 1
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 896,
+     "freshness_differs": 3,
+     "freshness_unknown": 1
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "recent": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 898,
+     "freshness_differs": 2
+    },
+    "top": {
+     "rows": 16004,
+     "precision_equal": 16004,
+     "freshness_equal": 15862,
+     "freshness_moved_after_H": 142
+    }
+   },
+   "coverage": {
+    "random": {
+     "missing": 1256,
+     "served_equal": 1213,
+     "empty_zero_row": 255,
+     "unknown": 231,
+     "empty_no_row": 39,
+     "served_differs": 6
+    },
+    "top": {
+     "served_equal": 1313,
+     "empty_zero_row": 619,
+     "empty_no_row": 68
+    }
+   },
+   "etherscan": "not on the free tier"
+  },
+  "base": {
+   "database": "base:evm-balances-erc20@v0.7.4",
+   "head_block_H": 53475374,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "recent": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_moved_after_H": 1
+    },
+    "top": {
+     "rows": 18002,
+     "precision_equal": 18002,
+     "freshness_moved_after_H": 102,
+     "freshness_equal": 17763,
+     "freshness_differs": 137
+    }
+   },
+   "coverage": {
+    "random": {
+     "served_equal": 1495,
+     "missing": 696,
+     "unknown": 293,
+     "empty_zero_row": 456,
+     "empty_no_row": 55,
+     "served_differs": 5
+    },
+    "top": {
+     "served_equal": 1195,
+     "empty_zero_row": 757,
+     "served_differs": 3,
+     "empty_no_row": 45
+    }
+   },
+   "etherscan": "not on the free tier"
+  },
+  "arbitrum-one": {
+   "database": "arbitrum-one:evm-balances-erc20@v0.7.4",
+   "head_block_H": 520985477,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 885,
+     "freshness_unknown": 11,
+     "freshness_differs": 4
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 895,
+     "freshness_unknown": 2,
+     "freshness_differs": 3,
+     "precision_unknown": 1
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 898,
+     "freshness_differs": 2
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "recent": {
+     "rows": 835,
+     "precision_equal": 835,
+     "freshness_equal": 835
+    },
+    "top": {
+     "rows": 18915,
+     "precision_equal": 18909,
+     "freshness_equal": 18846,
+     "freshness_moved_after_H": 11,
+     "precision_mismatch": 6,
+     "freshness_differs": 58
+    }
+   },
+   "coverage": {
+    "random": {
+     "unknown": 480,
+     "served_equal": 1371,
+     "empty_zero_row": 1096,
+     "missing": 30,
+     "empty_no_row": 20,
+     "served_differs": 3
+    },
+    "top": {
+     "served_equal": 1068,
+     "empty_zero_row": 932
+    }
+   },
+   "etherscan": {
+    "es_eq_node/db_eq_es": 987,
+    "es_ne_node/db_ne_es": 10,
+    "es_eq_node/db_ne_es": 3
+   }
+  },
+  "optimism": {
+   "database": "optimism:evm-balances-erc20@v0.7.4",
+   "head_block_H": 159070888,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 801,
+     "freshness_differs": 98,
+     "freshness_unknown": 1
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 882,
+     "freshness_differs": 18
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 891,
+     "freshness_unknown": 1,
+     "freshness_differs": 8,
+     "precision_mismatch": 1
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 895,
+     "freshness_differs": 5
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_unknown": 1
+    },
+    "recent": {
+     "rows": 270,
+     "precision_equal": 270,
+     "freshness_equal": 270
+    },
+    "top": {
+     "rows": 18238,
+     "precision_equal": 18238,
+     "freshness_equal": 18185,
+     "freshness_moved_after_H": 53
+    }
+   },
+   "coverage": {
+    "random": {
+     "served_equal": 1571,
+     "empty_zero_row": 645,
+     "empty_no_row": 643,
+     "unknown": 123,
+     "served_differs": 5,
+     "missing": 13
+    },
+    "top": {
+     "served_equal": 779,
+     "empty_zero_row": 1221
+    }
+   },
+   "etherscan": "not on the free tier"
+  },
+  "polygon": {
+   "database": "polygon:evm-balances-erc20@v0.7.4",
+   "head_block_H": 96690116,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 898,
+     "freshness_equal": 898,
+     "freshness_unknown": 1,
+     "precision_mismatch": 1,
+     "freshness_differs": 1,
+     "precision_unknown": 1
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 897,
+     "freshness_unknown": 1,
+     "freshness_differs": 2
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 899,
+     "freshness_equal": 893,
+     "freshness_unknown": 5,
+     "precision_mismatch": 1,
+     "freshness_differs": 2
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 898,
+     "freshness_unknown": 2
+    },
+    "recent": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "top": {
+     "rows": 16004,
+     "precision_equal": 16003,
+     "freshness_equal": 15974,
+     "freshness_moved_after_H": 28,
+     "precision_unknown": 1,
+     "freshness_differs": 2
+    }
+   },
+   "coverage": {
+    "random": {
+     "served_equal": 1310,
+     "unknown": 262,
+     "empty_zero_row": 769,
+     "missing": 561,
+     "empty_no_row": 97,
+     "served_differs": 1
+    },
+    "top": {
+     "served_equal": 1157,
+     "empty_zero_row": 764,
+     "empty_no_row": 79
+    }
+   },
+   "etherscan": {
+    "es_eq_node/db_eq_es": 987,
+    "es_ne_node/db_ne_es": 13
+   }
+  },
+  "unichain": {
+   "database": "unichain:evm-balances-erc20@v0.7.4",
+   "head_block_H": 62992354,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:1e6-1e12": {
+     "rows": 858,
+     "precision_equal": 858,
+     "freshness_equal": 857,
+     "freshness_differs": 1
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:lt1e6": {
+     "rows": 439,
+     "precision_equal": 439,
+     "freshness_equal": 439
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "recent": {
+     "rows": 13,
+     "precision_equal": 13,
+     "freshness_equal": 13
+    },
+    "top": {
+     "rows": 17425,
+     "precision_equal": 17425,
+     "freshness_equal": 17425
+    }
+   },
+   "coverage": {
+    "random": {
+     "served_equal": 2226,
+     "unknown": 127,
+     "empty_zero_row": 634,
+     "empty_no_row": 9,
+     "missing": 4
+    },
+    "top": {
+     "served_equal": 1554,
+     "empty_zero_row": 446
+    }
+   },
+   "etherscan": {
+    "es_eq_node/db_eq_es": 996,
+    "es_ne_node/db_ne_es": 3,
+    "es_eq_node/db_ne_es": 1
+   }
+  },
+  "hyperevm": {
+   "database": "hyperevm:evm-balances-erc20@v0.7.4",
+   "head_block_H": 50308739,
+   "check_by_stratum": {
+    "rand:1e12-1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 897,
+     "freshness_differs": 3
+    },
+    "rand:1e6-1e12": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "rand:ge1e18": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 895,
+     "freshness_differs": 5
+    },
+    "rand:lt1e6": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 900
+    },
+    "rand:zero": {
+     "rows": 900,
+     "precision_equal": 900,
+     "freshness_equal": 899,
+     "freshness_differs": 1
+    },
+    "recent": {
+     "rows": 95,
+     "precision_equal": 95,
+     "freshness_equal": 94,
+     "freshness_moved_after_H": 1
+    },
+    "top": {
+     "rows": 19002,
+     "precision_equal": 19002,
+     "freshness_equal": 18952,
+     "freshness_moved_after_H": 50
+    }
+   },
+   "coverage": {
+    "random": {
+     "unknown": 851,
+     "served_equal": 1242,
+     "empty_zero_row": 836,
+     "missing": 56,
+     "served_differs": 5,
+     "empty_no_row": 10
+    },
+    "top": {
+     "served_equal": 1082,
+     "empty_zero_row": 876,
+     "missing": 36,
+     "empty_no_row": 6
+    }
+   },
+   "etherscan": {
+    "es_eq_node/db_eq_es": 992,
+    "es_ne_node/db_ne_es": 6,
+    "es_eq_node/db_ne_es": 2
+   }
+  }
+ }
+}

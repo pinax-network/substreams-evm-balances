@@ -283,6 +283,15 @@ Arbitrum One.
   [`optimism-pre-bedrock-seed-fix-2026-11-03.json`](../native/balances/docs/evidence/optimism-pre-bedrock-seed-fix-2026-11-03.json).
   Arbitrum One's seed showed no such defect in the same check (67 sampled
   pre-Nitro rows, all equal).
+- **Correction prepared (2026-11-03, ERC-20, both chains).** The ERC-20
+  chain check found stale seeded rows: right at their own block, then
+  changed before S without the RPC era recording it. On Arbitrum One they
+  include a holder of 608 quadrillion USD₮0 and one of 3.4 trillion bridged
+  USDC who hold nothing on chain. Every seeded row of both cluster C ERC-20
+  databases was read at S-1, and the differing rows are prepared for an
+  in-place correction: 62,827 of 2,275,584 on Arbitrum One and 424,010 of
+  11,985,028 on Optimism. Not applied yet. Procedure and counts:
+  [`repair-pre-start-seed`](../erc20/balances/clickhouse/examples/repair-pre-start-seed/).
 
 ## Live sinks
 
