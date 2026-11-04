@@ -1042,6 +1042,40 @@ fn unexplained_writes_need_the_holders_own_read() {
     assert_eq!(after(&flag, vec![masked(50 * U)]), credited);
     assert!(after(&flag, vec![masked(49 * U)]).is_empty());
     assert_eq!(after(&silent, vec![]), vec![r(A, 70), r(B, 25)]);
+    // A masked read is checked against the word stored where it runs, not
+    // against the holder's final word: credit C to 50U, blacklist, read 50U,
+    // unblacklist, credit C to 50U + 10 and blacklist again gives the last
+    // credit's word.
+    let flagged = |v: u64| {
+        let mut out = w(v);
+        out[0] |= 0x80;
+        out
+    };
+    let toggle = |topic: &str, old: Vec<u8>, new: Vec<u8>, ordinal: u64| {
+        let mut c = root();
+        c.logs = vec![eth::Log {
+            address: TOKEN.to_vec(),
+            topics: vec![hex::decode(topic).unwrap(), pad(&C)],
+            ..Default::default()
+        }];
+        store_word(&mut c, C, BASE, old, new, ordinal);
+        vec![c]
+    };
+    const UNBLACKLISTED: &str = "117e3210bb9aa7d9baff172026820255c6f6c30ba8999d1c2fd88e2848137c4e";
+    let mut second = root();
+    second.logs = vec![transfer(B, C, 10)];
+    store(&mut second, B, BASE, 25, 15, 35);
+    store_word(&mut second, C, BASE, w(50 * U), w(50 * U + 10), 36);
+    let txs = vec![
+        vec![simple()],
+        vec![credit.clone()],
+        toggle(BLACKLISTED, w(50 * U), flagged(50 * U), 20),
+        router(vec![balance_of(2, C, BASE, 50 * U, 25)]),
+        toggle(UNBLACKLISTED, flagged(50 * U), w(50 * U), 30),
+        vec![second],
+        toggle(BLACKLISTED, w(50 * U + 10), flagged(50 * U + 10), 40),
+    ];
+    assert_eq!(rows(&block(txs)), vec![r(A, 70), r(B, 15), r(C, 50 * U + 10)]);
     // A read before `unBlacklist(C)` saw the flagged word, masked.
     let mut unflag = root();
     unflag.logs = vec![eth::Log {

@@ -80,9 +80,11 @@
 //!    that returns the stored word without that bit does not contradict it
 //!    when the write that supplies the word only toggles bit 255 in a frame
 //!    whose `Blacklisted` or `UnBlacklisted` names the holder, and that holder
-//!    then gets no row. Since v0.7.5 a holder whose writes after an explained
-//!    one in the block only toggle that flag in such frames gets the
-//!    explained word (see [`flagged_after`]). Candidate holders without a
+//!    then got no row in v0.7.4. Since v0.7.5 such a read is checked only
+//!    against the word stored where it runs, and the holder's row follows
+//!    from its writes: a holder whose writes after an explained one in the
+//!    block only toggle that flag in such frames gets the explained word (see
+//!    [`flagged_after`]), and a flagged word gets no row (2^128). Candidate holders without a
 //!    write get the value of a keyed `balanceOf` that read exactly the base.
 //!    A word at or above 2^128 holds another field next to the balance: since
 //!    v0.7.5 its holder gets no row, and v0.7.4 dropped the contract.
@@ -1302,28 +1304,33 @@ fn decide(
     let mut values = BTreeMap::new();
     // A FiatToken read of a word whose flag a `Blacklisted`/`UnBlacklisted`
     // frame set or cleared: it returns the word without bit 255. The read
-    // still checks the other 255 bits; its holder gets no row.
+    // still checks the other 255 bits.
     let masks = |w: &Write, stored: &Word, value: &Word, holder: &Addr| {
-        let mut flag = [0; 32];
-        flag[0] = 0x80;
-        let toggled = std::array::from_fn::<u8, 32, _>(|i| w.old[i] ^ w.new[i]) == flag;
-        let unmasked = std::array::from_fn::<u8, 32, _>(|i| value[i] | flag[i]);
+        let toggled = std::array::from_fn::<u8, 32, _>(|i| w.old[i] ^ w.new[i]) == FLAG;
+        let unmasked = std::array::from_fn::<u8, 32, _>(|i| value[i] | FLAG[i]);
         toggled && value[0] & 0x80 == 0 && *stored == unmasked && names.flags.contains(&(w.frame, *holder))
     };
-    // Holders whose read returned less than their stored word, with the
-    // values read: such a holder keeps a row only of exactly that value.
-    let mut masked = BTreeMap::<Addr, BTreeSet<Word>>::new();
+    // Holders whose read shows their word is not their balance (a packed word
+    // whose high bits the read cleared, or a rescaled holder): no row.
+    let mut masked = BTreeSet::new();
     for r in reads.iter().filter(|r| r.persisted) {
         match by_key.get(&base.key(&r.holder)) {
             Some(ws) => match stored_at(ws, r) {
                 Some((_, s)) if s == r.value => {}
+                // FiatToken masks its flag: the read checks the other 255
+                // bits of the word stored at its execution point, and the
+                // holder's row follows from its writes: the explained word
+                // after a blacklist (`flagged_after`), and none for a flagged
+                // word (2^128). Since v0.7.5 a later write no longer meets
+                // the value this read saw.
+                Some((w, s)) if masks(w, &s, &r.value, &r.holder) => {}
                 // Since v0.7.5 (owner, 2026-11-04) a read of a rescaled
                 // holder, or one that returns the stored word with its bits
                 // from some k >= 64 up cleared (a packed word: AaveTokenV3
                 // keeps delegation state above a 104-bit balance), leaves
                 // that holder without a row instead of dropping the contract.
-                Some((w, s)) if masks(w, &s, &r.value, &r.holder) || rescaled.contains(&r.holder) || high_cleared(&s, &r.value) => {
-                    masked.entry(r.holder).or_default().insert(r.value);
+                Some((_, s)) if rescaled.contains(&r.holder) || high_cleared(&s, &r.value) => {
+                    masked.insert(r.holder);
                 }
                 Some(_) => return None,
                 None => {}
@@ -1378,8 +1385,7 @@ fn decide(
     if shadowed {
         values.retain(|holder, _| read.contains_key(holder));
     }
-    values.retain(|holder, value| masked.get(holder).is_none_or(|read| read.iter().all(|r| r == value)));
-    values.retain(|holder, _| !rescaled.contains(holder));
+    values.retain(|holder, _| !masked.contains(holder) && !rescaled.contains(holder));
     Some(values)
 }
 

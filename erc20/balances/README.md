@@ -165,12 +165,13 @@ longer recorded preimages are never decoded. Per block and per contract
    write), that holder needs its own keyed `balanceOf`, traced after that
    write: a read before it saw only the earlier word. FiatToken v2.2's
    blacklist flag, which its `balanceOf` masks, is never vouched this way:
-   since v0.7.4 a read that returns the flagged word without the flag leaves
-   that holder without a row instead of dropping the token
-   ([FiatToken blacklists](#limits)). Since v0.7.5 (owner, 2026-11-04) a
-   holder whose writes after an explained one in the block only toggle that
-   flag, each in a frame whose `Blacklisted` or `UnBlacklisted` names it, gets
-   the explained word, which `balanceOf` returns. Since v0.7.4 a Tether `Issue`/`Redeem`
+   since v0.7.4 a read that returns the flagged word without the flag does
+   not drop the token ([FiatToken blacklists](#limits)). Since v0.7.5 (owner,
+   2026-11-04) a holder whose writes after an explained one in the block only
+   toggle that flag, each in a frame whose `Blacklisted` or `UnBlacklisted`
+   names it, gets the explained word, which `balanceOf` returns; such a read
+   is checked against the word stored where it runs, not against a later
+   one. Since v0.7.4 a Tether `Issue`/`Redeem`
    (for the frame's sender) or `DestroyedBlackFunds` in the frame also
    explains the write when its amount equals the frame's net change of the
    holder's word, a destruction also leaving it at zero. The contract's own
@@ -425,8 +426,12 @@ and holders.
   does not contradict the stored word when it returns the word without bit
   255, that write changes only bit 255, and its frame emits `Blacklisted` or
   `UnBlacklisted` naming the holder. The read still checks the other 255
-  bits; the holder gets no row in that block, and the token keeps its other
-  rows. In v0.7.3 such a read dropped all of the token's rows for the block.
+  bits of the word stored where it runs, and the token keeps its other
+  rows. In v0.7.4 the holder got no row in that block; since v0.7.5 its row
+  follows from its writes (rule 6), so a holder credited, blacklisted, read,
+  unblacklisted, credited again and blacklisted again in one block gets the
+  last credit's word. In v0.7.3 such a read dropped all of the token's rows
+  for the block.
   Since v0.7.5 any other read that clears high bits of the word leaves only
   its holder without a row (rule 4); v0.7.4 dropped the token for the block.
   Without such a read, the flagged holder's write is unexplained and only
