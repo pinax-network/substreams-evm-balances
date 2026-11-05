@@ -174,7 +174,12 @@ longer recorded preimages are never decoded. Per block and per contract
    no other exactly matching mapping, mismatches below a thousandth of the
    flow (counters) are ignored: HEX's `stakeStart` burns with a `Transfer`
    and bumps the holder's stake-list length in the same frame, which v0.7.5
-   took as a second holder mapping when it was the token's only vote.
+   took as a second holder mapping when it was the token's only vote. Since
+   v0.7.6 a mismatch of at least a thousand times the flow that is no whole
+   multiple of it never counts: a packed struct beside the balance, such as
+   sUSDe's cooldown (an end time and an amount of USDe), which left 17,173
+   of sUSDe's 69,226 rows stale. A reflection token's `rOwned` moves by the
+   flow times the rate, a whole multiple, and still counts.
 6. **Rows**: candidate holders written under the base get their last persisted
    word. If that write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
    naming a holder other than the contract itself (an admin, a sync or a flag
@@ -472,8 +477,9 @@ and holders.
   its flow; Base's `0xb2000000…` tokens are implemented by the client, with
   the code byte `0xef` and no Keccak preimages, under keys that no standard
   order matches; and WUSD (Base) and sUSDe keep a per-holder deposit total
-  or cooldown struct next to the balance, which ties or shadows it in blocks
-  where one holder's mint, burn or cooldown is the token's only activity.
+  struct next to the balance, which ties or shadows it in blocks where one
+  holder's mint or burn is the token's only activity (since v0.7.6 sUSDe's
+  cooldown struct no longer shadows it).
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
   ([native](../../native/balances/README.md#execution-order-v078)). Until
@@ -563,12 +569,16 @@ the same value and adds 51, each equal to `balanceOf` at its block: 30 AAVE,
 address. It is written to `<chain>:evm-balances-erc20@v0.7.5`, by a full
 resync. v0.7.6 (owner, 2026-11-05) adds three rules from replaying blocks of
 tokens that v0.7.5 drops or never infers: Solady's key order (rule 2),
-DSToken mints and burns without a `Transfer` (rule 2) and counters beside a
-single exact vote (rule 5). On 135 blocks and fixtures (the stale-holder and
-random blocks of v0.7.5, 18 blocks of the newly investigated tokens) it
-keeps every v0.7.5 row with the same value and adds 762, each equal to
-`balanceOf` at its block: 750 of Solady tokens (pUSD, AERO and others), 11
-from single exact votes (HEX among them) and 1 from an MKR burn. Since it
+DSToken mints and burns without a `Transfer` (rule 2), counters beside a
+single exact vote and packed structs beside the balance (rule 5). On 136
+blocks and fixtures (the stale-holder and random blocks of v0.7.5, 19 blocks
+of the newly investigated tokens) it keeps every v0.7.5 row with the same
+value and adds 768, each equal to `balanceOf` at its block: 750 of Solady
+tokens (pUSD, AERO and others), 11 from single exact votes (HEX among them),
+6 beside packed structs (sUSDe, stkAAVE) and 1 from an MKR burn. Rows that
+earlier versions left stale stay so until the holder moves; the
+[stale-holder repair](clickhouse/examples/repair-stale-holders/) rewrites
+them at one block. Since it
 adds rows for past blocks, a v0.7.6 database is filled by a full resync; it
 also continues a v0.7.5 or v0.7.4 database, as v0.7.5 does. Before v0.7.0 it was
 `erc20_balances`:
@@ -627,7 +637,8 @@ Arbitrum One USDG blocks with packed accounts and the USDC blacklist after a
 credit; each row that equals the full block's equals `balanceOf` at the
 block. The v0.7.6 captures in
 [`tests/fixtures/v076/`](tests/fixtures/v076/) (pUSD and AERO, an MKR burn
-without a `Transfer`, HEX's `stakeStart`) do the same against v0.7.5. The
+without a `Transfer`, HEX's `stakeStart`, sUSDe's `cooldownShares`) do the
+same against v0.7.5. The
 same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested

@@ -71,7 +71,9 @@
 //!    the chosen one matches them, only holders with their own keyed
 //!    `balanceOf` keep rows. With two or more exact votes, or since v0.7.6 one
 //!    whose flow is not dust, and no other mapping matching, only mismatches
-//!    of at least a thousandth of the flow count.
+//!    of at least a thousandth of the flow count. Since v0.7.6 a mismatch of
+//!    at least a thousand times the flow that is no whole multiple of it
+//!    never counts (see [`unrelated`]).
 //! 6. Candidate holders written under the base get their last persisted word,
 //!    unless that write is unexplained. A write is explained when its frame has
 //!    a `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn` naming the holder, or a
@@ -468,6 +470,38 @@ fn rescaled(flow: &Net, delta: &Net) -> bool {
     let (f, d) = (flow.abs(), delta.abs());
     !delta.is_zero() && (thousandfold(f, d) || thousandfold(d, f))
 }
+/// `b` divides `a` for magnitudes (little-endian limbs below 2^319), `b`
+/// nonzero: binary long division.
+fn divides(b: [u64; 5], a: [u64; 5]) -> bool {
+    let mut r = [0u64; 5];
+    for i in (0..320).rev() {
+        let mut carry = (a[i / 64] >> (i % 64)) & 1;
+        for limb in r.iter_mut() {
+            let next = *limb >> 63;
+            *limb = (*limb << 1) | carry;
+            carry = next;
+        }
+        if r.iter().rev().cmp(b.iter().rev()).is_ge() {
+            let mut borrow = 0u64;
+            for (x, y) in r.iter_mut().zip(b) {
+                let (d, o1) = x.overflowing_sub(y);
+                let (d, o2) = d.overflowing_sub(borrow);
+                *x = d;
+                borrow = u64::from(o1 || o2);
+            }
+        }
+    }
+    r == [0; 5]
+}
+/// A nonzero flow and a delta of at least a thousand times it that is no
+/// whole multiple of it: a packed struct that moved beside the flow (sUSDe's
+/// cooldown: an end time and an amount of the underlying), not a mapping
+/// that moves with the flow by a rate, as a reflection token's `rOwned`
+/// moves by the flow times the rate.
+fn unrelated(flow: &Net, delta: &Net) -> bool {
+    let (f, d) = (flow.abs(), delta.abs());
+    !flow.is_zero() && thousandfold(f, d) && !divides(f, d)
+}
 /// `|delta| * 1000 >= |flow|`: a mismatch too large for a counter.
 fn large(flow: &Net, delta: &Net) -> bool {
     let (flow, delta) = (flow.abs(), delta.abs());
@@ -754,6 +788,10 @@ struct Tally {
     /// Large mismatches that are also rescaled: they count against the base
     /// only through their holders (see [`choose`]).
     large_rescaled: u32,
+    /// Mismatches of at least a thousand times the flow that are no whole
+    /// multiple of it (see [`unrelated`]): since v0.7.6 they do not shadow
+    /// the base.
+    unrelated: u32,
     /// Holders with a mismatch whose nonzero delta differs from the flow by a
     /// factor of at least 1000 (see [`rescaled`]): their word is in another
     /// unit, and they get no row (since v0.7.5).
@@ -1014,6 +1052,7 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
                 let (large, rescaled) = (large(flow, &delta), rescaled(flow, &delta));
                 tally.large += u32::from(large);
                 tally.large_rescaled += u32::from(large && rescaled);
+                tally.unrelated += u32::from(unrelated(flow, &delta));
                 if rescaled {
                     tally.rescaled.insert(holder);
                 }
@@ -1432,7 +1471,10 @@ fn decide(
     // holder's stake-list length, a counter, in the same frame.
     let single = exact == 1 && tallies[&base].dust == 0;
     let large_only = (exact >= 2 || single) && others().all(|t| t.exact == 0);
-    let shadow: u32 = others().map(|t| if large_only { t.large } else { t.mismatch }).sum();
+    // Since v0.7.6 (owner, 2026-11-05) a mismatch a thousand times the flow
+    // or more that is no whole multiple of it (a packed struct beside the
+    // balance, such as sUSDe's cooldown) does not count.
+    let shadow: u32 = others().map(|t| if large_only { t.large } else { t.mismatch } - t.unrelated).sum();
     // Then a pure `balanceOf` vouches only for its own holder's code path.
     let shadowed = shadow >= exact;
     let mut values = BTreeMap::new();

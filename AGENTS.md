@@ -66,7 +66,9 @@ a live step too.
   Since v0.7.6 (owner, 2026-11-05) Solady's key order `keccak(holder ||
   0^8 || seed)` is a base, a DSToken `mint`/`burn` (MKR) votes in a block
   without a `Transfer` when its writes and calls are exactly the shape, and
-  one non-dust exact vote suffices to ignore counters in other mappings.
+  one non-dust exact vote suffices to ignore counters in other mappings,
+  and a mismatch of at least a thousand times the flow that is no whole
+  multiple of it (a packed struct, sUSDe's cooldown) never shadows the base.
   Undetected computed balances remain possible: its rows are measured, not
   qualified. Its candidates are the RPC reference's `(contract, holder)`
   pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender

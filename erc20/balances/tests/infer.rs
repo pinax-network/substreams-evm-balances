@@ -727,6 +727,28 @@ fn counters_do_not_shadow_a_well_supported_base() {
     assert!(minted(U - 1).is_empty());
 }
 
+/// Since v0.7.6 (owner, 2026-11-05) a mismatch in another mapping of at
+/// least a thousand times the flow that is no whole multiple of it, a packed
+/// struct beside the balance (sUSDe's cooldown: an end time and an amount of
+/// the underlying), does not shadow the base. A mapping that moves by the
+/// flow times a rate (a reflection token's `rOwned`) or within a thousand
+/// times the flow (shares at a rate) still does.
+#[test]
+fn packed_structs_beside_the_balance_do_not_shadow_it() {
+    let burned = |side: u64| {
+        let mut c = root();
+        c.logs = vec![transfer(A, [0; 20], 30 * U)];
+        store(&mut c, A, BASE, 100 * U, 70 * U, 10);
+        store_word(&mut c, A, 15, w(0), w(side), 11);
+        rows(&block(vec![vec![c]]))
+    };
+    // A packed struct: far more than the flow, no multiple of it.
+    assert_eq!(burned(30 * U * 1_000_000 + 7), vec![r(A, 70 * U)]);
+    // Flow times a rate, or shares within a thousandfold: still shadowed.
+    assert!(burned(30 * U * 1_000_000).is_empty());
+    assert!(burned(29 * U).is_empty());
+}
+
 /// Solady's ERC-20 keys a holder's word at `keccak(holder || 0^8 || seed)`
 /// (balances: seed `0x87a211a2`), a 32-byte preimage. Since v0.7.6 (owner,
 /// 2026-11-05) it is a base like Solidity's and Vyper's: it votes, and a read

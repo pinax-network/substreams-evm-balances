@@ -6,7 +6,8 @@
  "rules": {
   "S": "since v0.7.6, Solady's key order keccak(holder || 0^8 || seed), from 32-byte preimages, is a base",
   "D": "since v0.7.6, in a block without a Transfer of the contract, a DSToken mint or burn frame votes when its only calls are DSAuth canCall lookups, its input names guy and wad, and its writes are guy's word and the supply moving by wad, and for a burn by another caller at most the allowance",
-  "C": "since v0.7.6, counters in other mappings do not shadow a base with one exact vote whose flow is not dust (v0.7.5 required two)"
+  "C": "since v0.7.6, counters in other mappings do not shadow a base with one exact vote whose flow is not dust (v0.7.5 required two)",
+  "U": "since v0.7.6, a mismatch in another mapping of at least a thousand times the flow that is no whole multiple of it (a packed struct beside the balance) does not shadow the base"
  },
  "cases": [
   {
@@ -184,6 +185,45 @@
    "chain_values": {
     "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39": {
      "0xfbc6799ef9db9ac4f845ad0fdca9a7f5ec9b58b5": "207883407901264"
+    }
+   }
+  },
+  {
+   "file": "eth-26345743-susde-cooldown.pb",
+   "chain": "ethereum",
+   "block": 26345743,
+   "block_hash": "0x23288f0944b5df03fa19b48f2db6b0c00862f665258bad8e432f432c8dc82ffc",
+   "ver": 5,
+   "source_block_sha256": "6a15a043bcd807b2279983237abc6dd76b2f9bb40324ee7d8b89099e9e91ec6e",
+   "fixture_sha256": "92473494cff2394ad722ddaa58f565bf1895edc87c0948d6d9d9eaab4fc449f8",
+   "token": "0x9d39a5de30e57443bff2a8307a4256c8797a3497",
+   "kept_transactions": [
+    73
+   ],
+   "selection": "transaction 73, the block's only sUSDe transaction: cooldownShares by 0x0d7c2a55...",
+   "rule": "U",
+   "demonstrates": "sUSDe's cooldownShares burns the holder's shares with Transfer(holder, 0) and writes its cooldowns entry (slot 15), a packed struct of an end time and an amount of USDe, which moves by far more than the flow and by no whole multiple of it. As the token's only vote in the block, v0.7.5 took it as a second holder mapping and kept no row; v0.7.6 gives the holder's 0",
+   "rows": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x7fc7c91d556b400afa565013e3f32055a0713425": "14261909943715631401292680",
+     "0x9d39a5de30e57443bff2a8307a4256c8797a3497": "1143666818123914777172057534"
+    },
+    "0x9d39a5de30e57443bff2a8307a4256c8797a3497": {
+     "0x0d7c2a55f2ddf41305354304baf34cfc34808d82": "0"
+    }
+   },
+   "added_since_v075": {
+    "0x9d39a5de30e57443bff2a8307a4256c8797a3497": {
+     "0x0d7c2a55f2ddf41305354304baf34cfc34808d82": "0"
+    }
+   },
+   "chain_values": {
+    "0x4c9edd5852cd905f086c759e8383e09bff1e68b3": {
+     "0x7fc7c91d556b400afa565013e3f32055a0713425": "14261909943715631401292680",
+     "0x9d39a5de30e57443bff2a8307a4256c8797a3497": "1143666818123914777172057534"
+    },
+    "0x9d39a5de30e57443bff2a8307a4256c8797a3497": {
+     "0x0d7c2a55f2ddf41305354304baf34cfc34808d82": "0"
     }
    }
   }
