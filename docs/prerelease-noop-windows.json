@@ -2195,6 +2195,15 @@
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   },
   {
+   "chain": "arbone",
+   "range": [
+    521503000,
+    521504000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
+  },
+  {
    "chain": "base",
    "range": [
     0,
@@ -3140,6 +3149,42 @@
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   },
   {
+   "chain": "base",
+   "range": [
+    53526000,
+    53527000
+   ],
+   "kind": "block",
+   "note": "segment of block 53526984, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53527000,
+    53528000
+   ],
+   "kind": "block",
+   "note": "segment of block 53527147, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53529000,
+    53530000
+   ],
+   "kind": "block",
+   "note": "segment of block 53529347, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53548000,
+    53549000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
+  },
+  {
    "chain": "bsc",
    "range": [
     0,
@@ -3696,6 +3741,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    131833000,
+    131834000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
   },
   {
    "chain": "eth",
@@ -4294,6 +4348,24 @@
   {
    "chain": "eth",
    "range": [
+    26318000,
+    26319000
+   ],
+   "kind": "block",
+   "note": "segment of block 26318980, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26319000,
+    26320000
+   ],
+   "kind": "block",
+   "note": "segment of block 26319222, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "eth",
+   "range": [
     26331000,
     26332000
    ],
@@ -4317,6 +4389,33 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26344000,
+    26345000
+   ],
+   "kind": "block",
+   "note": "segment of block 26344207, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26345000,
+    26346000
+   ],
+   "kind": "block",
+   "note": "segment of block 26345100, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26347000,
+    26348000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
   },
   {
    "chain": "hyperevm",
@@ -4929,6 +5028,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    50458000,
+    50459000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
   },
   {
    "chain": "optimism",
@@ -5604,6 +5712,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    159143000,
+    159144000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
   },
   {
    "chain": "polygon",
@@ -7262,6 +7379,24 @@
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   },
   {
+   "chain": "polygon",
+   "range": [
+    96761000,
+    96762000
+   ],
+   "kind": "block",
+   "note": "segment of block 96761991, a block of the ERC-20 v0.7.6 investigation (Solady, MKR, HEX, sUSDe, LDO and others)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96787000,
+    96788000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
+  },
+  {
    "chain": "unichain",
    "range": [
     0,
@@ -7890,6 +8025,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    63139000,
+    63140000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (ERC-20 v0.7.6)"
   }
  ]
 }
