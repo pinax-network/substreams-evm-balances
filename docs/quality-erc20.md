@@ -455,6 +455,18 @@ block, and never for a producer or sink fault:
 | WUSD (Base) | a per-holder deposit total and a checkpoint struct besides the balance, both moving on mint and burn | a tie between the balance and the deposit total, or shadowing by the checkpoint (rules 3 and 5) | 7 of 7 | unchanged |
 | USDC (Ethereum) | Circle blacklisted a holder in the block that credited it 33,005.12 USDC | the flag write, unexplained, left the holder at its earlier 0 | 1 of 1 | the holder gets the credited word |
 
+**More causes found on 2026-11-05**, for v0.7.6, by the same replay of
+recent blocks:
+
+| Token | Cause | Since v0.7.6 |
+| --- | --- | --- |
+| pUSD (Polygon), AERO (Base) and other Solady tokens | Solady keys balances at `keccak(holder \|\| 0^8 \|\| seed)`, a 32-byte preimage | inferred |
+| MKR | its conversion to SKY burns with `Burn` and no `Transfer`, so a block of burns alone had no vote | the burn votes |
+| HEX | `stakeStart` bumps a stake-list length beside its burn, which shadowed a single exact vote | inferred |
+| sUSDe, WUSD | a cooldown struct or deposit total beside the balance ties or shadows it in blocks of one holder's activity | unchanged |
+| SOS | balances stored shifted left by 8 bits | unchanged |
+| FUN | balances kept in another contract | unchanged |
+
 Holders whose word packs those fields still get no row in v0.7.5: AAVE's
 delegating holders and delegatees (the stkAAVE contract among them) and
 USDG's packed accounts. WUSD stays dropped in blocks with only one or two
@@ -845,11 +857,14 @@ cursor and the head read.
 - **Coverage.** Most unserved recipients are fake-airdrop tokens whose
   `balanceOf` invents a balance for any address: 98% of BSC's misses and 54%
   of Base's. Two gaps are new. Solady ERC-20s derive the balance slot from
-  the packed holder and a seed, which the inference does not read, so
-  Polygon's pUSD has no rows. A family of Base tokens deployed at
-  `0xb2000000…` addresses, which are EIP-7702-delegated accounts, has none
-  either; the cause is open. The rest are known exclusions: rebasing and
-  share tokens, Aave aTokens, MiniMe and Synthetix tokens.
+  the packed holder and a seed, which the inference did not read, so
+  Polygon's pUSD and Base's AERO had no rows; v0.7.6 reads that key order.
+  A family of Base tokens at `0xb2000000…` addresses has none either: their
+  code is the single byte `0xef`, the client implements them, and their
+  frames record no Keccak preimages, under keys that no standard order
+  matches (2026-11-05; at first taken for EIP-7702 accounts). The rest are
+  known exclusions: rebasing and share tokens, Aave aTokens, MiniMe and
+  Synthetix tokens.
 - **Etherscan** agrees with the Pinax node on 4,963 of 5,000 pairs; where
   it does, the database differs on 0 to 15 pairs per chain, the stale AAVE
   and USDG holders among them.

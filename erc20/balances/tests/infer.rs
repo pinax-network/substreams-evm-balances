@@ -697,8 +697,10 @@ fn other_holder_state_moving_with_transfers_needs_the_holders_own_read() {
 }
 
 /// Counters (deltas below a thousandth of the flow) do not shadow a base with
-/// two or more exact votes, unless another mapping also matches exactly or the
-/// base has a single exact vote.
+/// two or more exact votes, unless another mapping also matches exactly. Since
+/// v0.7.6 (owner, 2026-11-05) one exact vote suffices when its flow is not
+/// dust (HEX's `stakeStart` bumps a stake-list length as it burns); v0.7.4
+/// and v0.7.5 required two.
 #[test]
 fn counters_do_not_shadow_a_well_supported_base() {
     let counted = |extra: &dyn Fn(&mut eth::Call)| {
@@ -713,11 +715,199 @@ fn counters_do_not_shadow_a_well_supported_base() {
     };
     assert_eq!(counted(&|_| {}), vec![r(A, 70 * U), r(B, 35 * U)]);
     assert!(counted(&|c| store(c, A, 5, 100 * U, 70 * U, 14)).is_empty());
-    let mut mint = root();
-    mint.logs = vec![transfer([0; 20], B, 30 * U)];
-    store(&mut mint, B, BASE, 5 * U, 35 * U, 10);
-    store(&mut mint, B, 7, 1, 2, 11);
-    assert!(rows(&block(vec![vec![mint]])).is_empty());
+    let minted = |amount: u64| {
+        let mut mint = root();
+        mint.logs = vec![transfer([0; 20], B, amount)];
+        store(&mut mint, B, BASE, 5 * U, 5 * U + amount, 10);
+        store(&mut mint, B, 7, 1, 2, 11);
+        rows(&block(vec![vec![mint]]))
+    };
+    assert_eq!(minted(30 * U), vec![r(B, 35 * U)]);
+    // A dust flow's single exact vote still does not outweigh the counter.
+    assert!(minted(U - 1).is_empty());
+}
+
+/// Solady's ERC-20 keys a holder's word at `keccak(holder || 0^8 || seed)`
+/// (balances: seed `0x87a211a2`), a 32-byte preimage. Since v0.7.6 (owner,
+/// 2026-11-05) it is a base like Solidity's and Vyper's: it votes, and a read
+/// that computes it is keyed. Its nonce mapping (another seed) is a counter. A
+/// 32-byte preimage with nonzero bytes 20..28, or for the zero address, is no
+/// holder key.
+#[test]
+fn solady_keys_are_read() {
+    const BALANCES: [u8; 4] = [0x87, 0xa2, 0x11, 0xa2];
+    const NONCES: [u8; 4] = [0x38, 0x37, 0x75, 0x08];
+    let solady = |holder: &[u8; 20], seed: [u8; 4]| {
+        let pre = [holder.to_vec(), vec![0; 8], seed.to_vec()].concat();
+        (hash(&pre), pre)
+    };
+    let write = |c: &mut eth::Call, holder: [u8; 20], seed: [u8; 4], old: u64, new: u64, ordinal: u64| {
+        let (key, pre) = solady(&holder, seed);
+        store_key(c, key, &pre, w(old), w(new), ordinal);
+    };
+    let transfer_ab = |extra: &dyn Fn(&mut eth::Call)| {
+        let mut c = root();
+        c.logs = vec![transfer(A, B, 30 * U)];
+        write(&mut c, A, BALANCES, 100 * U, 70 * U, 10);
+        write(&mut c, B, BALANCES, 5 * U, 35 * U, 11);
+        extra(&mut c);
+        c
+    };
+    assert_eq!(rows(&block(vec![vec![transfer_ab(&|_| {})]])), vec![r(A, 70 * U), r(B, 35 * U)]);
+    // A permit's nonce bump is a counter under another seed.
+    assert_eq!(
+        rows(&block(vec![vec![transfer_ab(&|c| write(c, A, NONCES, 3, 4, 12))]])),
+        vec![r(A, 70 * U), r(B, 35 * U)]
+    );
+    // A keyed read of C's Solady word supplies C's value.
+    let mut read = call(2, 1, 1, eth::CallType::Static, TOKEN);
+    read.input = [vec![0x70, 0xa0, 0x82, 0x31], pad(&C)].concat();
+    read.return_data = w(7 * U);
+    let (key, pre) = solady(&C, BALANCES);
+    read.keccak_preimages.insert(hex::encode(key), hex::encode(&pre));
+    (read.begin_ordinal, read.end_ordinal) = (50, 51);
+    let mut named = transfer_ab(&|_| {});
+    named.logs.push(log(APPROVAL, &[C, D], 1));
+    assert_eq!(
+        rows(&block(vec![vec![named], router(vec![read])])),
+        vec![r(A, 70 * U), r(B, 35 * U), r(C, 7 * U)]
+    );
+    // Not Solady's shape: nonzero bytes 20..28, or the zero address.
+    let shaped = |holder: [u8; 20], fill: u8| {
+        let mut c = root();
+        c.logs = vec![transfer(holder, B, 30 * U)];
+        for (h, old, new, ordinal) in [(holder, 100 * U, 70 * U, 10), (B, 5 * U, 35 * U, 11)] {
+            let mut pre = [h.to_vec(), vec![0; 8], BALANCES.to_vec()].concat();
+            pre[20] = fill;
+            store_key(&mut c, hash(&pre), &pre, w(old), w(new), ordinal);
+        }
+        rows(&block(vec![vec![c]]))
+    };
+    assert!(shaped(A, 1).is_empty());
+    // The zero address's key is no holder key; a mint's recipient still votes.
+    assert_eq!(shaped([0; 20], 0), vec![r(B, 35 * U)]);
+}
+
+/// DSToken's `burn(guy, wad)`, `burn(wad)`, `mint(guy, wad)` and `mint(wad)`
+/// emit `Burn`/`Mint` and no `Transfer` (MKR, whose conversion to SKY burns
+/// it). Since v0.7.6 (owner, 2026-11-05), in a block without a `Transfer` of
+/// the contract, such a frame votes when it makes no call, its input names
+/// guy and wad, and its writes are guy's word moving by exactly wad, the
+/// supply moving the same way and, for a burn by another caller, at most the
+/// allowance `allowance[guy][caller]`.
+#[test]
+fn dstoken_mints_and_burns_vote_without_a_transfer() {
+    const BURN: &str = "cc16f5dbb4873280815c1ee09dbd06736cffcc184412cf7a71a0fdb75d397ca5";
+    let input = |selector: [u8; 4], guy: Option<[u8; 20]>, wad: u64| [selector.to_vec(), guy.map(|g| pad(&g)).unwrap_or_default(), w(wad)].concat();
+    let frame = |topic: &str, caller: [u8; 20], data: Vec<u8>, old: u64, new: u64, supply: (u64, u64)| {
+        let mut c = root();
+        c.caller = caller.to_vec();
+        c.input = data;
+        c.logs = vec![log(topic, &[A], old.abs_diff(new))];
+        store(&mut c, A, BASE, old, new, 10);
+        store_plain(&mut c, 0, supply.0, supply.1, 11);
+        c
+    };
+    let one = |c: eth::Call| rows(&block(vec![vec![c]]));
+    // burn(guy, wad) by a spender, with the allowance allowance[A][C].
+    let mut burn = frame(BURN, C, input([0x9d, 0xc2, 0x9f, 0xac], Some(A), 10 * U), 100 * U, 90 * U, (1000 * U, 990 * U));
+    let (inner, inner_pre) = preimage(&A, 2);
+    let inner: [u8; 32] = hex::decode(&inner).unwrap().try_into().unwrap();
+    burn.keccak_preimages.insert(hex::encode(inner), hex::encode(&inner_pre));
+    let outer_pre = [pad(&C), inner.to_vec()].concat();
+    store_key(&mut burn, hash(&outer_pre), &outer_pre, w(50 * U), w(40 * U), 12);
+    assert_eq!(one(burn.clone()), vec![r(A, 90 * U)]);
+    // burn(wad) and mint(wad) of the caller, mint(guy, wad) by the owner.
+    assert_eq!(
+        one(frame(
+            BURN,
+            A,
+            input([0x42, 0x96, 0x6c, 0x68], None, 10 * U),
+            100 * U,
+            90 * U,
+            (1000 * U, 990 * U)
+        )),
+        vec![r(A, 90 * U)]
+    );
+    assert_eq!(
+        one(frame(
+            MINT,
+            A,
+            input([0xa0, 0x71, 0x2d, 0x68], None, 5 * U),
+            100 * U,
+            105 * U,
+            (1000 * U, 1005 * U)
+        )),
+        vec![r(A, 105 * U)]
+    );
+    assert_eq!(
+        one(frame(
+            MINT,
+            OWNER,
+            input([0x40, 0xc1, 0x0f, 0x19], Some(A), 5 * U),
+            100 * U,
+            105 * U,
+            (1000 * U, 1005 * U)
+        )),
+        vec![r(A, 105 * U)]
+    );
+    // Not the shape: a call out (a staking pool pays out), the supply moving
+    // by another amount, an input naming another holder or amount, burn(wad)
+    // by another caller, or a third word.
+    let mut pays = burn.clone();
+    pays.index = 1;
+    let child = call(2, 1, 1, eth::CallType::Call, [0x77; 20]);
+    assert!(rows(&block(vec![vec![pays.clone(), child.clone()]])).is_empty());
+    // DSAuth's `canCall` lookup of the authority is no payout (MKR's burns).
+    let mut can_call = child;
+    can_call.input = [vec![0xb7, 0x00, 0x96, 0x13], pad(&C), pad(&TOKEN), w(0)].concat();
+    assert_eq!(rows(&block(vec![vec![pays, can_call]])), vec![r(A, 90 * U)]);
+    assert!(one(frame(
+        BURN,
+        A,
+        input([0x42, 0x96, 0x6c, 0x68], None, 10 * U),
+        100 * U,
+        90 * U,
+        (1000 * U, 991 * U)
+    ))
+    .is_empty());
+    assert!(one(frame(
+        BURN,
+        C,
+        input([0x9d, 0xc2, 0x9f, 0xac], Some(B), 10 * U),
+        100 * U,
+        90 * U,
+        (1000 * U, 990 * U)
+    ))
+    .is_empty());
+    assert!(one(frame(
+        BURN,
+        C,
+        input([0x9d, 0xc2, 0x9f, 0xac], Some(A), 11 * U),
+        100 * U,
+        90 * U,
+        (1000 * U, 990 * U)
+    ))
+    .is_empty());
+    assert!(one(frame(
+        BURN,
+        C,
+        input([0x42, 0x96, 0x6c, 0x68], None, 10 * U),
+        100 * U,
+        90 * U,
+        (1000 * U, 990 * U)
+    ))
+    .is_empty());
+    let mut third = frame(
+        MINT,
+        OWNER,
+        input([0x40, 0xc1, 0x0f, 0x19], Some(A), 5 * U),
+        100 * U,
+        105 * U,
+        (1000 * U, 1005 * U),
+    );
+    store_plain(&mut third, 9, 1, 2, 12);
+    assert!(one(third).is_empty());
 }
 
 /// A tie between two exactly moving mappings is broken by the traced reads.
@@ -1874,40 +2064,48 @@ fn captured_v074_blocks_match_their_rows_and_the_rpc_era_values() {
 /// and USDC (a blacklist after a credit in the block) keep rows that v0.7.4
 /// dropped. Each fixture gives exactly its recorded rows; those that equal
 /// the full block's equal `balanceOf` at the block, and the case's token has
-/// rows v0.7.4 does not give.
+/// rows v0.7.4 does not give. The v0.7.6 captures in `fixtures/v076/`
+/// (Solady's pUSD and AERO, an MKR burn without a `Transfer`, HEX's
+/// `stakeStart` with its counter) do the same against v0.7.5.
 #[test]
 fn captured_v075_blocks_match_their_rows_and_same_block_balance_of() {
     use sha2::Digest;
     use std::collections::BTreeMap;
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/v075");
-    let cases: serde_json::Value = serde_json::from_str(include_str!("fixtures/v075/cases.json")).unwrap();
-    for case in cases["cases"].as_array().unwrap() {
-        let file = case["file"].as_str().unwrap();
-        let bytes = std::fs::read(format!("{dir}/{file}")).unwrap();
-        assert_eq!(hex::encode(sha2::Sha256::digest(&bytes)), case["fixture_sha256"], "{file}");
-        let block = eth::Block::decode_from_slice(&bytes).unwrap();
-        assert_eq!(
-            (block.number, format!("0x{}", hex::encode(&block.hash))),
-            (case["block"].as_u64().unwrap(), case["block_hash"].as_str().unwrap().to_string())
-        );
-        let kept: Vec<u32> = block.transaction_traces.iter().map(|tx| tx.index).collect();
-        assert_eq!(serde_json::json!(kept), case["kept_transactions"], "{file}");
-        let mut ours = BTreeMap::<String, BTreeMap<String, String>>::new();
-        for b in run(&block).unwrap().balances {
-            let contract = format!("0x{}", hex::encode(b.contract.unwrap()));
-            ours.entry(contract).or_default().insert(format!("0x{}", hex::encode(b.address)), b.amount);
-        }
-        assert_eq!(serde_json::json!(ours), case["rows"], "{file}");
-        let row = |contract: &str, holder: &str| ours.get(contract).and_then(|t| t.get(holder)).cloned();
-        for key in ["chain_values", "added_since_v074"] {
-            for (contract, values) in case[key].as_object().unwrap() {
-                for (holder, value) in values.as_object().unwrap() {
-                    assert_eq!(row(contract, holder).as_deref(), value.as_str(), "{file} {key} {contract} {holder}");
+    let sets = [
+        ("v075", include_str!("fixtures/v075/cases.json"), "added_since_v074"),
+        ("v076", include_str!("fixtures/v076/cases.json"), "added_since_v075"),
+    ];
+    for (set, json, added) in sets {
+        let dir = format!("{}/tests/fixtures/{set}", env!("CARGO_MANIFEST_DIR"));
+        let cases: serde_json::Value = serde_json::from_str(json).unwrap();
+        for case in cases["cases"].as_array().unwrap() {
+            let file = case["file"].as_str().unwrap();
+            let bytes = std::fs::read(format!("{dir}/{file}")).unwrap();
+            assert_eq!(hex::encode(sha2::Sha256::digest(&bytes)), case["fixture_sha256"], "{file}");
+            let block = eth::Block::decode_from_slice(&bytes).unwrap();
+            assert_eq!(
+                (block.number, format!("0x{}", hex::encode(&block.hash))),
+                (case["block"].as_u64().unwrap(), case["block_hash"].as_str().unwrap().to_string())
+            );
+            let kept: Vec<u32> = block.transaction_traces.iter().map(|tx| tx.index).collect();
+            assert_eq!(serde_json::json!(kept), case["kept_transactions"], "{file}");
+            let mut ours = BTreeMap::<String, BTreeMap<String, String>>::new();
+            for b in run(&block).unwrap().balances {
+                let contract = format!("0x{}", hex::encode(b.contract.unwrap()));
+                ours.entry(contract).or_default().insert(format!("0x{}", hex::encode(b.address)), b.amount);
+            }
+            assert_eq!(serde_json::json!(ours), case["rows"], "{file}");
+            let row = |contract: &str, holder: &str| ours.get(contract).and_then(|t| t.get(holder)).cloned();
+            for key in ["chain_values", added] {
+                for (contract, values) in case[key].as_object().unwrap() {
+                    for (holder, value) in values.as_object().unwrap() {
+                        assert_eq!(row(contract, holder).as_deref(), value.as_str(), "{file} {key} {contract} {holder}");
+                    }
                 }
             }
+            let token = case["token"].as_str().unwrap();
+            assert!(case[added][token].as_object().is_some_and(|added| !added.is_empty()), "{file}");
         }
-        let token = case["token"].as_str().unwrap();
-        assert!(case["added_since_v074"][token].as_object().is_some_and(|added| !added.is_empty()), "{file}");
     }
 }
 

@@ -56,7 +56,11 @@ longer recorded preimages are never decoded. Per block and per contract
    Solidity's `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17),
    Vyper's `slot || pad(holder)` with a slot below 2^64. Vyper's `HashMap`
    uses that order in every release from 0.1 to 0.5, so crvUSD, CRV, Curve
-   pools and gauges and Yearn vaults are inferred. The two orders are
+   pools and gauges and Yearn vaults are inferred. Since v0.7.6 (owner,
+   2026-11-05) Solady's ERC-20 order, `keccak(holder || 0^8 || seed)` with
+   the balance seed `0x87a211a2`, a 32-byte preimage, is a third: pUSD on
+   Polygon (8.3 M transfers a day) and AERO on Base are Solady tokens that
+   v0.7.5 never inferred. The orders are
    different bases and never share votes or reads. DELEGATECALL frames match
    by the proxy address of logs and writes. Exact votes for flows below
    10^6 do not count for a mapping that also mismatches. `Deposit`,
@@ -79,7 +83,16 @@ longer recorded preimages are never decoded. Per block and per contract
      `DestroyedBlackFunds(holder, amount)` in a frame that makes no call,
      whose input names the holder and whose writes are the holder's word,
      which ends at zero, and one unhashed word (the supply), which falls by the
-     amount.
+     amount;
+   - since v0.7.6 (owner, 2026-11-05), a DSToken `burn(guy, wad)`,
+     `burn(wad)`, `mint(guy, wad)` or `mint(wad)` (MKR): the 2-topic
+     `Burn(guy, wad)` or `Mint(guy, wad)` in a frame whose input names guy
+     and wad (`burn(wad)`/`mint(wad)` from guy itself), whose only calls are
+     DSAuth's `canCall` lookups of its authority (no value), and whose writes
+     are guy's word, moving by wad, the supply, an unhashed word moving the
+     same way, and for a burn by another caller at most the allowance
+     `allowance[guy][caller]`. MKR's conversion to SKY burns MKR this way
+     without a `Transfer`, which left 4,407 MKR holders stale.
 
    The holder's word must have the frame's preimage `pad(holder) || base`.
    Wallets append bytes to WETH9 call data, so its inputs are matched by
@@ -157,8 +170,11 @@ longer recorded preimages are never decoded. Per block and per contract
 5. **Other holder state**: when other mappings mismatch the event flows at least
    as often as the base matches them, as reward and reflection tokens do, only
    holders with their own keyed `balanceOf` keep rows. With two or more exact
-   votes and no other exactly matching mapping, mismatches below a thousandth
-   of the flow (counters) are ignored.
+   votes, or since v0.7.6 (owner, 2026-11-05) one whose flow is not dust, and
+   no other exactly matching mapping, mismatches below a thousandth of the
+   flow (counters) are ignored: HEX's `stakeStart` burns with a `Transfer`
+   and bumps the holder's stake-list length in the same frame, which v0.7.5
+   took as a second holder mapping when it was the token's only vote.
 6. **Rows**: candidate holders written under the base get their last persisted
    word. If that write's frame has no `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn`
    naming a holder other than the contract itself (an admin, a sync or a flag
@@ -448,6 +464,16 @@ and holders.
   width, which only a layout gives. A word whose other fields happen to sit
   below bit 128, such as an AAVE delegatee's power under 0.17 AAVE, is
   emitted whole when its holder's transfers vote exactly, as before v0.7.5.
+- **Other layouts (2026-11-05).** Replaying blocks of tokens that v0.7.5
+  drops or never infers showed causes that no generic rule reads:
+  FunFair's FUN keeps its balances in another contract
+  (`0xe6a51bd4…`), so it has no write of its own; SOS (OpenDAO) stores each
+  balance shifted left by 8 bits, so every holder's word moves by 256 times
+  its flow; Base's `0xb2000000…` tokens are implemented by the client, with
+  the code byte `0xef` and no Keccak preimages, under keys that no standard
+  order matches; and WUSD (Base) and sUSDe keep a per-holder deposit total
+  or cooldown struct next to the balance, which ties or shadows it in blocks
+  where one holder's mint, burn or cooldown is the token's only activity.
 - **Polygon state syncs.** Polygon's `Block.ver` 3 state-sync transaction
   restarts the ordinals in each of its depth-1 calls
   ([native](../../native/balances/README.md#execution-order-v078)). Until
@@ -487,7 +513,7 @@ make -C erc20/balances build schema   # release WASM and clickhouse/schema.sql
 Committed spkgs come from CI's "Package hashes" artifact, not from a local
 `make pack` (a macOS build has other module hashes than CI's Linux build).
 Since v0.7.0 the package is `evm_balances_erc20`, with `map_events` and
-`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.5.spkg`
+`db_out`. Its latest committed spkg is `spkg/evm-balances-erc20-v0.7.6.spkg`
 (from CI's artifact), not live-qualified. v0.7.1
 decodes the block with a 1 GiB element budget instead of buffa's 32 MiB
 default, which BSC block 43,772,003 (29.9 MB encoded) failed; it gives the
@@ -535,7 +561,16 @@ of those stale holders, the 43 random recent blocks of six chains checked on
 the same value and adds 51, each equal to `balanceOf` at its block: 30 AAVE,
 14 USDG, 5 OUSD and OETH, 1 USDC and 1 Base token whose own word holds an
 address. It is written to `<chain>:evm-balances-erc20@v0.7.5`, by a full
-resync. Before v0.7.0 it was
+resync. v0.7.6 (owner, 2026-11-05) adds three rules from replaying blocks of
+tokens that v0.7.5 drops or never infers: Solady's key order (rule 2),
+DSToken mints and burns without a `Transfer` (rule 2) and counters beside a
+single exact vote (rule 5). On 135 blocks and fixtures (the stale-holder and
+random blocks of v0.7.5, 18 blocks of the newly investigated tokens) it
+keeps every v0.7.5 row with the same value and adds 762, each equal to
+`balanceOf` at its block: 750 of Solady tokens (pUSD, AERO and others), 11
+from single exact votes (HEX among them) and 1 from an MKR burn. Since it
+adds rows for past blocks, a v0.7.6 database is filled by a full resync; it
+also continues a v0.7.5 or v0.7.4 database, as v0.7.5 does. Before v0.7.0 it was
 `erc20_balances`:
 `spkg/erc20-balances-v0.4.0.spkg` (package version v0.4.0; versions skip
 v0.3.x, so no build can overwrite the v0.3.4 RPC reference). No Buf generation
@@ -590,7 +625,10 @@ credits drop the token. The v0.7.5 captures in
 delegated word, a read that clears a delegating holder's top byte), two
 Arbitrum One USDG blocks with packed accounts and the USDC blacklist after a
 credit; each row that equals the full block's equals `balanceOf` at the
-block. The same test reads two
+block. The v0.7.6 captures in
+[`tests/fixtures/v076/`](tests/fixtures/v076/) (pUSD and AERO, an MKR burn
+without a `Transfer`, HEX's `stakeStart`) do the same against v0.7.5. The
+same test reads two
 one-transaction WBNB captures of
 [`tests/fixtures/wbnb-mutations/`](tests/fixtures/wbnb-mutations/), a nested
 deposit and a withdrawal without a `Transfer`.

@@ -63,6 +63,10 @@ a live step too.
   delta a thousand times off its flow or a `balanceOf` that clears the
   word's high bits, drops only that holder's row, and a FiatToken blacklist
   flag written after an explained transfer keeps the transfer's word.
+  Since v0.7.6 (owner, 2026-11-05) Solady's key order `keccak(holder ||
+  0^8 || seed)` is a base, a DSToken `mint`/`burn` (MKR) votes in a block
+  without a `Transfer` when its writes and calls are exactly the shape, and
+  one non-dust exact vote suffices to ignore counters in other mappings.
   Undetected computed balances remain possible: its rows are measured, not
   qualified. Its candidates are the RPC reference's `(contract, holder)`
   pairs, except that Tether `Issue`/`Redeem` name the emitting frame's sender

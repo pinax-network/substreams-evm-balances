@@ -1,0 +1,191 @@
+{
+ "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-11-05 for the v0.7.6 investigation of tokens that v0.7.5 drops or does not infer.",
+ "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field, in the original order. No field edits.",
+ "rows": "Every row map_events emits for the fixture as v0.7.6 gives it; added_since_v075 lists the rows v0.7.5 does not emit on the fixture (it emits every other row identically). Each row equals the row v0.7.6 gives for the same pair on the full source block, except the pairs in differs_on_full_block (with the full block's value), which a transaction the fixture omits moves later in the block.",
+ "chain_values": "Read-only, 2026-11-05: balanceOf(holder) of the contract at the block from the Pinax archive RPC, for every fixture row that equals the full block's. Each equals the row.",
+ "rules": {
+  "S": "since v0.7.6, Solady's key order keccak(holder || 0^8 || seed), from 32-byte preimages, is a base",
+  "D": "since v0.7.6, in a block without a Transfer of the contract, a DSToken mint or burn frame votes when its only calls are DSAuth canCall lookups, its input names guy and wad, and its writes are guy's word and the supply moving by wad, and for a burn by another caller at most the allowance",
+  "C": "since v0.7.6, counters in other mappings do not shadow a base with one exact vote whose flow is not dust (v0.7.5 required two)"
+ },
+ "cases": [
+  {
+   "file": "polygon-96761991-pusd-solady.pb",
+   "chain": "polygon",
+   "block": 96761991,
+   "block_hash": "0xc36c9ac687ec2f8d928f5e35f4fb5a2e4bcbe9981e73a99279c20abf1aac0246",
+   "ver": 5,
+   "source_block_sha256": "10f533c87690de3caf7476360bea0871ce7eeaab042aea68d0998c3f16c12ebb",
+   "fixture_sha256": "bfcb7aca9c17369ee6219dfe113a8c3d1e02a67ad9536ea6a7fea80d49339387",
+   "token": "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb",
+   "kept_transactions": [
+    15
+   ],
+   "selection": "transaction 15 of the block's 12 pUSD transactions",
+   "rule": "S",
+   "demonstrates": "pUSD (Polygon), a Solady ERC-20, keys a holder's word at keccak(holder || 0^8 || 0x87a211a2); its frames record those 32-byte preimages. v0.7.5 found no base and gave pUSD no row; v0.7.6 reads the order",
+   "rows": {
+    "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb": {
+     "0x115f48dc2a731aa16251c6d6e1befc42f92accc9": "3105505903899",
+     "0x70a731ed05f1342b99a4110e663b97c9d044012b": "9622",
+     "0xb831a1d17dc7cc13815e665fb94f34473e33892b": "1136074151"
+    }
+   },
+   "added_since_v075": {
+    "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb": {
+     "0x115f48dc2a731aa16251c6d6e1befc42f92accc9": "3105505903899",
+     "0x70a731ed05f1342b99a4110e663b97c9d044012b": "9622",
+     "0xb831a1d17dc7cc13815e665fb94f34473e33892b": "1136074151"
+    }
+   },
+   "differs_on_full_block": {
+    "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb": {
+     "0x115f48dc2a731aa16251c6d6e1befc42f92accc9": "3105517324599"
+    }
+   },
+   "chain_values": {
+    "0xc011a7e12a19f7b1f670d46f03b03f3342e82dfb": {
+     "0x70a731ed05f1342b99a4110e663b97c9d044012b": "9622",
+     "0xb831a1d17dc7cc13815e665fb94f34473e33892b": "1136074151"
+    }
+   }
+  },
+  {
+   "file": "base-53279318-aero-solady.pb",
+   "chain": "base",
+   "block": 53279318,
+   "block_hash": "0x1e68f78063ecf9c973eac4a373a14167ba491b6c8d1ed87eaedb7f50be6df0a1",
+   "ver": 5,
+   "source_block_sha256": "1a3aefa482088ca803938499dc9dc91e93303a20be72b00a120dea1a4c01d65f",
+   "fixture_sha256": "177b345690364b6da39df2855861b574f2431291577539c8b61e9ba692ce1782",
+   "token": "0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee",
+   "kept_transactions": [
+    107
+   ],
+   "selection": "transaction 107, the block's only AERO transaction, a swap that also moves another Solady token (0x311935cd...) and USDC",
+   "rule": "S",
+   "demonstrates": "AERO (Base), a Solady ERC-20 that the 2026-11-03 chain check found without any row; v0.7.6 reads its 32-byte keys",
+   "rows": {
+    "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "206684061838",
+     "0x868eed6bad4bd368cd053b766f84cc727697589a": "3795686655182"
+    },
+    "0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "740732338064629221652246",
+     "0x9beb95cced809c0667bbb6577ee4066ac5cc1156": "186564298134055558504489"
+    },
+    "0x6cdda0e730744dc6ff67654b35350adad05ecee7": {
+     "0x8c37f30f3c8fd48beddb14086fa5148291d422c3": "1172117"
+    },
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "965838501354",
+     "0x868eed6bad4bd368cd053b766f84cc727697589a": "97548200237"
+    }
+   },
+   "added_since_v075": {
+    "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "206684061838",
+     "0x868eed6bad4bd368cd053b766f84cc727697589a": "3795686655182"
+    },
+    "0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "740732338064629221652246",
+     "0x9beb95cced809c0667bbb6577ee4066ac5cc1156": "186564298134055558504489"
+    },
+    "0x6cdda0e730744dc6ff67654b35350adad05ecee7": {
+     "0x8c37f30f3c8fd48beddb14086fa5148291d422c3": "1172117"
+    }
+   },
+   "differs_on_full_block": {
+    "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "201114218987",
+     "0x868eed6bad4bd368cd053b766f84cc727697589a": "3801256498033"
+    },
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "966378884968",
+     "0x868eed6bad4bd368cd053b766f84cc727697589a": "97007816623"
+    }
+   },
+   "chain_values": {
+    "0x311935cd80b76769bf2ecc9d8ab7635b2139cf82": {},
+    "0x3f5bf3edac59d650d8fdf9657a71f2f904a3a4ee": {
+     "0x2192bc3b4028acc1113f2cd9ac2cba70c36520db": "740732338064629221652246",
+     "0x9beb95cced809c0667bbb6577ee4066ac5cc1156": "186564298134055558504489"
+    },
+    "0x6cdda0e730744dc6ff67654b35350adad05ecee7": {
+     "0x8c37f30f3c8fd48beddb14086fa5148291d422c3": "1172117"
+    },
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": {}
+   }
+  },
+  {
+   "file": "eth-26345100-mkr-burn.pb",
+   "chain": "ethereum",
+   "block": 26345100,
+   "block_hash": "0x69178d17bab51c0344559615409be84adac4357a3c07f8c8a49c806da6070ee3",
+   "ver": 5,
+   "source_block_sha256": "2c3decd8489eec8dd180debb63c919dd8e0e7c2213a238544aeffc5c8b0b8dad",
+   "fixture_sha256": "df9a058ce44bd0adbba27d7d2f249322493b75598b3647e1401139a8bc873408",
+   "token": "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2",
+   "kept_transactions": [
+    120
+   ],
+   "selection": "transaction 120, MkrSky's conversion of 0x5130275b...'s MKR, the block's only MKR frame",
+   "rule": "D",
+   "demonstrates": "DSToken burn(guy, wad) by MkrSky: Burn(guy, wad) and no Transfer, guy's word and the supply fall by wad and the allowance allowance[guy][MkrSky] falls, and the frame's only call is DSAuth's canCall to MKR's authority. v0.7.5 had no vote for MKR in this block; v0.7.6 gives guy's 0",
+   "rows": {
+    "0x56072c95faa701256059aa122697b133aded9279": {
+     "0x5130275bba356bb00e3d99945361d3ca1a8711cb": "45546420000000000000000",
+     "0xa1ea1ba18e88c381c724a75f23a130420c403f9a": "2026082038588132258777890960"
+    },
+    "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": {
+     "0x5130275bba356bb00e3d99945361d3ca1a8711cb": "0"
+    }
+   },
+   "added_since_v075": {
+    "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": {
+     "0x5130275bba356bb00e3d99945361d3ca1a8711cb": "0"
+    }
+   },
+   "chain_values": {
+    "0x56072c95faa701256059aa122697b133aded9279": {
+     "0x5130275bba356bb00e3d99945361d3ca1a8711cb": "45546420000000000000000",
+     "0xa1ea1ba18e88c381c724a75f23a130420c403f9a": "2026082038588132258777890960"
+    },
+    "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2": {
+     "0x5130275bba356bb00e3d99945361d3ca1a8711cb": "0"
+    }
+   }
+  },
+  {
+   "file": "eth-26345642-hex-stake-start.pb",
+   "chain": "ethereum",
+   "block": 26345642,
+   "block_hash": "0x0ba30d93fa879307438c6aa16715290d213b2aebf8bd9336b6a1ed1d80e5130f",
+   "ver": 5,
+   "source_block_sha256": "0fc41aa00363d2b95e01179e57e00d594fd21bba1e640b807aff49e3ecc35cca",
+   "fixture_sha256": "c02714a75a8f961a20c538af9f35f1cc928d9fe784946197169904b4882a71be",
+   "token": "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39",
+   "kept_transactions": [
+    11
+   ],
+   "selection": "transaction 11, HEX stakeStart, the block's only HEX transaction",
+   "rule": "C",
+   "demonstrates": "HEX stakeStart burns with Transfer(holder, 0) and bumps the holder's stake-list length (slot 7) by 1, a counter: with this one exact vote v0.7.5 took the token as shadowed; v0.7.6 gives the holder's word",
+   "rows": {
+    "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39": {
+     "0xfbc6799ef9db9ac4f845ad0fdca9a7f5ec9b58b5": "207883407901264"
+    }
+   },
+   "added_since_v075": {
+    "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39": {
+     "0xfbc6799ef9db9ac4f845ad0fdca9a7f5ec9b58b5": "207883407901264"
+    }
+   },
+   "chain_values": {
+    "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39": {
+     "0xfbc6799ef9db9ac4f845ad0fdca9a7f5ec9b58b5": "207883407901264"
+    }
+   }
+  }
+ ]
+}
