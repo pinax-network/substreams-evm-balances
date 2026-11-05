@@ -457,12 +457,18 @@ contract's debit.
   block v0.7.11 accepts, so only Polygon moves to it. The 9 refused blocks
   were fetched on 2026-10-30 with the owner's OK. Replayed whole, all 9 pass,
   and only the 9 contracts' rows differ from v0.7.10's, each now at zero.
-- **Next:** v0.7.12's pre-release noops, including Polygon's `Block.ver` 3
-  range after Napoli (54,876,000 to 73,440,255); Polygon's full-history noop
-  of the released package, its resync into
-  `polygon:evm-balances-native@v0.7.12`, and the identified-contract and
-  supply checks. Publication does not complete these steps or the API
-  cutover gates; ingestion continues through `db_out`.
+- **Polygon resync (2026-10-30).** The released package backfilled
+  `polygon:evm-balances-native@v0.7.12` on cluster C from block 0 to
+  96,420,000 in 197 contiguous ranges without a refusal, the whole
+  `Block.ver` 3 range after Napoli (54,876,000 to 73,440,255) included, and
+  its live sink continues on v0.7.12's `db_out`.
+- **Noops (2026-11-05, after the release).** The release had no recorded
+  pre-release noop. The released package then passed all 875 windows of the
+  standing set ([`prerelease-noop-windows.json`](prerelease-noop-windows.json)),
+  with each chain's latest segment and the 9 blocks above:
+  [`native-v0712-noop-2026-11-05.json`](history/native-v0712-noop-2026-11-05.json).
+  The identified-contract and supply checks of `@v0.7.12` are not recorded
+  here.
 
 ## Cluster C
 

@@ -2186,6 +2186,15 @@
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
   },
   {
+   "chain": "arbone",
+   "range": [
+    521335000,
+    521336000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
    "chain": "base",
    "range": [
     0,
@@ -3122,6 +3131,15 @@
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
   },
   {
+   "chain": "base",
+   "range": [
+    53523000,
+    53524000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
    "chain": "bsc",
    "range": [
     0,
@@ -3671,6 +3689,15 @@
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
   },
   {
+   "chain": "bsc",
+   "range": [
+    131724000,
+    131725000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
    "chain": "eth",
    "range": [
     0,
@@ -4169,19 +4196,19 @@
    "chain": "eth",
    "range": [
     25740000,
-    25742000
+    25741000
    ],
-   "kind": "event",
-   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
   },
   {
    "chain": "eth",
    "range": [
     25740000,
-    25741000
+    25742000
    ],
-   "kind": "sample",
-   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
   },
   {
    "chain": "eth",
@@ -4895,6 +4922,15 @@
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
   },
   {
+   "chain": "hyperevm",
+   "range": [
+    50408000,
+    50409000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
+  },
+  {
    "chain": "optimism",
    "range": [
     105236000,
@@ -5559,6 +5595,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    159119000,
+    159120000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   },
   {
    "chain": "polygon",
@@ -6301,6 +6346,24 @@
   {
    "chain": "polygon",
    "range": [
+    56954000,
+    56955000
+   ],
+   "kind": "block",
+   "note": "segment of block 56954084, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    57779000,
+    57780000
+   ],
+   "kind": "block",
+   "note": "segment of block 57779334, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
+  },
+  {
+   "chain": "polygon",
+   "range": [
     57841000,
     57842000
    ],
@@ -6310,11 +6373,29 @@
   {
    "chain": "polygon",
    "range": [
+    57957000,
+    57958000
+   ],
+   "kind": "block",
+   "note": "segment of block 57957015, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
+  },
+  {
+   "chain": "polygon",
+   "range": [
     58254000,
     58255000
    ],
    "kind": "segment",
    "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58316000,
+    58317000
+   ],
+   "kind": "block",
+   "note": "segment of block 58316117, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
   },
   {
    "chain": "polygon",
@@ -6351,6 +6432,15 @@
    ],
    "kind": "segment",
    "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58838000,
+    58839000
+   ],
+   "kind": "block",
+   "note": "segment of block 58838757, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
   },
   {
    "chain": "polygon",
@@ -6481,6 +6571,15 @@
   {
    "chain": "polygon",
    "range": [
+    61749000,
+    61750000
+   ],
+   "kind": "block",
+   "note": "segment of block 61749385, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
+  },
+  {
+   "chain": "polygon",
+   "range": [
     64256000,
     64257000
    ],
@@ -6540,6 +6639,15 @@
    ],
    "kind": "event",
    "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65194000,
+    65195000
+   ],
+   "kind": "block",
+   "note": "segment of block 65194250, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
   },
   {
    "chain": "polygon",
@@ -6760,6 +6868,15 @@
   {
    "chain": "polygon",
    "range": [
+    68559000,
+    68560000
+   ],
+   "kind": "block",
+   "note": "segment of block 68559510, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
+  },
+  {
+   "chain": "polygon",
+   "range": [
     69737000,
     69738000
    ],
@@ -6837,6 +6954,15 @@
    ],
    "kind": "segment",
    "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    72387000,
+    72388000
+   ],
+   "kind": "block",
+   "note": "segment of block 72387144, a self-destruct near-shape v0.7.11 refused and v0.7.12 accepts"
   },
   {
    "chain": "polygon",
@@ -7125,6 +7251,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96755000,
+    96756000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   },
   {
    "chain": "unichain",
@@ -7746,6 +7881,15 @@
    ],
    "kind": "head",
    "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    63090000,
+    63091000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-05 head (native v0.7.12 record)"
   }
  ]
 }
