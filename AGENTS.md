@@ -246,7 +246,10 @@ release's: `substreams run <spkg> db_out -e <chain>.substreams.pinax.network:443
 (the default limit of 10,000 blocks would stop a longer window). Cover every
 hard fork of each network the package targets, the range where the latest
 refusals appeared, and the latest blocks before the live sink's start block.
-A deterministic refusal ends the run with `error from block <n>`; fix it and
+The standing windows are in `docs/prerelease-noop-windows.json` (2026-11-04):
+run them all, add the segments that file names for the release (each chain's
+last segment below its head, and the blocks the release investigated), and
+append those in the release's record. A deterministic refusal ends the run with `error from block <n>`; fix it and
 rerun before tagging. The full-history noops of the released package still
 run before any ClickHouse write.
 

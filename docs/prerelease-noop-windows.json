@@ -1,0 +1,7751 @@
+{
+ "description": "The standing window set of the pre-release noop (AGENTS.md, Validation), for both balance packages, evm-balances-native and evm-balances-erc20: the windows are blocks of each chain, not of a package. Each window is a range of complete 1000-block segments: start inclusive, stop exclusive, run as `substreams run <spkg> db_out -e <chain>.substreams.pinax.network:443 --noop-mode --production-mode --limit-processed-blocks 0 -s <start> -t <stop>`. Chains are Pinax endpoint names: eth, bsc, base, arbone, optimism, polygon, unichain, hyperevm.",
+ "origin": "Tightened on 2026-11-04 for ERC-20 v0.7.5 from the 100,000-block windows of the native v0.7.11 pre-release matrix (docs/history/native-v0711-prerelease-2026-10-29.json), whose per-window reasons were not recorded. Its event windows start 10,000 blocks before their event's segment (Ethereum's forks and refusals and BSC's forks show it), so each 100,000-block window keeps its first segment and the two segments at start + 9,000 and start + 10,000; its 1000-block segments are kept whole, and its continuous catch-up runs keep their last segment. 48.8 million blocks became about 1.2 million.",
+ "selection": {
+  "event": "the segment before and at a hard fork, network upgrade or past refusal",
+  "sample": "a sample of an era of each chain, or its first segment (genesis; Optimism 105,236,000; Arbitrum One 22,208,000)",
+  "segment": "a 1000-block segment named by an investigation",
+  "head": "the last segment below a head at an earlier release, where a live sink started or could start",
+  "block": "the segment of a block a release's investigation replayed"
+ },
+ "at_each_release": [
+  "Run every window of this file.",
+  "Add each chain's last complete 1000-block segment below its current head, and below the live sink's planned start where that differs.",
+  "Add the segments of every block the release changes rows for or newly refuses, and of each new hard fork or upgrade: the segment before its activation and the segment of its activation.",
+  "A native release that can refuse blocks the previous one accepts (a new persistence or continuity check) also runs the whole range where that shape can occur, continuously, as native v0.7.11 and v0.7.12 did for Polygon's Block.ver 3 range after Napoli; a sample of segments cannot show that no block refuses.",
+  "Append the added windows here in the release's record pull request, and record the run under docs/history/."
+ ],
+ "windows": [
+  {
+   "chain": "arbone",
+   "range": [
+    22208000,
+    22209000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    22217000,
+    22219000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    37000000,
+    37001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    37009000,
+    37011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    50000000,
+    50001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    50009000,
+    50011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    52000000,
+    52001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    52009000,
+    52011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    52047000,
+    52048000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    52056000,
+    52058000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    67000000,
+    67001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    67009000,
+    67011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    71024000,
+    71025000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    71029000,
+    71030000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    71033000,
+    71035000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    71038000,
+    71040000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    81766000,
+    81767000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    81775000,
+    81777000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    82000000,
+    82001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    82009000,
+    82011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    97000000,
+    97001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    97001000,
+    97002000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    97009000,
+    97011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    97010000,
+    97012000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    100000000,
+    100001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    100009000,
+    100011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    112000000,
+    112001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    112009000,
+    112011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    127000000,
+    127001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    127009000,
+    127011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    127024000,
+    127025000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    127033000,
+    127035000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    136808000,
+    136809000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    142000000,
+    142001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    142009000,
+    142011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    150000000,
+    150001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    150009000,
+    150011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    157000000,
+    157001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    157009000,
+    157011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    161626000,
+    161627000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    172000000,
+    172001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    172009000,
+    172011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    176095000,
+    176096000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    176104000,
+    176106000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    183662000,
+    183663000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    183671000,
+    183673000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    187000000,
+    187001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    187009000,
+    187011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    200000000,
+    200001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    200009000,
+    200011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    202000000,
+    202001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    202009000,
+    202011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    211782000,
+    211783000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    211791000,
+    211793000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    216798000,
+    216799000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    216807000,
+    216809000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    217000000,
+    217001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    217009000,
+    217011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    223944000,
+    223945000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    227690000,
+    227691000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    227699000,
+    227701000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    230065000,
+    230066000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    230074000,
+    230076000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    232000000,
+    232001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    232009000,
+    232011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    235153000,
+    235154000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    246943000,
+    246944000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    246952000,
+    246954000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    247000000,
+    247001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    247009000,
+    247011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    250000000,
+    250001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    250009000,
+    250011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    262000000,
+    262001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    262009000,
+    262011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    277000000,
+    277001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    277009000,
+    277011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    282198000,
+    282199000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    292000000,
+    292001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    292009000,
+    292011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    300000000,
+    300001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    300009000,
+    300011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    307000000,
+    307001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    307009000,
+    307011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    314239000,
+    314240000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    314248000,
+    314250000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    322000000,
+    322001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    322009000,
+    322011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    323044000,
+    323045000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    323053000,
+    323055000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    326011000,
+    326012000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    333523000,
+    333524000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    333532000,
+    333534000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336271000,
+    336272000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336280000,
+    336282000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336557000,
+    336558000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336566000,
+    336568000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336702000,
+    336703000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    336711000,
+    336713000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    337000000,
+    337001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    337009000,
+    337011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    344105000,
+    344106000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    350000000,
+    350001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    350009000,
+    350011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    352000000,
+    352001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    352009000,
+    352011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    358023000,
+    358024000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    360021000,
+    360022000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367000000,
+    367001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367009000,
+    367011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367482000,
+    367483000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367490000,
+    367491000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367491000,
+    367493000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    367499000,
+    367501000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    368821000,
+    368822000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    368830000,
+    368832000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    382000000,
+    382001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    382009000,
+    382011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    382234000,
+    382235000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    397000000,
+    397001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    397009000,
+    397011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    400000000,
+    400001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    400009000,
+    400011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    407493000,
+    407494000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    407494000,
+    407495000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    407502000,
+    407504000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    407503000,
+    407505000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    412000000,
+    412001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    412009000,
+    412011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    420239000,
+    420240000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    427000000,
+    427001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    427009000,
+    427011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    442000000,
+    442001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    442009000,
+    442011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    450000000,
+    450001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    450008000,
+    450009000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    450009000,
+    450011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    450017000,
+    450019000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    457000000,
+    457001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    457009000,
+    457011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    472000000,
+    472001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    472009000,
+    472011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    472773000,
+    472774000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    487000000,
+    487001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    487009000,
+    487011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    500000000,
+    500001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    500009000,
+    500011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    500689000,
+    500690000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    502000000,
+    502001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    502009000,
+    502011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    505784000,
+    505785000
+   ],
+   "kind": "block",
+   "note": "segment of block 505784144, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    514418000,
+    514419000
+   ],
+   "kind": "block",
+   "note": "segment of block 514418050, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    514799000,
+    514800000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    514808000,
+    514810000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    514938000,
+    514939000
+   ],
+   "kind": "block",
+   "note": "segment of block 514938886, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515067000,
+    515068000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515580000,
+    515581000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515589000,
+    515591000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515680000,
+    515681000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515689000,
+    515691000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515780000,
+    515781000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515789000,
+    515791000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515880000,
+    515881000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515889000,
+    515891000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515980000,
+    515981000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    515989000,
+    515991000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516080000,
+    516081000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516089000,
+    516091000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516180000,
+    516181000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516189000,
+    516191000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516280000,
+    516281000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516289000,
+    516291000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516380000,
+    516381000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516389000,
+    516391000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516480000,
+    516481000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516489000,
+    516491000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516580000,
+    516581000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516589000,
+    516591000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516680000,
+    516681000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516689000,
+    516691000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516780000,
+    516781000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516789000,
+    516791000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516880000,
+    516881000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516889000,
+    516891000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516980000,
+    516981000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    516989000,
+    516991000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517080000,
+    517081000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517089000,
+    517091000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517180000,
+    517181000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517189000,
+    517191000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517280000,
+    517281000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517289000,
+    517291000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517380000,
+    517381000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517389000,
+    517391000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517412000,
+    517413000
+   ],
+   "kind": "block",
+   "note": "segment of block 517412641, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517480000,
+    517481000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517489000,
+    517491000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517580000,
+    517581000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517589000,
+    517591000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517680000,
+    517681000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517689000,
+    517691000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517780000,
+    517781000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517789000,
+    517791000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517880000,
+    517881000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517889000,
+    517891000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517980000,
+    517981000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    517989000,
+    517991000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518080000,
+    518081000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518089000,
+    518091000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518180000,
+    518181000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518189000,
+    518191000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518280000,
+    518281000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518289000,
+    518291000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518380000,
+    518381000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518389000,
+    518391000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518480000,
+    518481000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518489000,
+    518491000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518580000,
+    518581000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518589000,
+    518591000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518680000,
+    518681000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518689000,
+    518691000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518780000,
+    518781000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518789000,
+    518791000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518880000,
+    518881000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518889000,
+    518891000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518980000,
+    518981000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    518989000,
+    518991000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519080000,
+    519081000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519089000,
+    519091000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519180000,
+    519181000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519189000,
+    519191000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519280000,
+    519281000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519289000,
+    519291000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519380000,
+    519381000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519389000,
+    519391000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519434000,
+    519435000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    519632000,
+    519633000
+   ],
+   "kind": "block",
+   "note": "segment of block 519632181, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    520248000,
+    520249000
+   ],
+   "kind": "block",
+   "note": "segment of block 520248700, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    520543000,
+    520544000
+   ],
+   "kind": "block",
+   "note": "segment of block 520543404, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    520926000,
+    520927000
+   ],
+   "kind": "block",
+   "note": "segment of block 520926627, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    520969000,
+    520970000
+   ],
+   "kind": "block",
+   "note": "segment of block 520969779, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "arbone",
+   "range": [
+    521325000,
+    521326000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    1000000,
+    1001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    1009000,
+    1011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    3000000,
+    3001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    3009000,
+    3011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    3027000,
+    3028000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    3036000,
+    3038000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    5000000,
+    5001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    5009000,
+    5011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    5034000,
+    5035000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    5043000,
+    5045000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    7000000,
+    7001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    7009000,
+    7011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    7082000,
+    7083000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    7091000,
+    7093000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    9000000,
+    9001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    9009000,
+    9011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    10000000,
+    10001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    10009000,
+    10011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    10089000,
+    10090000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    10098000,
+    10100000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    11000000,
+    11001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    11009000,
+    11011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    13000000,
+    13001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    13009000,
+    13011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    15000000,
+    15001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    15009000,
+    15011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    17000000,
+    17001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    17009000,
+    17011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    19000000,
+    19001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    19009000,
+    19011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    20000000,
+    20001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    20009000,
+    20011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    21000000,
+    21001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    21009000,
+    21011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    23000000,
+    23001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    23009000,
+    23011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    25000000,
+    25001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    25009000,
+    25011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    27000000,
+    27001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    27009000,
+    27011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    29000000,
+    29001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    29009000,
+    29011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    30000000,
+    30001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    30009000,
+    30011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    31000000,
+    31001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    31009000,
+    31011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    33000000,
+    33001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    33009000,
+    33011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    35000000,
+    35001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    35009000,
+    35011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    37000000,
+    37001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    37009000,
+    37011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    39000000,
+    39001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    39009000,
+    39011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    40000000,
+    40001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    40009000,
+    40011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    41000000,
+    41001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    41009000,
+    41011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    43000000,
+    43001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    43009000,
+    43011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    45000000,
+    45001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    45009000,
+    45011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    47000000,
+    47001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    47009000,
+    47011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    47016000,
+    47017000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    47025000,
+    47027000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    47424000,
+    47425000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    49000000,
+    49001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    49009000,
+    49011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50000000,
+    50001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50009000,
+    50011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50014000,
+    50015000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50023000,
+    50025000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50316000,
+    50317000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    50325000,
+    50327000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    51000000,
+    51001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    51009000,
+    51011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52620000,
+    52621000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52629000,
+    52631000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52637000,
+    52638000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52720000,
+    52721000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52729000,
+    52731000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52801000,
+    52802000
+   ],
+   "kind": "block",
+   "note": "segment of block 52801586, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52820000,
+    52821000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52829000,
+    52831000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52920000,
+    52921000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    52929000,
+    52931000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53020000,
+    53021000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53029000,
+    53031000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53120000,
+    53121000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53129000,
+    53131000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53219000,
+    53220000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53220000,
+    53221000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53229000,
+    53231000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53252000,
+    53253000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53279000,
+    53280000
+   ],
+   "kind": "block",
+   "note": "segment of block 53279318, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53449000,
+    53450000
+   ],
+   "kind": "block",
+   "note": "segment of block 53449690, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53471000,
+    53472000
+   ],
+   "kind": "block",
+   "note": "segment of block 53471103, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53473000,
+    53474000
+   ],
+   "kind": "block",
+   "note": "segment of block 53473740, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53474000,
+    53475000
+   ],
+   "kind": "block",
+   "note": "segment of block 53474050, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53475000,
+    53476000
+   ],
+   "kind": "block",
+   "note": "segment of block 53475236, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "base",
+   "range": [
+    53522000,
+    53523000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    5174000,
+    5175000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    5183000,
+    5185000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    12690000,
+    12691000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    12699000,
+    12701000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    13072000,
+    13073000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    13081000,
+    13083000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    18897000,
+    18898000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    18906000,
+    18908000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    21952000,
+    21953000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    21961000,
+    21963000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    22097000,
+    22098000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    22106000,
+    22108000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    23836000,
+    23837000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    23845000,
+    23847000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    25391000,
+    25392000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    25400000,
+    25402000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    27271000,
+    27272000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    27280000,
+    27282000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    29010000,
+    29011000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    29019000,
+    29021000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    30710000,
+    30711000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    30719000,
+    30721000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    31292000,
+    31293000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    31301000,
+    31303000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    33841000,
+    33842000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    33850000,
+    33852000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    34130000,
+    34131000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    34139000,
+    34141000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    35480000,
+    35481000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    35489000,
+    35491000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    37949000,
+    37950000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    37958000,
+    37960000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    39759000,
+    39760000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    39768000,
+    39770000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42347000,
+    42348000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42356000,
+    42358000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42568000,
+    42569000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42569000,
+    42570000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42577000,
+    42579000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    42578000,
+    42580000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    43762000,
+    43763000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    43771000,
+    43773000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    47608000,
+    47609000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    47617000,
+    47619000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    48763000,
+    48764000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    48772000,
+    48774000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    52327000,
+    52328000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    52336000,
+    52338000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    75130000,
+    75131000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    75139000,
+    75141000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    95080000,
+    95081000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    95089000,
+    95091000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    117910000,
+    117911000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    117919000,
+    117921000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    127401000,
+    127402000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    127410000,
+    127412000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    130389000,
+    130390000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    130519000,
+    130520000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "bsc",
+   "range": [
+    131717000,
+    131718000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    190000,
+    191000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    199000,
+    201000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    1140000,
+    1141000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    1149000,
+    1151000
+   ],
+   "kind": "event",
+   "note": "Homestead"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    1910000,
+    1911000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    1919000,
+    1921000
+   ],
+   "kind": "event",
+   "note": "DAO fork"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    2453000,
+    2454000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    2462000,
+    2464000
+   ],
+   "kind": "event",
+   "note": "Tangerine Whistle"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    2665000,
+    2666000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    2674000,
+    2676000
+   ],
+   "kind": "event",
+   "note": "Spurious Dragon"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    4360000,
+    4361000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    4369000,
+    4371000
+   ],
+   "kind": "event",
+   "note": "Byzantium"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    7270000,
+    7271000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    7279000,
+    7281000
+   ],
+   "kind": "event",
+   "note": "Constantinople/Petersburg"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    9059000,
+    9060000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    9068000,
+    9070000
+   ],
+   "kind": "event",
+   "note": "Istanbul"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    9190000,
+    9191000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    9199000,
+    9201000
+   ],
+   "kind": "event",
+   "note": "Muir Glacier"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    12234000,
+    12235000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    12243000,
+    12245000
+   ],
+   "kind": "event",
+   "note": "Berlin"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    12955000,
+    12956000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    12964000,
+    12966000
+   ],
+   "kind": "event",
+   "note": "London"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    13763000,
+    13764000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    13772000,
+    13774000
+   ],
+   "kind": "event",
+   "note": "Arrow Glacier"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    15040000,
+    15041000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    15049000,
+    15051000
+   ],
+   "kind": "event",
+   "note": "Gray Glacier"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    15527000,
+    15528000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    15536000,
+    15538000
+   ],
+   "kind": "event",
+   "note": "The Merge (15,537,394)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    17024000,
+    17025000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    17033000,
+    17035000
+   ],
+   "kind": "event",
+   "note": "Shanghai (17,034,870)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19302000,
+    19303000
+   ],
+   "kind": "block",
+   "note": "segment of block 19302620, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19416000,
+    19417000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19425000,
+    19427000
+   ],
+   "kind": "event",
+   "note": "Dencun (19,426,587)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19471000,
+    19472000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19480000,
+    19482000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19490000,
+    19491000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19499000,
+    19501000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    19580000,
+    19581000
+   ],
+   "kind": "block",
+   "note": "segment of block 19580424, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    20239000,
+    20240000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    20248000,
+    20250000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    21146000,
+    21147000
+   ],
+   "kind": "block",
+   "note": "segment of block 21146082, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    21801000,
+    21802000
+   ],
+   "kind": "block",
+   "note": "segment of block 21801638, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    22421000,
+    22422000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    22430000,
+    22432000
+   ],
+   "kind": "event",
+   "note": "Pectra (22,431,084)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    23039000,
+    23040000
+   ],
+   "kind": "block",
+   "note": "segment of block 23039607, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    23925000,
+    23926000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    23934000,
+    23936000
+   ],
+   "kind": "event",
+   "note": "Fusaka (23,935,694)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    23965000,
+    23966000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    23974000,
+    23976000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    24169000,
+    24170000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    24178000,
+    24180000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25731000,
+    25732000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25737000,
+    25738000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25740000,
+    25742000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25740000,
+    25741000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25746000,
+    25748000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25749000,
+    25751000
+   ],
+   "kind": "event",
+   "note": "native refusal, block 25,750,184"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25859000,
+    25860000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25868000,
+    25870000
+   ],
+   "kind": "event",
+   "note": "native refusal, block 25,869,452"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25910000,
+    25911000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    25919000,
+    25921000
+   ],
+   "kind": "event",
+   "note": "native refusal, block 25,920,498"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26289000,
+    26290000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26298000,
+    26299000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26302000,
+    26303000
+   ],
+   "kind": "block",
+   "note": "segment of block 26302175, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26331000,
+    26332000
+   ],
+   "kind": "block",
+   "note": "segment of block 26331811, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26336000,
+    26337000
+   ],
+   "kind": "block",
+   "note": "segment of block 26336181, a stale-holder block of the ERC-20 v0.7.5 investigation"
+  },
+  {
+   "chain": "eth",
+   "range": [
+    26343000,
+    26344000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    1000000,
+    1001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    1009000,
+    1011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    3000000,
+    3001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    3009000,
+    3011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    5000000,
+    5001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    5009000,
+    5011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    7000000,
+    7001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    7009000,
+    7011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    9000000,
+    9001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    9009000,
+    9011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    10000000,
+    10001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    10009000,
+    10011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    11000000,
+    11001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    11009000,
+    11011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    13000000,
+    13001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    13009000,
+    13011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    15000000,
+    15001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    15009000,
+    15011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    17000000,
+    17001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    17009000,
+    17011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    19000000,
+    19001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    19009000,
+    19011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    20000000,
+    20001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    20009000,
+    20011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    21000000,
+    21001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    21009000,
+    21011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    23000000,
+    23001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    23009000,
+    23011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    25000000,
+    25001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    25009000,
+    25011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    27000000,
+    27001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    27009000,
+    27011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    29000000,
+    29001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    29009000,
+    29011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    30000000,
+    30001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    30009000,
+    30011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    31000000,
+    31001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    31009000,
+    31011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    33000000,
+    33001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    33009000,
+    33011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    35000000,
+    35001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    35009000,
+    35011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    37000000,
+    37001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    37009000,
+    37011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    39000000,
+    39001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    39009000,
+    39011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    40000000,
+    40001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    40009000,
+    40011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    41000000,
+    41001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    41009000,
+    41011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    43000000,
+    43001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    43009000,
+    43011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    43990000,
+    43991000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    43999000,
+    44001000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    44000000,
+    44001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    44009000,
+    44011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    45000000,
+    45001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    45009000,
+    45011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    46000000,
+    46001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    46009000,
+    46011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    47000000,
+    47001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    47009000,
+    47011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    49839000,
+    49840000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    49857000,
+    49858000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "hyperevm",
+   "range": [
+    50405000,
+    50406000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    105236000,
+    105237000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    105245000,
+    105247000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    106000000,
+    106001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    106009000,
+    106011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    106963000,
+    106964000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    106972000,
+    106974000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    107484000,
+    107485000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    107493000,
+    107495000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    108000000,
+    108001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    108009000,
+    108011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    109990000,
+    109991000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    109999000,
+    110001000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    110000000,
+    110001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    110009000,
+    110011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    112000000,
+    112001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    112009000,
+    112011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    114000000,
+    114001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    114009000,
+    114011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    115000000,
+    115001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    115009000,
+    115011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    116000000,
+    116001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    116009000,
+    116011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    118000000,
+    118001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    118009000,
+    118011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    120000000,
+    120001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    120009000,
+    120011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    122000000,
+    122001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    122009000,
+    122011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    124000000,
+    124001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    124009000,
+    124011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    125000000,
+    125001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    125009000,
+    125011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    126000000,
+    126001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    126009000,
+    126011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    128000000,
+    128001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    128009000,
+    128011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    130000000,
+    130001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    130009000,
+    130011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    132000000,
+    132001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    132009000,
+    132011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    134000000,
+    134001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    134009000,
+    134011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    135000000,
+    135001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    135009000,
+    135011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    136000000,
+    136001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    136009000,
+    136011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    138000000,
+    138001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    138009000,
+    138011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    140000000,
+    140001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    140009000,
+    140011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    142000000,
+    142001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    142009000,
+    142011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    144000000,
+    144001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    144009000,
+    144011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    145000000,
+    145001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    145009000,
+    145011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    146000000,
+    146001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    146009000,
+    146011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    148000000,
+    148001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    148009000,
+    148011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    150000000,
+    150001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    150009000,
+    150011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    152000000,
+    152001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    152009000,
+    152011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    154000000,
+    154001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    154009000,
+    154011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    155000000,
+    155001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    155009000,
+    155011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    156000000,
+    156001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    156009000,
+    156011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    156285000,
+    156286000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    156294000,
+    156296000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    158847000,
+    158848000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "optimism",
+   "range": [
+    159117000,
+    159118000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    1500000,
+    1501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    1509000,
+    1511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    3196000,
+    3197000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    3205000,
+    3207000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    4500000,
+    4501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    4509000,
+    4511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    7500000,
+    7501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    7509000,
+    7511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    10000000,
+    10001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    10009000,
+    10011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    10500000,
+    10501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    10509000,
+    10511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    13500000,
+    13501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    13509000,
+    13511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    14684000,
+    14685000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    14693000,
+    14695000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    16500000,
+    16501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    16509000,
+    16511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    16534000,
+    16535000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    16543000,
+    16545000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    19500000,
+    19501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    19509000,
+    19511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    19516000,
+    19517000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    19525000,
+    19527000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    20000000,
+    20001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    20009000,
+    20011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    20015000,
+    20016000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    20024000,
+    20026000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    22500000,
+    22501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    22509000,
+    22511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    22556000,
+    22557000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    22565000,
+    22567000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    25500000,
+    25501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    25509000,
+    25511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    25526000,
+    25527000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    25535000,
+    25537000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    27516000,
+    27517000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    27525000,
+    27527000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    28500000,
+    28501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    28509000,
+    28511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    30000000,
+    30001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    30009000,
+    30011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    31500000,
+    31501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    31509000,
+    31511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    34500000,
+    34501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    34509000,
+    34511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    37500000,
+    37501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    37509000,
+    37511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    37564000,
+    37565000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    37573000,
+    37575000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    40000000,
+    40001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    40009000,
+    40011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    40500000,
+    40501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    40509000,
+    40511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    43500000,
+    43501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    43509000,
+    43511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    46500000,
+    46501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    46509000,
+    46511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    49500000,
+    49501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    49509000,
+    49511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    50000000,
+    50001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    50009000,
+    50011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    52500000,
+    52501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    52509000,
+    52511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    54876000,
+    54877000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    54885000,
+    54887000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    54889000,
+    54890000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    54898000,
+    54900000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55412000,
+    55413000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55418000,
+    55419000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55425000,
+    55426000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55460000,
+    55461000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55500000,
+    55501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55509000,
+    55511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55741000,
+    55742000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55781000,
+    55782000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    55806000,
+    55807000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    56042000,
+    56043000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    56121000,
+    56122000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    56243000,
+    56244000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    57841000,
+    57842000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58254000,
+    58255000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58500000,
+    58501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58509000,
+    58511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58697000,
+    58698000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    58737000,
+    58738000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59081000,
+    59082000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59202000,
+    59203000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59205000,
+    59206000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59207000,
+    59208000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59458000,
+    59459000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    59504000,
+    59505000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    60000000,
+    60001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    60009000,
+    60011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    60311000,
+    60312000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    60525000,
+    60526000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    60810000,
+    60811000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    61331000,
+    61332000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    61500000,
+    61501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    61509000,
+    61511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    64256000,
+    64257000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    64258000,
+    64259000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    64500000,
+    64501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    64509000,
+    64511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    64534000,
+    64535000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65000000,
+    65001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65009000,
+    65011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65380000,
+    65381000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65387000,
+    65388000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65430000,
+    65431000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65444000,
+    65445000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65451000,
+    65452000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65701000,
+    65702000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65703000,
+    65704000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65705000,
+    65706000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    65764000,
+    65765000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67422000,
+    67423000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67485000,
+    67486000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67500000,
+    67501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67509000,
+    67511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67525000,
+    67526000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67526000,
+    67527000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67527000,
+    67528000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67542000,
+    67543000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67543000,
+    67544000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67545000,
+    67546000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67546000,
+    67547000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67562000,
+    67563000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67563000,
+    67564000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67582000,
+    67583000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    67583000,
+    67584000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    69737000,
+    69738000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    69746000,
+    69748000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70000000,
+    70001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70009000,
+    70011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70121000,
+    70122000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70123000,
+    70124000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70500000,
+    70501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    70509000,
+    70511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    71461000,
+    71462000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73400000,
+    73401000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73409000,
+    73411000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73430000,
+    73431000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73439000,
+    73441000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73440000,
+    73441000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73500000,
+    73501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    73509000,
+    73511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    76500000,
+    76501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    76509000,
+    76511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    79500000,
+    79501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    79509000,
+    79511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    80000000,
+    80001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    80009000,
+    80011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    82500000,
+    82501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    82509000,
+    82511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    85500000,
+    85501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    85509000,
+    85511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    88500000,
+    88501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    88509000,
+    88511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    90000000,
+    90001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    90009000,
+    90011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    91500000,
+    91501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    91509000,
+    91511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    94500000,
+    94501000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    94509000,
+    94511000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    95573000,
+    95574000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96379000,
+    96380000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96380000,
+    96381000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96381000,
+    96382000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96390000,
+    96392000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96393000,
+    96394000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "polygon",
+   "range": [
+    96753000,
+    96754000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    0,
+    1000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    9000,
+    11000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    734000,
+    735000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    743000,
+    745000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    1250000,
+    1251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    1259000,
+    1261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    3750000,
+    3751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    3759000,
+    3761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    5000000,
+    5001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    5009000,
+    5011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    6250000,
+    6251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    6259000,
+    6261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    8750000,
+    8751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    8759000,
+    8761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    10000000,
+    10001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    10009000,
+    10011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    11250000,
+    11251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    11259000,
+    11261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    13750000,
+    13751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    13759000,
+    13761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    16250000,
+    16251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    16259000,
+    16261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    18750000,
+    18751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    18759000,
+    18761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    20000000,
+    20001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    20009000,
+    20011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    21250000,
+    21251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    21259000,
+    21261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    23750000,
+    23751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    23759000,
+    23761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    26250000,
+    26251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    26259000,
+    26261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    28750000,
+    28751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    28759000,
+    28761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    30000000,
+    30001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    30009000,
+    30011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    31250000,
+    31251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    31259000,
+    31261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    33750000,
+    33751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    33759000,
+    33761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    36250000,
+    36251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    36259000,
+    36261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    38750000,
+    38751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    38759000,
+    38761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    40000000,
+    40001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    40009000,
+    40011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    41250000,
+    41251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    41259000,
+    41261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    43750000,
+    43751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    43759000,
+    43761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    46250000,
+    46251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    46259000,
+    46261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    48750000,
+    48751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    48759000,
+    48761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    50000000,
+    50001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    50009000,
+    50011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    51250000,
+    51251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    51259000,
+    51261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    53750000,
+    53751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    53759000,
+    53761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    56250000,
+    56251000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    56259000,
+    56261000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    58750000,
+    58751000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    58759000,
+    58761000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    60000000,
+    60001000
+   ],
+   "kind": "sample",
+   "note": "first segment of a 2026-10-29 matrix window: an era sample, or the chain's first segment"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    60009000,
+    60011000
+   ],
+   "kind": "event",
+   "note": "the segment before and at the event of a 2026-10-29 matrix window, inferred at its start + 10,000"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    62539000,
+    62540000
+   ],
+   "kind": "segment",
+   "note": "1000-block segment of the 2026-10-29 matrix (Polygon defect blocks, Napoli, producer transition, earlier final segments)"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    62548000,
+    62549000
+   ],
+   "kind": "head",
+   "note": "last segment of the 2026-10-29 catch-up run, below that day's head"
+  },
+  {
+   "chain": "unichain",
+   "range": [
+    63087000,
+    63088000
+   ],
+   "kind": "head",
+   "note": "final complete segment below the 2026-11-04 head (ERC-20 v0.7.5)"
+  }
+ ]
+}
