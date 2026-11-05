@@ -11,7 +11,9 @@
 //!    the frame's persisted writes whose key has a verified same-frame Keccak
 //!    preimage of the holder's key under a base: Solidity's
 //!    `pad(holder) || slot` or, since v0.7.4 (owner, 2026-10-17), Vyper's
-//!    `slot || pad(holder)` with a slot below 2^64 (see [`Base`]). Equal is an
+//!    `slot || pad(holder)` with a slot below 2^64, or, since v0.7.6 (owner,
+//!    2026-11-05), Solady's `holder || 0^8 || seed`, a 32-byte preimage (see
+//!    [`Base`]). Equal is an
 //!    exact vote for the base, unequal a mismatch; the two key orders are
 //!    different bases. Exact votes for flows below 10^6 do not count for a
 //!    base that also mismatches. `Deposit`/`Withdrawal`/`Mint`/`Burn` and
@@ -24,7 +26,10 @@
 //!    the holder with the 2,300 gas of a `transfer`, each writing one word of
 //!    the contract, and a TetherToken `destroyBlackFunds(holder)` that makes
 //!    no call, zeroes the holder's word and moves one unhashed word (the
-//!    supply) by the same amount.
+//!    supply) by the same amount. Since v0.7.6 a DSToken `mint`/`burn` frame
+//!    (MKR) votes too, when its only calls are DSAuth `canCall` lookups and
+//!    the holder's word and the supply move by the amount its input names
+//!    (see [`dstoken`]).
 //! 3. The base is the mapping every keyed `balanceOf` reads, if it has exact
 //!    votes, or else the base with the most exact votes; a tie chooses none.
 //!    A traced `balanceOf` is keyed when its storage context recorded the
@@ -64,8 +69,9 @@
 //!    excluded the contract, and since v0.7.5 only that holder gets no row.
 //! 5. When other holder mappings mismatch the event flows at least as often as
 //!    the chosen one matches them, only holders with their own keyed
-//!    `balanceOf` keep rows. With two or more exact votes and no other mapping
-//!    matching, only mismatches of at least a thousandth of the flow count.
+//!    `balanceOf` keep rows. With two or more exact votes, or since v0.7.6 one
+//!    whose flow is not dust, and no other mapping matching, only mismatches
+//!    of at least a thousandth of the flow count.
 //! 6. Candidate holders written under the base get their last persisted word,
 //!    unless that write is unexplained. A write is explained when its frame has
 //!    a `Transfer`/`Deposit`/`Withdrawal`/`Mint`/`Burn` naming the holder, or a
@@ -166,6 +172,14 @@ const WITHDRAWAL: Word = topic("7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf
 /// WETH9 `deposit()` and `withdraw(uint256)`.
 const DEPOSIT_CALL: [u8; 4] = [0xd0, 0xe3, 0x0d, 0xb0];
 const WITHDRAW_CALL: [u8; 4] = [0x2e, 0x1a, 0x7d, 0x4d];
+/// DSToken `mint(address,uint256)`, `mint(uint256)`, `burn(address,uint256)`
+/// and `burn(uint256)`.
+const MINT_TO: [u8; 4] = [0x40, 0xc1, 0x0f, 0x19];
+const MINT_OWN: [u8; 4] = [0xa0, 0x71, 0x2d, 0x68];
+const BURN_FROM: [u8; 4] = [0x9d, 0xc2, 0x9f, 0xac];
+const BURN_OWN: [u8; 4] = [0x42, 0x96, 0x6c, 0x68];
+/// DSAuth's authority lookup, `canCall(address,address,bytes4)`.
+const CAN_CALL: [u8; 4] = [0xb7, 0x00, 0x96, 0x13];
 /// The gas a Solidity `transfer` forwards with a value: WETH9's payout.
 const STIPEND: u64 = 2300;
 /// WETH `Deposit`/`Withdrawal` and the `Mint`/`Burn(address indexed, uint256)`
@@ -502,15 +516,25 @@ fn preimage(call: &eth::Call, key: &Word) -> Option<(Addr, Word)> {
 /// 0.1 to 0.5, legacy and venom code generation alike, and the tracer records
 /// that 64-byte preimage; since v0.7.4 (owner, 2026-10-17) both orders are
 /// read. The two orders are different bases: they never share votes or
-/// reads.
+/// reads. Since v0.7.6 (owner, 2026-11-05) Solady's ERC-20 is read too: it
+/// keys a holder's word at `keccak(holder || 0^8 || seed)`, a 32-byte preimage
+/// with a 4-byte seed (`0x87a211a2` for balances), a third order whose `slot`
+/// holds the seed in its last four bytes.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct Base {
     slot: Word,
     vyper: bool,
+    solady: bool,
 }
 impl Base {
     /// The storage key of `holder`'s word.
     fn key(&self, holder: &Addr) -> Word {
+        if self.solady {
+            let mut preimage = [0; 32];
+            preimage[..20].copy_from_slice(holder);
+            preimage[28..].copy_from_slice(&self.slot[28..]);
+            return hash(&preimage);
+        }
         let mut preimage = [0; 64];
         if self.vyper {
             preimage[..32].copy_from_slice(&self.slot);
@@ -533,12 +557,33 @@ impl Base {
 fn readings(b: &[u8; 64]) -> [Option<(Addr, Base)>; 2] {
     let at = |holder: &[u8], slot: &[u8], vyper| {
         let slot = slot.try_into().unwrap();
-        (holder.try_into().unwrap(), Base { slot, vyper })
+        (holder.try_into().unwrap(), Base { slot, vyper, solady: false })
     };
     [
         (b[..12] == [0; 12]).then(|| at(&b[12..32], &b[32..], false)),
         (b[..24] == [0; 24] && b[32..44] == [0; 12]).then(|| at(&b[44..], &b[..32], true)),
     ]
+}
+/// The verified 32-byte preimage of `key` recorded in `call`.
+fn preimage32(call: &eth::Call, key: &Word) -> Option<[u8; 32]> {
+    let value = call.keccak_preimages.get(&hex::encode(key)).filter(|v| v.len() == 64)?;
+    let bytes: [u8; 32] = hex::decode(value).ok()?.try_into().ok()?;
+    (hash(&bytes) == *key).then_some(bytes)
+}
+/// Solady's reading of a 32-byte preimage as a holder's key: `holder || 0^8
+/// || seed`, with a nonzero holder and a nonzero seed.
+fn reading32(b: &[u8; 32]) -> Option<(Addr, Base)> {
+    let holder: Addr = b[..20].try_into().unwrap();
+    let mut slot = [0; 32];
+    slot[28..].copy_from_slice(&b[28..]);
+    (holder != ZERO && b[20..28] == [0; 8] && slot != [0; 32]).then_some((
+        holder,
+        Base {
+            slot,
+            vyper: false,
+            solady: true,
+        },
+    ))
 }
 
 struct Write {
@@ -767,7 +812,8 @@ fn backed<'a>(block: &'a eth::Block, framed: &Framed, flows: &mut Flows<'a>) {
                 n
             });
             let children = children.get(&call.index).map(Vec::as_slice).unwrap_or_default();
-            if let Some((holder, amount)) = destruction(call, log, keys, children).or_else(|| wrapped(call, log, keys, children)) {
+            let shapes = || wrapped(call, log, keys, children).or_else(|| dstoken(call, log, keys, children));
+            if let Some((holder, amount)) = destruction(call, log, keys, children).or_else(shapes) {
                 flows.insert((frame, token), (call, BTreeMap::from([(holder, amount)])));
             }
         }
@@ -796,6 +842,65 @@ fn destruction(call: &eth::Call, log: &eth::Log, keys: &BTreeMap<Word, (Net, Wor
     };
     let mut owners = keys.keys().filter_map(|key| preimage(call, key)).map(|(h, _)| h);
     (keys.iter().all(backs) && owners.next() == Some(holder) && owners.next().is_none()).then_some((holder, amount))
+}
+/// DSToken's `mint(guy, wad)` and `burn(guy, wad)`, and `mint(wad)`/
+/// `burn(wad)` of the caller (MKR; since v0.7.6, owner, 2026-11-05): a frame
+/// whose only calls are DSAuth's `canCall(src, dst, sig)` lookups of its
+/// authority (CALL or STATICCALL, no value, not failed), whose log is `Mint(guy, wad)` or `Burn(guy, wad)`
+/// with a nonzero wad that its input names, and whose persisted writes of the
+/// contract are guy's word, with the same-frame preimage `pad(guy) || base`,
+/// moving by exactly wad, one word without a 64-byte preimage (the total
+/// supply) moving by wad the same way, and for a burn by another caller at
+/// most an allowance word, `allowance[guy][caller]`, whose preimage is
+/// `pad(caller) || keccak(pad(guy) || slot)`. It votes the credit or debit.
+/// MKR's conversion to SKY burns MKR this way without a `Transfer`.
+fn dstoken(call: &eth::Call, log: &eth::Log, keys: &BTreeMap<Word, (Net, Word)>, children: &[&eth::Call]) -> Option<(Addr, Net)> {
+    let [t0, t1] = log.topics.as_slice() else {
+        return None;
+    };
+    let (mint, burn) = (t0[..] == CREDITS_DEBITS[2], t0[..] == CREDITS_DEBITS[3]);
+    let authority =
+        |c: &&eth::Call| (c.call_type == CALL || c.call_type == STATIC) && value(c) == Some([0; 32]) && c.input.starts_with(&CAN_CALL) && !c.status_failed;
+    if !(mint || burn) || !children.iter().all(authority) || !(2..=3).contains(&keys.len()) {
+        return None;
+    }
+    let guy = topic_address(t1).filter(|h| *h != ZERO)?;
+    let wad = Word::try_from(log.data.as_slice()).ok().filter(|w| *w != [0; 32])?;
+    let caller: Addr = call.caller.as_slice().try_into().ok()?;
+    let input = &call.input;
+    let named = |selector: [u8; 4]| input.len() >= 68 && input[..4] == selector && input[4..16] == [0; 12] && input[16..36] == guy && input[36..68] == wad;
+    let own = |selector: [u8; 4]| input.len() >= 36 && input[..4] == selector && input[4..36] == wad && caller == guy;
+    let shaped = if mint {
+        named(MINT_TO) || own(MINT_OWN)
+    } else {
+        named(BURN_FROM) || own(BURN_OWN)
+    };
+    if !shaped {
+        return None;
+    }
+    let mut amount = Net::default();
+    if mint {
+        amount.add(&wad);
+    } else {
+        amount.sub(&wad);
+    }
+    let (mut word, mut supply, mut allowance) = (0, 0, 0);
+    for (key, (delta, _)) in keys {
+        match (preimage(call, key), preimage64(call, key)) {
+            (Some((h, _)), _) if h == guy && *delta == amount => word += 1,
+            (_, Some(pre)) if burn && caller != guy && pre[..12] == [0; 12] && pre[12..32] == caller => {
+                let inner: Word = pre[32..].try_into().unwrap();
+                if preimage(call, &inner).is_some_and(|(h, _)| h == guy) {
+                    allowance += 1;
+                } else {
+                    return None;
+                }
+            }
+            (None, None) if *delta == amount => supply += 1,
+            _ => return None,
+        }
+    }
+    (word == 1 && supply == 1 && allowance <= 1).then_some((guy, amount))
 }
 /// A WETH9 deposit or withdrawal frame, called by its holder, whose log is
 /// `Deposit(holder, wad)` or `Withdrawal(holder, wad)` with a nonzero wad, and
@@ -874,7 +979,11 @@ fn votes(flows: &Flows, framed: &Framed) -> BTreeMap<Addr, BTreeMap<Base, Tally>
                         deltas.entry(r).or_default().merge(d);
                     }
                 }
-                None => {}
+                None => {
+                    if let Some(r) = preimage32(call, k).as_ref().and_then(reading32) {
+                        deltas.entry(r).or_default().merge(d);
+                    }
+                }
             }
         }
         // Under the order that the frame's other keys of slot x use, and
@@ -984,7 +1093,28 @@ impl Read {
             // Match the hex text of `pad(holder)` on either side before
             // decoding and hashing.
             let v = value.as_bytes();
-            if self.keys.len() == 2 || v.len() != 128 {
+            if self.keys.len() == 2 {
+                continue;
+            }
+            // Solady's `holder || 0^8 || seed` (since v0.7.6).
+            if v.len() == 64 && v[..40].eq_ignore_ascii_case(holder.as_bytes()) && zeros(&v[40..56]) {
+                let (Ok(bytes), Ok(key)) = (hex::decode(v), hex::decode(key)) else {
+                    continue;
+                };
+                let (Ok(bytes), Ok(key)) = (<[u8; 32]>::try_from(bytes), Word::try_from(key)) else {
+                    continue;
+                };
+                if let Some((_, base)) = reading32(&bytes).filter(|_| hash(&bytes) == key) {
+                    if !self.keys.contains(&key) {
+                        self.keys.push(key);
+                    }
+                    if !self.bases.contains(&base) {
+                        self.bases.push(base);
+                    }
+                }
+                continue;
+            }
+            if v.len() != 128 {
                 continue;
             }
             let solidity = zeros(&v[..24]) && v[24..64].eq_ignore_ascii_case(holder.as_bytes());
@@ -1297,7 +1427,11 @@ fn decide(
     // counter-sized mismatches are ignored.
     let exact = tallies[&base].exact;
     let others = || tallies.iter().filter(|(b, t)| **b != base && !t.nested).map(|(_, t)| t);
-    let large_only = exact >= 2 && others().all(|t| t.exact == 0);
+    // Since v0.7.6 (owner, 2026-11-05) one exact vote suffices when its flow
+    // is not dust: HEX's `stakeStart` burns with a `Transfer` and bumps the
+    // holder's stake-list length, a counter, in the same frame.
+    let single = exact == 1 && tallies[&base].dust == 0;
+    let large_only = (exact >= 2 || single) && others().all(|t| t.exact == 0);
     let shadow: u32 = others().map(|t| if large_only { t.large } else { t.mismatch }).sum();
     // Then a pure `balanceOf` vouches only for its own holder's code path.
     let shadowed = shadow >= exact;
