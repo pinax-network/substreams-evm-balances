@@ -463,7 +463,8 @@ recent blocks:
 | pUSD (Polygon), AERO (Base) and other Solady tokens | Solady keys balances at `keccak(holder \|\| 0^8 \|\| seed)`, a 32-byte preimage | inferred |
 | MKR | its conversion to SKY burns with `Burn` and no `Transfer`, so a block of burns alone had no vote | the burn votes |
 | HEX | `stakeStart` bumps a stake-list length beside its burn, which shadowed a single exact vote | inferred |
-| sUSDe, WUSD | a cooldown struct or deposit total beside the balance ties or shadows it in blocks of one holder's activity | unchanged |
+| sUSDe | a packed cooldown struct beside the balance shadowed it in blocks of one holder's cooldown; 17,173 of 69,226 rows were stale on 2026-11-05 | inferred |
+| WUSD | a deposit total and a checkpoint struct beside the balance tie or shadow it in blocks of one holder's mint or burn | unchanged |
 | SOS | balances stored shifted left by 8 bits | unchanged |
 | FUN | balances kept in another contract | unchanged |
 

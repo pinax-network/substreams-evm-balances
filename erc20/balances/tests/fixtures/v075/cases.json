@@ -1,7 +1,7 @@
 {
  "source": "Raw sf.ethereum.type.v2.Block captures (DETAILLEVEL_EXTENDED) from a Pinax Firehose endpoint, one block per request, fetched on 2026-11-04 for the v0.7.5 investigation of the stale holders that the 2026-11-03 chain check found (docs/quality-erc20.md).",
  "extraction": "Cut at the protobuf wire level by a scratch script kept outside the repository: the listed transaction_traces (Block field 10) keep their exact bytes, as does every other top-level field (header, hash, number, system calls and block-level records), in the original order. No field edits. A case whose kept_transactions are all of the block's is the source block itself.",
- "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.5 gives it; added_since_v074 lists the rows v0.7.4 does not emit on the fixture (it emits every other row identically). Each row equals the row v0.7.5 gives for the same pair on the full source block, except the pairs in differs_on_full_block (with the full block's value), which a transaction the fixture omits moves later in the block.",
+ "rows": "Every row map_events emits for the fixture, by contract and holder, as v0.7.5 gives it, except where added_since_v075 lists the rows v0.7.6 adds (fixtures/v076/cases.json, rule U); added_since_v074 lists the rows v0.7.4 does not emit on the fixture (it emits every other row identically). Each row equals the row v0.7.5 gives for the same pair on the full source block, except the pairs in differs_on_full_block (with the full block's value), which a transaction the fixture omits moves later in the block.",
  "chain_values": "Read-only, 2026-11-04: balanceOf(holder) of the contract at the block from the Pinax archive RPC (eth_call), for every fixture row that equals the full block's. Each equals the row.",
  "rules": {
   "R1": "since v0.7.5, a holder whose word is at or above 2^128, whose delta under the base is rescaled, or whose balanceOf returns the stored word with its bits from some k >= 64 up cleared gets no row; the contract keeps the others (v0.7.4 dropped it for the block), and rescaled holders' large mismatches do not count against the base",
@@ -73,6 +73,9 @@
    "rule": "R1",
    "demonstrates": "AaveTokenV3 packs delegation state above a 104-bit balance: stkAAVE's word is at or above 2^128. v0.7.4 dropped AAVE for the block; v0.7.5 leaves only stkAAVE without a row",
    "rows": {
+    "0x4da27a545c0c5b758a6ba100e3a049001de870f5": {
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "0"
+    },
     "0x6b175474e89094c44da98b954eedeac495271d0f": {
      "0x000000000004444c5dc75cb358380d2e3de08a90": "342971740243946836132289",
      "0x00acd5005200e7009beb000000e35e1e002b5565": "2013718510200",
@@ -120,6 +123,14 @@
      "0x4674abc5796e1334b5075326b39b748bee9eaa34": "40645406824998765382",
      "0x60594a405d53811d3bc4766596efd80fd545a270": "231752316209176958140",
      "0xba12222222228d8ba445958a75a0704d566bf2c8": "1160081119121834994309"
+    },
+    "0x4da27a545c0c5b758a6ba100e3a049001de870f5": {
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "0"
+    }
+   },
+   "added_since_v075": {
+    "0x4da27a545c0c5b758a6ba100e3a049001de870f5": {
+     "0xbfb3c2cf90b17cabf40e73384e1fea5d64d83644": "0"
     }
    }
   },
