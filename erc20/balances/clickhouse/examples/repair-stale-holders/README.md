@@ -44,9 +44,11 @@ For each token, in a directory of its own:
 5. **Apply** with admin credentials, one step at a time:
    `CHAIN=<chain> CH_URL=... CH_USER=... CH_PASSWORD=... ../apply.sh create|check|rows|verify|drop`.
    `VERSION` (default `v0.7.4`) names the database. A pair the live sink
-   wrote after H keeps that newer row. No history bar is deleted: a stale
-   pair has no row in H's windows, so the materialized view only adds the
-   corrected bars there.
+   wrote after H keeps that newer row. No history bar is deleted: the
+   materialized view merges the row at H into H's windows, so each bar there
+   closes at the corrected balance, or at a later row in the same window. A
+   pair that also had an earlier row in the window keeps the stale value in
+   that bar's open, high and low.
 
 ## Dry run (2026-11-05, read-only)
 
@@ -66,3 +68,27 @@ the v0.7.6 resync fills them. After the repair, AAVE's delegating holders
 and stkAAVE, and USDG's packed accounts, go stale again when they next move,
 because their words pack other fields (see the
 [limits](../../../README.md#limits)).
+
+## Applied (2026-11-05)
+
+The owner applied it on cluster C after the live sinks moved to v0.7.6
+([k8s-token-api-services#66](https://github.com/pinax-network/k8s-token-api-services/pull/66)),
+at H = Ethereum block 26,349,671 and Arbitrum One block 521,522,477 (both
+2026-11-05 15:57 UTC). Record:
+[`stale-holder-repair-2026-11-05.json`](../../../docs/evidence/stale-holder-repair-2026-11-05.json).
+
+| Token | Rows read at H | Stale | Database minus chain |
+| --- | ---: | ---: | ---: |
+| HEX (`0x2b591e99…`) | 9,406,789 | 29,384 | +19.08 billion HEX |
+| sUSDe (`0x9d39a5de…`) | 69,233 | 17,175 | +2.46 billion sUSDe |
+| AAVE (`0x7fc66500…`) | 785,324 | 16,060 | +2.60 M AAVE |
+| MKR (`0x9f8f72aa…`) | 400,153 | 4,445 | +289,441 MKR |
+| stkAAVE (`0x4da27a54…`) | 12,680 | 3,113 | +2.55 M stkAAVE |
+| USDG (`0x004b5068…`, Arbitrum One) | 2,538 | 51 | +3.69 M USDG |
+
+Afterwards, on both replicas, every one of the 70,228 corrected pairs held
+its corrected row at H, or a newer row the live sink wrote after H (21
+pairs, each equal to `balanceOf` at its block). At the cursors about three
+hours later, 300 sampled Ethereum pairs (60 per token) all matched the chain,
+and 48 of the 51 USDG pairs did. The other 3 moved after H and are stale
+again, because v0.7.6 writes no row for USDG's packed accounts.

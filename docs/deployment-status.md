@@ -563,6 +563,25 @@ The Arbitrum One backfill in cluster C finished its last range on
 ranges; the last range, [470,000,000, 515,680,000), never ran. Cluster A's
 backfill replaces it.
 
+### ERC-20 live sinks on v0.7.6 and the stale-holder repair (2026-11-05)
+
+[k8s-token-api-services#66](https://github.com/pinax-network/k8s-token-api-services/pull/66)
+moved the eight ERC-20 live sinks to `evm_balances_erc20` v0.7.6
+(`db_out` `df15a74d`) on 2026-11-05. They continue the `@v0.7.4`
+databases, since v0.7.5 and v0.7.6 only add rows to v0.7.4's. The last
+v0.7.4 cursor blocks were Ethereum 26,349,642, BSC 131,843,884, Base
+53,552,274, Arbitrum One 521,521,127, Optimism 159,147,558, Polygon
+96,792,291, Unichain 63,145,534 and HyperEVM 50,464,284.
+
+Rows that v0.7.4 left stale stay stale until the holder moves. The
+[stale-holder repair](../erc20/balances/clickhouse/examples/repair-stale-holders/)
+then corrected 70,177 rows of HEX, sUSDe, AAVE, MKR and stkAAVE on Ethereum
+and 51 USDG rows on Arbitrum One. Each corrected row is at a block just
+after the switch. Every corrected pair afterwards held its corrected row or
+a newer, correct live row, on both replicas
+([ERC-20 quality](quality-erc20.md#contract-blocks-dropped-by-the-inference), record
+[`stale-holder-repair-2026-11-05.json`](../erc20/balances/docs/evidence/stale-holder-repair-2026-11-05.json)).
+
 ### Cluster C ERC-20 databases
 
 | | Ethereum | BSC |
