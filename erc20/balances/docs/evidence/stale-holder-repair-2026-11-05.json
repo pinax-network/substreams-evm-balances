@@ -1,0 +1,493 @@
+{
+ "observed_on": "2026-11-05",
+ "scope": "Rows of six ERC-20 tokens left stale by contract-blocks that erc20/balances v0.7.4 dropped or never inferred, corrected at one block H in the cluster C (tokenapis-c) ERC-20 databases, with the live sinks running. Procedure: erc20/balances/clickhouse/examples/repair-stale-holders. Applied by the owner; checked read-only afterwards.",
+ "precondition": {
+  "live_sinks": "Every ERC-20 live sink runs evm_balances_erc20 v0.7.6 (map_events 08a4d0ab0a39b01e9ecc3cf67b393b4ed9f61fe3, db_out df15a74da6e02399bbda66d9cd676ef202b79454) since k8s-token-api-services#66 (merged 2026-11-05), continuing the @v0.7.4 databases. Cursor block of the last v0.7.4 (db_out 0786f2df...) cursor row, per chain:",
+  "last_v074_cursor_block": {
+   "mainnet": 26349642,
+   "bsc": 131843884,
+   "base": 53552274,
+   "arbitrum-one": 521521127,
+   "optimism": 159147558,
+   "polygon": 96792291,
+   "unichain": 63145534,
+   "hyperevm": 50464284
+  },
+  "H_after_switch": true
+ },
+ "method": [
+  "H = the database's cursor block after the switch to v0.7.6.",
+  "Export each token's rows current at or below H (FINAL).",
+  "Read balanceOf for every row at H through the Pinax RPC (repair-pre-start-seed/fetch.py), then compare.py writes one row at H (H's hash and time) for every row that differs.",
+  "Before apply, a random re-read at H: 43 of 43 (mainnet) and 13 of 13 (arbitrum-one) equal.",
+  "apply.sh create, check, rows, verify, drop, run by the owner on 2026-11-05."
+ ],
+ "chains": {
+  "mainnet": {
+   "database": "mainnet:evm-balances-erc20@v0.7.4",
+   "H": 26349671,
+   "H_hash": "0x5c974b7d8b06005ebce02d6e5bf6ad0c9a5dc01651ac9a56ee87fbd6d093827f",
+   "H_utc": "2026-11-05 15:56:59",
+   "corrected_rows": 70177,
+   "tokens": [
+    {
+     "symbol": "HEX",
+     "contract": "0x2b591e99afe9f32eaa6214f7b7629768c40eeb39",
+     "rows_read_at_H": 9406789,
+     "equal_at_H": 9377405,
+     "stale_at_H": 29384,
+     "were_zero": 2491,
+     "now_zero": 16825,
+     "sum_old_raw": "2596716928791365770",
+     "sum_new_raw": "689013181602305339",
+     "database_minus_chain": "19,077,037,471.89 HEX",
+     "pairs_with_a_newer_live_row_after_apply": 3,
+     "cause": "stakeStart bumps a stake-list length beside its burn, which shadowed a single exact vote (fixed in v0.7.6)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0x1a26c00571574894514b58875bb5025013e46846",
+       24673213,
+       "401011490157623062",
+       "22"
+      ],
+      [
+       "0x2d2c2ff3345de305ea06c35c958b0a4fd774abda",
+       10817681,
+       "98013675500000000",
+       "0"
+      ],
+      [
+       "0xf1bd8e36a0e48650bdb28056277b05e851ebbae8",
+       24761542,
+       "100000000",
+       "41589108666547478"
+      ],
+      [
+       "0x0e8a4c510a143afb2cad918c9e365591149feb7c",
+       21654144,
+       "0",
+       "18765987865921341"
+      ],
+      [
+       "0xfc85ee45a3da9c5c94ca59159271f9c0012c350e",
+       11309316,
+       "17933746758748783",
+       "83"
+      ]
+     ]
+    },
+    {
+     "symbol": "sUSDe",
+     "contract": "0x9d39a5de30e57443bff2a8307a4256c8797a3497",
+     "rows_read_at_H": 69233,
+     "equal_at_H": 52058,
+     "stale_at_H": 17175,
+     "were_zero": 0,
+     "now_zero": 16835,
+     "sum_old_raw": "2469485307184522734558780575",
+     "sum_new_raw": "11606676443186865331224690",
+     "database_minus_chain": "2,457,878,630.74 sUSDe",
+     "pairs_with_a_newer_live_row_after_apply": 4,
+     "cause": "a packed cooldown struct beside the balance shadowed it (fixed in v0.7.6)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0x1601843c5e9bc251a3272907010afa41fa18347e",
+       23435018,
+       "145961156309985292954842808",
+       "80912135195743362751"
+      ],
+      [
+       "0xed0c6079229e2d407672a117c22b62064f4a4312",
+       22134549,
+       "119886616011832923302347066",
+       "0"
+      ],
+      [
+       "0x9ffe77146cc1da3edb87af163c6c32bab474b464",
+       25241085,
+       "95442137517944215483114276",
+       "0"
+      ],
+      [
+       "0xb99a2c4c1c4f1fc27150681b740396f6ce1cbcf5",
+       22144842,
+       "78300025226489468680479870",
+       "0"
+      ],
+      [
+       "0x3b3f03015b479b734f41b77dd72851e676d0f406",
+       25595287,
+       "50901454872008000000000000",
+       "0"
+      ]
+     ]
+    },
+    {
+     "symbol": "AAVE",
+     "contract": "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9",
+     "rows_read_at_H": 785324,
+     "equal_at_H": 769264,
+     "stale_at_H": 16060,
+     "were_zero": 1131,
+     "now_zero": 11876,
+     "sum_old_raw": "6626362264959685156278904",
+     "sum_new_raw": "4029810691389643429026571",
+     "database_minus_chain": "2,596,551.57 AAVE",
+     "pairs_with_a_newer_live_row_after_apply": 12,
+     "cause": "AaveTokenV3 packs delegation fields above the 104-bit balance; until v0.7.4 one such holder dropped the token for the block (v0.7.5 excludes only that holder, who still gets no row)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0x317625234562b1526ea2fac4030ea499c5291de4",
+       25058394,
+       "302384334789603807474781",
+       "0"
+      ],
+      [
+       "0x25f2226b597e8f9514b3f68f00f494cf4f286491",
+       19717816,
+       "858789297136797152630707",
+       "559763398661691899636236"
+      ],
+      [
+       "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+       18923325,
+       "2757207108285250111477640",
+       "2475230188141243881499587"
+      ],
+      [
+       "0x3e312eddaaed13db65178a8036a8b715f645a746",
+       23570561,
+       "226110282600238519668989",
+       "4040618646463156914264"
+      ],
+      [
+       "0xd282232463d50d54ccbccf0edc5c7562ae47c1e7",
+       20463631,
+       "160710577594040000000000",
+       "0"
+      ]
+     ]
+    },
+    {
+     "symbol": "MKR",
+     "contract": "0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2",
+     "rows_read_at_H": 400153,
+     "equal_at_H": 395708,
+     "stale_at_H": 4445,
+     "were_zero": 1,
+     "now_zero": 4350,
+     "sum_old_raw": "289480933648346409924265",
+     "sum_new_raw": "39645864534456720402",
+     "database_minus_chain": "289,441.29 MKR",
+     "pairs_with_a_newer_live_row_after_apply": 0,
+     "cause": "burns without a Transfer, during the conversion to SKY (fixed in v0.7.6)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0x2cba76638bf0c7d965fc8f2253a91ead40cb83c8",
+       22532967,
+       "40024958863290294049145",
+       "0"
+      ],
+      [
+       "0x7d6149ad9a573a6e2ca6ebf7d4897c1b766841b4",
+       15752627,
+       "28158526772783799618975",
+       "0"
+      ],
+      [
+       "0x04b688725ed55f60ffc0f63b14ebe9a826a98598",
+       22634731,
+       "24251031347307141457800",
+       "0"
+      ],
+      [
+       "0x0a05d37a686159e9436e6318bc03433f6882a464",
+       22532802,
+       "9021130783571217399800",
+       "0"
+      ],
+      [
+       "0xe7bb6a952c2d4ff12b1f0e464b8ca4bccbb87238",
+       23334095,
+       "8753007242350000000000",
+       "0"
+      ]
+     ]
+    },
+    {
+     "symbol": "stkAAVE",
+     "contract": "0x4da27a545c0c5b758a6ba100e3a049001de870f5",
+     "rows_read_at_H": 12680,
+     "equal_at_H": 9567,
+     "stale_at_H": 3113,
+     "were_zero": 134,
+     "now_zero": 2253,
+     "sum_old_raw": "3209338354471483975398360",
+     "sum_new_raw": "662050380741464570503265",
+     "database_minus_chain": "2,547,287.97 stkAAVE",
+     "pairs_with_a_newer_live_row_after_apply": 1,
+     "cause": "the same AaveTokenV3 packing, and a struct beside the balance (v0.7.6 adds the rows it can read)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0x8cd291a587d7961682d5763cc0a2efd094e8b15d",
+       21423606,
+       "434000000000000000000000",
+       "0"
+      ],
+      [
+       "0xf23c8539069c471f5c12692a3471c9f4e8b88bc2",
+       18684918,
+       "250000000000000000000000",
+       "0"
+      ],
+      [
+       "0x9bec07cb8e702fa848cda6a958453455053a016e",
+       18684938,
+       "250000000000000000000000",
+       "0"
+      ],
+      [
+       "0xdd709cae362972cb3b92dcead77127f7b8d58202",
+       11618970,
+       "208992287253450132506658",
+       "0"
+      ],
+      [
+       "0xe466d6cf6e2c3f3f8345d39633d4a968ec879bd5",
+       18227277,
+       "113617150371495985015000",
+       "0"
+      ]
+     ]
+    }
+   ]
+  },
+  "arbitrum-one": {
+   "database": "arbitrum-one:evm-balances-erc20@v0.7.4",
+   "H": 521522477,
+   "H_hash": "0x06b86c0e667504106b32141473cae1c247004e04a9d3863d3f6f8f07f9938bd6",
+   "H_utc": "2026-11-05 15:57:21",
+   "corrected_rows": 51,
+   "tokens": [
+    {
+     "symbol": "USDG",
+     "contract": "0x004b506865409877c9fa29bfb1eba929984b9bbc",
+     "rows_read_at_H": 2538,
+     "equal_at_H": 2487,
+     "stale_at_H": 51,
+     "were_zero": 1,
+     "now_zero": 37,
+     "sum_old_raw": "15896431687153",
+     "sum_new_raw": "12210404467088",
+     "database_minus_chain": "3,686,027.22 USDG",
+     "pairs_with_a_newer_live_row_after_apply": 1,
+     "cause": "some accounts pack the balance in the low 64 bits; until v0.7.4 one such account dropped the token for the block (v0.7.5 excludes only that account, which still gets no row)",
+     "largest_fields": [
+      "address",
+      "row_block",
+      "old_balance_raw",
+      "new_balance_raw"
+     ],
+     "largest": [
+      [
+       "0xf109f437aa9d819ed28d3b87e0d309dd4c858638",
+       510144875,
+       "9994605981894",
+       "7026893633847"
+      ],
+      [
+       "0x168011dbde73b11f146b6aa3c22f90e8a7f9afe7",
+       519702718,
+       "0",
+       "281062457073"
+      ],
+      [
+       "0x264bd8291fae1d75db2c5f573b07faa6715997b5",
+       521314460,
+       "4021969127082",
+       "3831298901206"
+      ],
+      [
+       "0x496f94fd8daaf5b4fc85e0a8263e7e78639e6fdd",
+       519632151,
+       "189973819801",
+       "0"
+      ],
+      [
+       "0xcc3156381be361d827ca8299c17b607bb02e4915",
+       521132414,
+       "100000000000",
+       "0"
+      ]
+     ]
+    }
+   ]
+  }
+ },
+ "after_apply": {
+  "checked_at_utc": "2026-11-05 19:15 to 19:55",
+  "replicas": "ch-node890h and ch-node891h, identical counts; the staging table fix_stale_2026_11 is gone from both",
+  "current_row_per_corrected_pair": {
+   "fields": [
+    "pairs",
+    "current_row_is_the_corrected_row_at_H",
+    "newer_live_row",
+    "row_at_H_with_another_value",
+    "older_row",
+    "no_row"
+   ],
+   "mainnet": [
+    70177,
+    70157,
+    20,
+    0,
+    0,
+    0
+   ],
+   "arbitrum-one": [
+    51,
+    50,
+    1,
+    0,
+    0,
+    0
+   ]
+  },
+  "newer_live_rows_vs_balanceOf_at_their_block": "21 of 21 equal (8 of them hold the same value as the corrected row)",
+  "sample_at_cursor": {
+   "mainnet": {
+    "cursor": 26350657,
+    "sample": "60 random corrected pairs of each token",
+    "equal": 300,
+    "differ": 0
+   },
+   "arbitrum-one": {
+    "cursor": 521567877,
+    "sample": "all 51 corrected pairs",
+    "equal": 48,
+    "differ": 3,
+    "differ_reason": "each was equal at H and moved afterwards (1, 10 and 4 USDG transfers); v0.7.6 writes no row for USDG's packed accounts, so they are stale again",
+    "differ_pairs": [
+     "0x8c6ffc5501aca218f5f60e140d2c2461092ec3e2",
+     "0x91fe06c6e9f97e7de4580a280e03046155f8e1e3",
+     "0x26745351d7553788f5c2d4d5e93cfd65b643a3ad"
+    ]
+   }
+  },
+  "bars_in_H_windows": {
+   "fields": [
+    "interval_min",
+    "pairs_with_a_bar",
+    "close_is_the_corrected_balance",
+    "max_block_is_H",
+    "a_later_row_in_the_window",
+    "an_earlier_row_in_the_window"
+   ],
+   "mainnet": [
+    [
+     60,
+     70177,
+     70177,
+     70177,
+     0,
+     1
+    ],
+    [
+     240,
+     70177,
+     70177,
+     70177,
+     0,
+     3
+    ],
+    [
+     1440,
+     70177,
+     70165,
+     70157,
+     20,
+     12
+    ],
+    [
+     10080,
+     70177,
+     70165,
+     70157,
+     20,
+     12
+    ]
+   ],
+   "arbitrum-one": [
+    [
+     60,
+     51,
+     51,
+     51,
+     0,
+     1
+    ],
+    [
+     240,
+     51,
+     51,
+     51,
+     0,
+     3
+    ],
+    [
+     1440,
+     51,
+     50,
+     50,
+     1,
+     6
+    ],
+    [
+     10080,
+     51,
+     50,
+     50,
+     1,
+     6
+    ]
+   ],
+   "note": "A bar with a later row closes at that row. A bar with an earlier row in the window keeps the stale value in its open, high and low; only its close is corrected. No bar was deleted."
+  }
+ },
+ "not_covered": [
+  "AAVE's delegating holders and delegatees (stkAAVE among them) and USDG's packed accounts go stale again when they next move: v0.7.6 writes them no row.",
+  "Tokens with no rows at all (Solady tokens such as pUSD and AERO before v0.7.6, the 0xb2 client-native tokens on Base, SOS, FUN): nothing to correct here; the v0.7.6 resync fills the Solady ones.",
+  "WUSD (Base) and other stale holders not in these six tokens, and the other six chains: not read.",
+  "Computed balances (rebasing and share tokens, aTokens) remain outside the package."
+ ]
+}

@@ -473,6 +473,20 @@ delegating holders and delegatees (the stkAAVE contract among them) and
 USDG's packed accounts. WUSD stays dropped in blocks with only one or two
 holders' mints or burns ([limits](../erc20/balances/README.md#limits)).
 
+**Repaired on 2026-11-05.** A new package version does not rewrite rows
+that earlier versions left stale. After the live sinks moved to v0.7.6, the
+[stale-holder repair](../erc20/balances/clickhouse/examples/repair-stale-holders/)
+read every row of six tokens at one block H and corrected the stale ones in
+the cluster C databases: HEX 29,384, sUSDe 17,175, AAVE 16,060, MKR 4,445
+and stkAAVE 3,113 on Ethereum, and USDG 51 on Arbitrum One. The database
+had held 19.08 billion HEX, 2.46 billion sUSDe, 2.60 M AAVE, 289,441 MKR,
+2.55 M stkAAVE and 3.69 M USDG more than the chain for these holders.
+Three hours later, 300 sampled Ethereum pairs still matched the chain.
+Of the 51 USDG pairs, 3 had moved and were stale again: v0.7.6
+still writes no row for USDG's packed accounts or AAVE's delegating holders
+(record
+[`stale-holder-repair-2026-11-05.json`](../erc20/balances/docs/evidence/stale-holder-repair-2026-11-05.json)).
+
 ### Whole tokens missing
 
 OpenDAO SOS (`0x3b484b82567a09e2588a13d54d032153f0c0aee0`, 181,167 holders)
